@@ -1,4 +1,4 @@
-import { BadgeCheck, FileText, Receipt } from "lucide-react";
+import { BadgeCheck, ChevronDown, FileText, Receipt } from "lucide-react";
 import { REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { ITEM_STATE_LABEL, type ItemKind, type ItemState, type TripBookingSummary } from "@/lib/bookingState";
 
@@ -53,15 +53,26 @@ export function BookingStateBadge({ summary, compact = false, estimated = [], by
   );
   if (compact) return badge;
   const tipos = Object.entries(summary.por_tipo) as Array<[ItemKind, ItemState]>;
+  if (!tipos.length) return <div className="flex flex-wrap items-center gap-1.5" aria-label="Estado de reservas del viaje">{badge}</div>;
+  // Una sola insignia a la vista y el estado de cada rubro plegado (R3 viajes P1-3: 4 insignias seguidas
+  // en Resumen eran «demasiado texto» para alguien nuevo).
   return (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label="Estado de reservas del viaje">
-      {badge}
-      {tipos.map(([kind, st]) => (
-        <span key={kind} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${tone(st)}`}>
-          {st === "segun_tu_archivo" && <FileText className="w-3 h-3" aria-hidden="true" />}
-          {kind === "vuelo" && byLand ? "Cómo llegar" : KIND_LABEL[kind]}: {itemLabel(kind, st)}
+    <details className="group" aria-label="Estado de reservas del viaje" data-testid="trip-booking-state-detalle">
+      <summary className="flex min-h-[32px] cursor-pointer list-none flex-wrap items-center gap-2 [&::-webkit-details-marker]:hidden">
+        {badge}
+        <span className="inline-flex items-center gap-0.5 text-[11px] text-primary">
+          <span className="group-open:hidden">Ver por rubro</span><span className="hidden group-open:inline">Ocultar</span>
+          <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" aria-hidden="true" />
         </span>
-      ))}
-    </div>
+      </summary>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {tipos.map(([kind, st]) => (
+          <span key={kind} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${tone(st)}`}>
+            {st === "segun_tu_archivo" && <FileText className="w-3 h-3" aria-hidden="true" />}
+            {kind === "vuelo" && byLand ? "Cómo llegar" : KIND_LABEL[kind]}: {itemLabel(kind, st)}
+          </span>
+        ))}
+      </div>
+    </details>
   );
 }

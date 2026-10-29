@@ -159,7 +159,7 @@ describe("tipo de cambio con fuente y fecha (D-25, D-08)", () => {
     const d = providerUpdatedAt({ time_last_update_utc: "Wed, 21 Oct 2026 00:02:31 +0000" });
     expect(d?.toISOString()).toBe("2026-10-21T00:02:31.000Z");
     expect(providerUpdatedAt({})).toBeNull();
-    expect(converterRateLabel("open.er-api.com", d, false)).toMatch(/^Tipo de cambio de open\.er-api\.com \(actualizado 2\d oct 2026\)$/);
+    expect(converterRateLabel("open.er-api.com", d, false)).toMatch(/^Tipo de cambio de ExchangeRate-API \(actualizado 2\d oct 2026\)$/); // R3 P2-17
     expect(converterRateLabel("open.er-api.com", null, true)).toMatch(/respaldo.*fecha desconocida/);
   });
   const rates = { USD: { rate: 18.5, source: "frankfurter", fetched_at: "2026-10-21T00:00:00Z", is_fallback: false } };

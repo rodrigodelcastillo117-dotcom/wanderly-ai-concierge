@@ -33,7 +33,7 @@ import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 // Viaje corto por tierra (claude/viaje-corto): "Cómo llegar", coche con casetas reales y total real/estimado.
 import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/GroundOptionInfo";
 import { isGroundTripOption } from "@/lib/booking";
-import { partsList, splitTripTotal } from "@/lib/totalSplit";
+import { splitTripTotal } from "@/lib/totalSplit";
 import { broughtFlights, broughtHotelFor, isBroughtTrip } from "@/lib/broughtTrip";
 import { purchaseStepHint } from "@/lib/tripSectionHelp";
 
@@ -246,12 +246,18 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     <section id="trip-comprar" aria-labelledby="trip-comprar-title" className="scroll-mt-28 rounded-2xl border border-primary/25 bg-card/60 p-4 sm:p-6 focus:outline-none" data-testid="trip-comprar">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <h2 id="trip-comprar-title" className="font-display text-2xl sm:text-3xl">Comprar mi viaje</h2>
-        <p className="text-sm text-muted-foreground" data-testid="trip-comprar-progreso">
-          {doneCore} de {core.length} reservado{core.length === 1 ? "" : "s"}
-        </p>
+        {/* Sin nada que reservar aquí (viaje traído: vuelo y hotel ya los tiene) no se dice «0 de 0 reservados»
+            ni «Ya marcaste todo como comprado» si la persona no marcó nada (R3 viajes P2-6, Oaxaca). */}
+        {core.length > 0 && (
+          <p className="text-sm text-muted-foreground" data-testid="trip-comprar-progreso">
+            {doneCore} de {core.length} reservado{core.length === 1 ? "" : "s"}
+          </p>
+        )}
       </div>
       <p className="mt-1 text-sm" data-testid="trip-comprar-falta">
-        {falta.length ? <><span className="text-muted-foreground">Te falta:</span> {falta.join(" · ")}</> : <span className="text-emerald-400">Ya marcaste todo como comprado.</span>}
+        {falta.length ? <><span className="text-muted-foreground">Te falta:</span> {falta.join(" · ")}</>
+          : core.length === 0 ? <span className="text-muted-foreground">{brought ? "Vuelo y hotel ya los tienes: aquí agregas restaurantes y experiencias." : "Nada pendiente por reservar."}</span>
+          : <span className="text-emerald-400">Ya marcaste todo como comprado.</span>}
       </p>
 
       {/* Pasos numerados con palomita en lo hecho; tocar uno lleva a ese paso. */}
@@ -637,35 +643,28 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                   </li>
                 ))}
               </ul>
-              {/* Lo que tiene precio real y lo estimado, separados (la suma es el total de abajo). */}
-              {selectionTotal != null && selectionTotal > 0 && d && (() => {
-                const sp = splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: d, items });
+              {/* Un solo total con su etiqueta y, en una línea, cuánto es en vivo y cuánto estimado (R3 viajes
+                  P1-3: antes «Total con precios reales», «Gastos estimados…» y «Total del viaje con tu selección»
+                  aunque nada estaba elegido). */}
+              {selectionTotal != null && selectionTotal > 0 && (() => {
+                const sp = d ? splitTripTotal({ trip, sel: { selVuelo, selTours }, desglose: d, items }) : null;
+                const chose = selVuelo >= 0 || selHospedaje >= 0 || Object.values(selHoteles ?? {}).some((i) => Number(i) >= 0)
+                  || Array.from(selTours ?? []).length > 0 || items.some((it) => state(it) !== "pendiente");
+                const reparto = sp && sp.estimado > 0
+                  ? sp.real > 0 ? `De eso, ${money(sp.real)} con precio en vivo y ${money(sp.estimado)} estimado.` : "Aún sin precios consultados en vivo: todo es estimado."
+                  : "";
+                const nota = estimadosNote || (reparto ? "" : `Comida, ${transportRubroLabel(trip).toLowerCase()} y extras son estimados del análisis.`);
                 return (
-                  <div className="mt-3 space-y-1 border-t border-border/50 pt-3 text-sm" data-testid="comprar-listo-reparto">
-                    {sp.real > 0 ? (
-                      <p className="flex items-baseline justify-between gap-3" data-testid="comprar-listo-real">
-                        <span>Total con precios reales{sp.realParts.length ? <span className="block text-[11px] text-muted-foreground">{partsList(sp.realParts)}</span> : null}</span>
-                        <span className="tabular-nums">{money(sp.real)}</span>
-                      </p>
-                    ) : (
-                      // Sin ningún precio real no se muestra un "$0 MXN" (caso Bogotá).
-                      <p className="text-muted-foreground" data-testid="comprar-listo-sin-reales">Aún sin precios consultados en vivo: todo es estimado.</p>
-                    )}
-                    {sp.estimado > 0 && (
-                      <p className="flex items-baseline justify-between gap-3 text-muted-foreground" data-testid="comprar-listo-estimado">
-                        <span>Gastos estimados del viaje ({partsList(sp.estParts)})</span>
-                        <span className="tabular-nums">~{money(sp.estimado)}</span>
-                      </p>
-                    )}
-                  </div>
+                  <>
+                    <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
+                      <span className="text-sm text-muted-foreground" data-testid="comprar-listo-total-label">{chose ? "Total del viaje con tu selección" : "Total estimado del viaje"}
+                        {nota && <span className="block text-[11px]" data-testid="comprar-listo-total-nota">{nota}</span>}</span>
+                      <span className="font-display text-2xl tabular-nums">{money(selectionTotal)}</span>
+                    </p>
+                    {reparto && <p className="mt-1 text-[11px] text-muted-foreground" data-testid="comprar-listo-reparto">{reparto}</p>}
+                  </>
                 );
               })()}
-              {selectionTotal != null && selectionTotal > 0 && (
-                <p className="mt-3 flex items-baseline justify-between gap-3 border-t border-border/50 pt-3" data-testid="comprar-listo-total">
-                  <span className="text-sm text-muted-foreground">Total del viaje con tu selección<span className="block text-[11px]" data-testid="comprar-listo-total-nota">{estimadosNote ? `${estimadosNote} ` : ""}Comida, {transportRubroLabel(trip).toLowerCase()} y extras son estimados del análisis.</span></span>
-                  <span className="font-display text-2xl tabular-nums">{money(selectionTotal)}</span>
-                </p>
-              )}
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {sendSelectionSlot}
                 {onViewTrip && (

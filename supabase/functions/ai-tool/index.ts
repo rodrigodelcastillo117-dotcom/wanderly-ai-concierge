@@ -3,12 +3,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
+import { planAiCall, TtlCache, type AiToolRequest } from "./tasks.ts";
 
 /**
  * Tope del lado del servidor para la respuesta de la IA (R2: Comparar se quedaba en «Comparando...» más
- * de 90 s; el cliente corta a los 45 s). Al vencer se responde 504 con code "timeout", no se espera más.
+ * de 90 s). Al vencer se responde 504 con code "timeout", no se espera más. Genérico: AI_TOOL_TIMEOUT_MS
+ * (40 s); las tareas de tasks.ts llevan el suyo (Comparar: 20 s, modelo ligero sin razonamiento).
  */
-export const AI_TOOL_TIMEOUT_MS = 40_000;
+export { AI_TOOL_TIMEOUT_MS } from "./tasks.ts";
+// Misma combinación de destinos → misma respuesta sin volver a llamar a la IA (por instancia).
+const cache = new TtlCache<unknown>();
 const isTimeout = (e: unknown) => ["TimeoutError", "AbortError"].includes((e as Error)?.name ?? "");
 
 const corsHeaders = {
@@ -48,9 +52,8 @@ Deno.serve(async (req) => {
     const __rl = await enforceRateLimit(req, "ai-tool", u.user.id, { perMinute: 10, perHour: 80, ipPerMinute: 30 });
     if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
 
-    const { prompt, system, model = "google/gemini-flash-latest", json = false } = (await req.json()) as {
-      prompt: string; system?: string; model?: string; json?: boolean;
-    };
+    const reqBody = (await req.json()) as AiToolRequest;
+    const { prompt, system, json = false } = reqBody;
     if (!prompt || typeof prompt !== "string") {
       return new Response(JSON.stringify({ error: "prompt requerido" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -62,15 +65,25 @@ Deno.serve(async (req) => {
       ? `${sys}\n\nIMPORTANTE: Responde SOLO con JSON válido sin ningún texto adicional, sin markdown, sin code fences.`
       : sys;
 
+    const plan = planAiCall(reqBody);
+    const hit = plan.cacheKey ? cache.get(plan.cacheKey) : undefined;
+    if (hit !== undefined) {
+      return new Response(JSON.stringify({ ok: true, data: hit, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const r = await aiFetch({
-      signal: AbortSignal.timeout(AI_TOOL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(plan.timeoutMs),
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model,
+        model: plan.model,
+        ...(plan.maxTokens ? { max_tokens: plan.maxTokens } : {}),
+        ...(plan.reasoningEffort ? { reasoning_effort: plan.reasoningEffort } : {}),
         messages: [
           { role: "system", content: sysFinal },
           { role: "user", content: prompt },
@@ -94,6 +107,7 @@ Deno.serve(async (req) => {
       if (m) text = m[1].trim();
       try {
         const parsed = JSON.parse(text);
+        if (plan.cacheKey) cache.set(plan.cacheKey, parsed, plan.cacheTtlMs);
         return new Response(JSON.stringify({ ok: true, data: parsed }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -102,7 +116,9 @@ Deno.serve(async (req) => {
         const m2 = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
         if (m2) {
           try {
-            return new Response(JSON.stringify({ ok: true, data: JSON.parse(m2[1]) }), {
+            const parsed2 = JSON.parse(m2[1]);
+            if (plan.cacheKey) cache.set(plan.cacheKey, parsed2, plan.cacheTtlMs);
+            return new Response(JSON.stringify({ ok: true, data: parsed2 }), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           } catch {}

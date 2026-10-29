@@ -179,8 +179,8 @@ export function TripExperiencias({ trip, cities, multi, marks, userId, onSaved, 
   return (
     <section className="space-y-4" data-testid="experiencias">
       <div>
+        {/* La explicación va en la línea de ayuda de la pestaña (una sola introducción). */}
         <h2 className="font-display text-2xl">Experiencias</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Lo TOP de cada ciudad, con datos reales y su botón de reserva. Las reservas se hacen en el sitio de cada lugar; aquí marcas lo que ya reservaste.</p>
       </div>
       {cities.length > 1 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar" role="tablist" aria-label="Ciudades del viaje">

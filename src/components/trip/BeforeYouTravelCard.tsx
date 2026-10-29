@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, ShieldCheck } from "lucide-react";
 import { SRE_GUIA_URL } from "../../../supabase/functions/_shared/sre.ts";
 import {
-  type AdvisoryFail, type AdvisoryOk, type AdvisoryResult, type AvisoFuente, type PaisResuelto, fechaFuente, fetchAdvisory, severity, tripCountries,
+  type AdvisoryFail, type AdvisoryOk, type AdvisoryResult, type AvisoFuente, type PaisResuelto, fechaFuente, fetchAdvisory, pointForMexican, severity, tripCountries,
 } from "@/lib/travelAdvisory";
 
 /**
@@ -118,14 +118,16 @@ function AdvisoryBody({ data: result }: { data: AdvisoryResult }) {
       </p>
     );
   }
-  const puntos = data.traduccion?.puntos ?? [];
+  const traducidos = data.traduccion?.puntos ?? [];
+  // Sin los requisitos de entrada de otros pasaportes (ruido para un mexicano; la SRE va arriba).
+  const puntos = traducidos.filter((p) => pointForMexican(p.texto));
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-2">
         {data.fuentes.map((f) => <LevelBadge key={f.fuente} f={f} />)}
       </div>
 
-      {puntos.length > 0 ? (
+      {traducidos.length > 0 ? (puntos.length > 0 && (
         <ul className="space-y-1.5" data-testid="avisos-puntos">
           {puntos.slice(0, 4).map((p, i) => (
             <li key={i} className="flex gap-2 text-sm leading-snug text-foreground/90">
@@ -134,7 +136,7 @@ function AdvisoryBody({ data: result }: { data: AdvisoryResult }) {
             </li>
           ))}
         </ul>
-      ) : (
+      )) : (
         <div className="space-y-2" data-testid="avisos-original">
           <p className="text-[11px] text-amber-400">No pudimos traducirlo ahora; este es el texto original en inglés.</p>
           {data.fuentes.map((f) => (

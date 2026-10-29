@@ -39,15 +39,16 @@ const start = () => {
 };
 
 describe("P1-3 · Comparar no se queda colgado", () => {
-  beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); calls.length = 0; mode = "hang"; });
+  beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); calls.length = 0; mode = "hang"; localStorage.clear(); /* R3: Comparar guarda la combinación */ });
   afterEach(() => { vi.useRealTimers(); });
 
-  it("a los 45 s se detiene con aviso y «Reintentar» (y la petición se aborta)", async () => {
-    expect(COMPARE_TIMEOUT_MS).toBe(45_000);
+  // R3 (P1-4): el tope bajó de 45 s a 30 s (el servidor corta a los 20 s con un modelo ligero).
+  it("a los 30 s se detiene con aviso y «Reintentar» (y la petición se aborta)", async () => {
+    expect(COMPARE_TIMEOUT_MS).toBe(30_000);
     start();
     expect(screen.getByRole("button", { name: /Comparando/ })).toBeDisabled();
     await act(async () => { vi.advanceTimersByTime(COMPARE_TIMEOUT_MS + 10); });
-    expect(await screen.findByTestId("comparar-detenida")).toHaveTextContent("tardó más de 45 segundos");
+    expect(await screen.findByTestId("comparar-detenida")).toHaveTextContent("tardó más de 30 segundos");
     expect(calls[0].signal?.aborted).toBe(true);
     expect(screen.getByRole("button", { name: /^Comparar$/ })).toBeEnabled();
     mode = "ok";
@@ -66,13 +67,14 @@ describe("P1-3 · Comparar no se queda colgado", () => {
   it("si el servidor corta (504 timeout), el mismo aviso", async () => {
     mode = "server-timeout";
     start();
-    expect(await screen.findByTestId("comparar-detenida")).toHaveTextContent("tardó más de 45 segundos");
+    expect(await screen.findByTestId("comparar-detenida")).toHaveTextContent("tardó más de 30 segundos");
   });
 });
 
 it("ai-tool tiene tope propio: AbortSignal.timeout y 504 con code timeout", () => {
   const src = readFileSync("supabase/functions/ai-tool/index.ts", "utf8");
-  expect(src).toMatch(/AI_TOOL_TIMEOUT_MS = 40_000/);
-  expect(src).toMatch(/signal: AbortSignal\.timeout\(AI_TOOL_TIMEOUT_MS\)/);
+  // R3: el tope genérico sigue en tasks.ts (40 s) y cada tarea lleva el suyo (Comparar, 20 s).
+  expect(readFileSync("supabase/functions/ai-tool/tasks.ts", "utf8")).toMatch(/AI_TOOL_TIMEOUT_MS = 40_000/);
+  expect(src).toMatch(/signal: AbortSignal\.timeout\(plan\.timeoutMs\)/);
   expect(src).toMatch(/code: "timeout"[\s\S]*status: 504/);
 });

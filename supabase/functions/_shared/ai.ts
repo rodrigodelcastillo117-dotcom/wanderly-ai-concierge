@@ -21,6 +21,7 @@ const GEMINI_FALLBACK_MODEL = "gemini-flash-latest";
 // "gemini-flash-latest", así que al caer a Lovable se traduce a un nombre que sí publica.
 const LOVABLE_MODEL_ALIASES: Record<string, string> = {
   "google/gemini-flash-latest": "google/gemini-2.5-flash",
+  "google/gemini-flash-lite-latest": "google/gemini-2.5-flash-lite",
 };
 
 /** Nombre que acepta el gateway de Lovable para un modelo (traduce los alias; los demás igual). */
@@ -32,8 +33,10 @@ export function lovableModelName(model: string): string {
 function lovableInit(init: RequestInit, body: ChatBody | null): RequestInit {
   const model = typeof body?.model === "string" ? body.model : "";
   const mapped = LOVABLE_MODEL_ALIASES[model];
-  if (!body || !mapped) return init;
-  return { ...init, body: JSON.stringify({ ...body, model: mapped }) };
+  if (!body || (!mapped && !("reasoning_effort" in body))) return init;
+  // reasoning_effort es del endpoint de Gemini; no está verificado que el gateway lo acepte.
+  const { reasoning_effort: _re, ...rest } = body;
+  return { ...init, body: JSON.stringify({ ...rest, model: mapped ?? model }) };
 }
 
 type ChatBody = Record<string, unknown> & { model?: string; modalities?: unknown; tool_choice?: unknown };
@@ -71,8 +74,11 @@ export async function aiFetchDetailed(init: RequestInit): Promise<AiFetchResult>
 
   if (geminiKey && body && model.startsWith("google/") && !wantsImage) {
     const attempts: ChatBody[] = [{ ...body, model: model.slice("google/".length) }];
+    // Un modelo que no acepta reasoning_effort (400) se reintenta sin él antes de cambiar de modelo.
+    const withoutEffort = (b: ChatBody): ChatBody => { const { reasoning_effort: _re, ...rest } = b; return rest; };
+    if ("reasoning_effort" in attempts[0]) attempts.push(withoutEffort(attempts[0]));
     // Modelo retirado, pro sin cuota o preview no disponible → el Flash vigente.
-    if (attempts[0].model !== GEMINI_FALLBACK_MODEL) attempts.push({ ...attempts[0], model: GEMINI_FALLBACK_MODEL });
+    if (attempts[0].model !== GEMINI_FALLBACK_MODEL) attempts.push({ ...attempts[attempts.length - 1], model: GEMINI_FALLBACK_MODEL });
     // Algunas formas de tool_choice ("forzar esta función") no las acepta el endpoint compatible.
     if (body.tool_choice && typeof body.tool_choice === "object") {
       attempts.push({ ...attempts[attempts.length - 1], tool_choice: "required" });

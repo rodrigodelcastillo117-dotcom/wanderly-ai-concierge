@@ -3,6 +3,7 @@
 // No se usa `position: sticky`: el <main> de DashboardLayout tiene overflow-x oculto (es el contenedor
 // de desplazamiento para sticky y no se desplaza), así que la barra se fija con `fixed` al pasarla.
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 
 export type TripSection = "resumen" | "comprar" | "ruta" | "destinos" | "experiencias" | "documentos";
 const ALL: TripSection[] = ["resumen", "comprar", "ruta", "destinos", "experiencias", "documentos"];
@@ -31,6 +32,24 @@ export function TripSectionNav({ sections, active, onChange, highlight = null }:
     const el = highlight ? refs.current[highlight] : null;
     if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ inline: "center", block: "nearest" });
   }, [highlight]);
+  // Hay más pestañas a la derecha (Documentos quedaba fuera a 390 px sin ninguna señal, R3 viajes P2-3):
+  // un degradado con flecha avisa que se puede deslizar y, al tocarla, recorre la fila.
+  const row = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => { el.removeEventListener("scroll", check); window.removeEventListener("resize", check); };
+  }, [sections.length]);
+  const scrollMore = () => {
+    const el = row.current;
+    if (el && typeof el.scrollBy === "function") el.scrollBy({ left: el.clientWidth * 0.6, behavior: "smooth" });
+    else if (el) el.scrollLeft += el.clientWidth * 0.6;
+  };
   const anchor = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
@@ -44,7 +63,8 @@ export function TripSectionNav({ sections, active, onChange, highlight = null }:
     <div ref={anchor} id="trip-secciones" className="relative h-12 scroll-mt-0">
     <nav aria-label="Secciones del viaje" data-stuck={stuck ? "1" : "0"}
       className={`${stuck ? "fixed top-0 left-0 right-0 lg:left-[200px]" : "absolute inset-x-0 top-0"} z-30 border-b border-border/60 bg-background/90 backdrop-blur-xl`} data-testid="trip-secciones">
-      <div role="tablist" aria-label="Secciones del viaje" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto no-scrollbar px-3 sm:px-6 md:px-12"
+      <div className="relative mx-auto max-w-5xl">
+      <div ref={row} role="tablist" aria-label="Secciones del viaje" className="flex gap-1 overflow-x-auto no-scrollbar px-3 sm:px-6 md:px-12"
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") { e.preventDefault(); move(1); }
           else if (e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
@@ -62,6 +82,13 @@ export function TripSectionNav({ sections, active, onChange, highlight = null }:
             </button>
           );
         })}
+      </div>
+      {more && (
+        <button type="button" onClick={scrollMore} aria-label="Ver más secciones" data-testid="trip-secciones-mas"
+          className="absolute inset-y-0 right-0 flex w-12 items-center justify-end bg-gradient-to-l from-background via-background/90 to-transparent pr-1.5 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+        </button>
+      )}
       </div>
     </nav>
     </div>

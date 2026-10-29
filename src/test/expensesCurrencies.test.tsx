@@ -205,7 +205,7 @@ describe("formulario de Gastos", () => {
     fireEvent.change(screen.getByLabelText("Categoría"), { target: { value: "Conectividad / eSIM" } });
     fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "1500" } });
     // Vista previa con la tasa y su fuente.
-    expect((await screen.findByRole("status")).textContent).toMatch(/≈ \$180 MXN · Tipo de cambio de open\.er-api\.com/);
+    expect((await screen.findByRole("status")).textContent).toMatch(/≈ \$180 MXN · Tipo de cambio de ExchangeRate-API/); // R3 P2-17: nombre amigable de la fuente
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(db.inserts.find((i) => i.table === "expenses")).toBeTruthy());

@@ -66,7 +66,7 @@ describe("P1-2 · Lima desde CDMX: sin pendientes falsos", () => {
     const ai = finalizeSpec((validateTripSpec(raw(fixture.corridas[1], [...(fixture.corridas[1] as any).preguntas, ITALIA_Q]), LIMA, { origen: "Ciudad de México" }) as any).spec, LIMA, ctx);
     const m = mergeDraftWithAi(draft, draft, ai, ctx);
     expect(openQuestions(m.spec)).toEqual([]);
-    expect(m.nota).toBe("Iato revisó tu viaje: coincide con tu resumen.");
+    expect(m.nota).toBe("Iato revisó tu viaje: no falta nada."); // R3 P2-11: antes «coincide con tu resumen»
   });
 });
 

@@ -13,7 +13,8 @@ import { DestinationVideo } from "@/components/DestinationVideo";
 import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible } from "@/components/CityCollapsible";
 import { citySubtitle } from "@/lib/cityHeader";
-import { IllustrativeCaption } from "@/components/media/SmartImage";
+import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
+import { destinationQuery } from "@/lib/categoryImagery";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
@@ -32,7 +33,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { TripDeleteButton } from "@/components/TripDeleteButton";
-import santorini from "@/assets/hero-santorini.jpg";
 import { computeTripDesglose, quoteStaleness, quoteValidity, staleQuoteMessage, tripNights, hotelPriceRooms, type QuoteSnapshot } from "@/lib/quote";
 import {
   readLocalSelections, restoreSelections, sameSelections, serializeSelections, withCityHotel, writeLocalSelections, type PersistedSelections,
@@ -530,7 +530,11 @@ const TripDetail = () => {
         {trip.cover_image_url ? (
           <img src={trip.cover_image_url} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} fallbackImage={santorini} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+          // Sin video (p. ej. buscar-video con tope por minuto): la foto de Pexels del destino, nunca la de
+          // Santorini (R3 viajes P2-1: Lima mostraba Santorini). La leyenda la pone IllustrativeCaption.
+          <SmartImage alt={trip.destino} stockQuery={destinationQuery(trip.destino, trip.pais_destino)} size="hero" eager className="!absolute inset-0" captionClassName="hidden">
+            <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+          </SmartImage>
         )}
         <div className="absolute inset-0 bg-gradient-overlay" />
         {/* El video/foto de stock muestra el destino, no un lugar del viaje: se marca. */}
@@ -791,7 +795,8 @@ const TripDetail = () => {
         <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing} />
 
         {/* Por tierra no hay vuelo que vigilar (caso E2E 28-oct-2026, Valle de Bravo). */}
-        {isOwner && !brought && !arrivalByLand(trip) && (
+        {/* Con la cotización con error («Por recotizar») no se ofrece vigilar un precio que no sirve (R3 P2-4). */}
+        {isOwner && !brought && !arrivalByLand(trip) && !requote && (
           <PriceWatchCard tripId={trip.id} departureDate={trip.fecha_salida} />
         )}
 

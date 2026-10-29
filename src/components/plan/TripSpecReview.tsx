@@ -17,7 +17,7 @@ import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
 import { DRAFT_STATUS, DRAFT_WAITING_LABEL } from "@/lib/tripSpecDraft";
 import { answerKindOf, answerQuestion, autoResolveQuestions, modeFromText, numericOptions, returnLegText, returnModeOf, setReturnMode } from "@/lib/tripSpecAnswers";
-import { IatoName } from "@/lib/iatoMark";
+import { IatoName, withIatoMark } from "@/lib/iatoMark";
 
 type Props = {
   spec: TripSpec;
@@ -213,6 +213,7 @@ export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, a
   }, [spec]);
   const [adding, setAdding] = useState("");
   const pend = openQuestions(spec);
+  const fechasPendientes = pend.some((q) => q.tipo === "fechas");
   const route = routeOfSpec(spec);
   const stays = spec.paradas.filter((s) => s.rol === "estancia").length;
   const flowLabel = route.kind === "multi" ? `Ruta de ${stays} ${stays === 1 ? "ciudad" : "ciudades"}${route.seaLegs.length ? " con crucero" : ""}` : route.kind === "unico" ? "Viaje a un destino" : null;
@@ -222,7 +223,8 @@ export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, a
         {draft && <DraftStatus />}
         {!draft && nota && (
           <p className="mb-2 flex items-start gap-2 text-[11px] tracking-wide text-primary" role="status" data-testid="spec-ia-nota">
-            <Sparkles className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />{nota}
+            {/* «Iato» con la serifa de marca (en sans se leía «lato»). */}
+            <Sparkles className="mt-px h-3 w-3 shrink-0" aria-hidden="true" /><span>{withIatoMark(nota)}</span>
           </p>
         )}
         <p className="flex items-start gap-2 text-sm" role="status" data-testid="spec-entendi">
@@ -323,10 +325,13 @@ export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, a
       </section>
 
       <section className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Fechas y viajeros">
+        {/* Con la pregunta de fechas abierta, las fechas se piden ahí (una sola vez; R3 viajes P2-11). */}
+        {!fechasPendientes && (<>
         <label className="text-[11px] text-muted-foreground">Salida
           <Input type="date" className={`${field} [color-scheme:dark]`} value={spec.fecha_salida ?? ""} onChange={(e) => onChange(setTripBasics(spec, { fecha_salida: e.target.value || null }))} /></label>
         <label className="text-[11px] text-muted-foreground">Regreso
           <Input type="date" className={`${field} [color-scheme:dark]`} value={spec.fecha_regreso ?? ""} min={spec.fecha_salida ?? undefined} onChange={(e) => onChange(setTripBasics(spec, { fecha_regreso: e.target.value || null }))} /></label>
+        </>)}
         <label className="text-[11px] text-muted-foreground">Viajeros
           <Input type="number" min={1} max={20} className={field} value={spec.viajeros ?? ""} onChange={(e) => onChange(setTripBasics(spec, { viajeros: Number(e.target.value) || null }))} /></label>
         <label className="text-[11px] text-muted-foreground">Sales de

@@ -8,6 +8,7 @@
  * cotizar, si el precio es viejo se pide revisarlo, y nunca se dice "reservado" sin reserva.
  */
 import { arrivalByLand } from "@/lib/groundTrip";
+import { invalidQuoteReason } from "@/lib/budgetSanity";
 import { diffLocalDays } from "@/lib/localDate";
 import { LIVE_TTL_HOURS } from "@/lib/provenance";
 import { describeQuoteChanges, quoteChanges, quoteNeedsUpdate } from "@/lib/quoteChanges";
@@ -146,6 +147,11 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
     return { key: "experiencias", title: "Arma tus días", detail: "Vuelos y hotel ya los tienes. Elige restaurantes, museos, tours y experiencias.", cta: "Ver restaurantes y experiencias", to: base };
   }
   const fresh = quoteFreshness(trip, opts.quote, opts.now);
+  // Cotización guardada con error (Budapest «Por recotizar», R3 viajes P2-4): no se pide elegir vuelo y
+  // hotel de un total que no sirve; lo que sigue es volver a cotizar.
+  if (invalidQuoteReason(trip)) {
+    return { key: "actualizar", title: "Vuelve a cotizar", detail: "La cotización guardada tiene un error; vuelve a cotizar para ver precios reales.", cta: "Volver a cotizar", to: `${base}/editar` };
+  }
   if (fresh.status === "sin_cotizacion") {
     return { key: "cotizar", title: "Cotiza tu viaje", detail: "Aún no hay precios de vuelo ni hospedaje para este viaje.", cta: "Ver opciones y cotizar", to: base };
   }

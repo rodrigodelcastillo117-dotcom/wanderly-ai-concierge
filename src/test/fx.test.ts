@@ -65,7 +65,7 @@ describe("fetchFxTable: fuente y fecha siempre visibles", () => {
     const f = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: "success", time_last_update_utc: "Thu, 22 Oct 2026 00:02:31 +0000", rates: { USD: 1, MXN: 18.3 } })));
     const t = await fetchFxTable(f as unknown as typeof fetch);
     expect(t).toMatchObject({ kind: "live", isFallback: false, source: "open.er-api.com", asOf: "2026-10-22T00:02:31.000Z" });
-    expect(fxLabel(t)).toBe("Tipo de cambio de open.er-api.com (actualizado 22 oct 2026)");
+    expect(fxLabel(t)).toBe("Tipo de cambio de ExchangeRate-API (actualizado 22 oct 2026)"); // R3 P2-17: sin el dominio técnico
   });
   it("si falla, usa el último en vivo guardado con su fecha; si no hay, la tabla de respaldo (nunca 1:1)", async () => {
     const ok = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: "success", time_last_update_utc: "Wed, 21 Oct 2026 00:02:31 +0000", rates: { USD: 1, MXN: 18.3 } })));
@@ -73,7 +73,7 @@ describe("fetchFxTable: fuente y fecha siempre visibles", () => {
     const down = vi.fn().mockRejectedValue(new Error("offline"));
     const cached = await fetchFxTable(down as unknown as typeof fetch);
     expect(cached).toMatchObject({ kind: "cached", isFallback: true, rates: { MXN: 18.3 } });
-    expect(fxLabel(cached)).toBe("Tipo de cambio de respaldo: último en vivo de open.er-api.com (21 oct 2026)");
+    expect(fxLabel(cached)).toBe("Tipo de cambio de respaldo: último en vivo de ExchangeRate-API (21 oct 2026)");
     localStorage.clear();
     const bad = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: "error" })));
     const fallback = await fetchFxTable(bad as unknown as typeof fetch);

@@ -69,7 +69,9 @@ export function tripPlaceNames(trip: any): string[] {
 }
 
 // Títulos de día que no dicen nada de lo que se hace ("Día libre", "Regreso").
-const GENERIC_TITLE = /^(d[ií]a libre|llegada|regreso|salida|traslado|vuelo de regreso|regreso a casa|d[ií]a \d+)\.?$/i;
+// Tampoco los de llegada o vuelo («Llegada a Madrid y primer paseo…»): no son lo destacado y en viajes viejos
+// pueden contradecir el vuelo (R3 viajes P1-1).
+const GENERIC_TITLE = /^(d[ií]a libre|llegada|regreso|salida|traslado|vuelo de regreso|regreso a casa|d[ií]a \d+)\.?$|^(llegada|vuelo)\b/i;
 
 /**
  * Lo más destacado del viaje (máximo `max`): las experiencias del plan, primero las que el itinerario

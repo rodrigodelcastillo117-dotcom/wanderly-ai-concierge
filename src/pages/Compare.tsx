@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { AiDataNotice, AiEstimateBadge, OfficialSourceLink } from "@/components/AiDataNotice";
+import { comparePrompt } from "../../supabase/functions/ai-tool/tasks";
 
 type Row = {
   destino: string;
@@ -24,9 +25,25 @@ type Row = {
 
 /**
  * Tope de espera de la comparación (R2: en 2 de 3 intentos ai-tool no respondió en más de 90 s y la
- * pantalla se quedaba en «Comparando...» para siempre, sin error ni forma de cancelar).
+ * pantalla se quedaba en «Comparando...» para siempre, sin error ni forma de cancelar). R3: el servidor
+ * usa un modelo ligero sin razonamiento y corta a los 20 s (ai-tool/tasks.ts); aquí, red de seguridad a los 30.
  */
-export const COMPARE_TIMEOUT_MS = 45_000;
+export const COMPARE_TIMEOUT_MS = 30_000;
+const COMPARE_TIMEOUT_S = COMPARE_TIMEOUT_MS / 1000;
+
+/** La misma combinación de destinos se muestra al instante desde este navegador (12 h). */
+const CACHE_PREFIX = "iatos:comparar:v1:";
+const CACHE_TTL_MS = 12 * 3600_000;
+const cacheKey = (list: string[]) => CACHE_PREFIX + list.map((d) => d.toLowerCase().replace(/\s+/g, " ").trim()).join("|");
+export function readCompareCache(list: string[], now = Date.now()): Row[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(cacheKey(list)) ?? "null");
+    return v && Array.isArray(v.rows) && v.rows.length && now - Number(v.at) < CACHE_TTL_MS ? v.rows : null;
+  } catch { return null; }
+}
+function writeCompareCache(list: string[], rows: Row[]) {
+  try { localStorage.setItem(cacheKey(list), JSON.stringify({ at: Date.now(), rows })); } catch { /* sin almacenamiento */ }
+}
 
 // Un ejemplo distinto por campo (antes los dos decían "Tokio, Japón").
 const DEST_EXAMPLES = ["Tokio, Japón", "Lisboa, Portugal", "Cusco, Perú", "Marrakech, Marruecos"];
@@ -53,6 +70,9 @@ const Compare = () => {
   const run = async () => {
     const list = dests.map(d => d.trim()).filter(Boolean);
     if (list.length < 2) { toast.error("Agrega al menos 2 destinos"); return; }
+    if (!fx) void fetchFxTable().then(setFx).catch(() => setFx(null));
+    const cached = readCompareCache(list);
+    if (cached) { ctrlRef.current?.abort(); setStopped(null); setRows(cached); return; }
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
@@ -62,14 +82,11 @@ const Compare = () => {
     const stop = new Promise<never>((_, reject) => ctrl.signal.addEventListener("abort", () => reject(new Error("abort")), { once: true }));
     setStopped(null);
     setLoading(true);
-    if (!fx) void fetchFxTable().then(setFx).catch(() => setFx(null));
     try {
       const { data, error } = await Promise.race([
         supabase.functions.invoke("ai-tool", {
-          body: {
-            json: true,
-            prompt: `Compara estos destinos para un viajero mexicano: ${list.join(" vs ")}. Devuelve un array JSON exactamente así: [{"destino":"...","costo_diario_usd":"$X-Y","mejor_epoca":"...","visa_mx":"Sí/No, info","seguridad":"Alta/Media/Baja + nota","idioma":"...","highlights":"..."}]. Un objeto por destino, en el orden dado.`
-          },
+          // task "compare": modelo, tokens y tope los fija el servidor (respuesta en segundos, con caché).
+          body: { json: true, task: "compare", prompt: comparePrompt(list) },
           signal: ctrl.signal,
         }),
         stop,
@@ -84,6 +101,7 @@ const Compare = () => {
       const arr = Array.isArray(data.data) ? data.data : [];
       if (arr.length === 0) throw new Error("La IA no devolvió resultados. Intenta de nuevo.");
       setRows(arr);
+      writeCompareCache(list, arr);
     } catch (e: any) {
       if (ctrl.signal.aborted || e?.message === "timeout") {
         if (ctrlRef.current === ctrl || e?.message === "timeout") setStopped(timedOut || e?.message === "timeout" ? "timeout" : "cancelada");
@@ -102,7 +120,7 @@ const Compare = () => {
     { key: "visa_mx", label: "Visa (MX)", ai: "official" },
     { key: "seguridad", label: "Seguridad", ai: "official" },
     { key: "idioma", label: "Idioma" },
-    { key: "highlights", label: "Highlights" },
+    { key: "highlights", label: "Lo imperdible" },
   ];
 
   const cell = (f: (typeof fields)[number], raw: string) => {
@@ -155,7 +173,7 @@ const Compare = () => {
             )}
           </div>
           {loading && (
-            <p className="text-[11px] text-muted-foreground">Suele tardar de 10 a 30 segundos. Si pasa de 45, la detenemos y te avisamos.</p>
+            <p className="text-[11px] text-muted-foreground">Suele tardar menos de 10 segundos. Si pasa de {COMPARE_TIMEOUT_S}, la detenemos y te avisamos.</p>
           )}
         </div>
 
@@ -163,7 +181,7 @@ const Compare = () => {
           <div role="alert" className="glass-card rounded-2xl p-4 mb-6 border border-amber-400/30" data-testid="comparar-detenida">
             <p className="text-sm">
               {stopped === "timeout"
-                ? "La comparación tardó más de 45 segundos y la detuvimos. Suele ser la IA saturada: inténtalo de nuevo."
+                ? `La comparación tardó más de ${COMPARE_TIMEOUT_S} segundos y la detuvimos. Suele ser la IA saturada: inténtalo de nuevo.`
                 : "Cancelaste la comparación."}
             </p>
             <Button onClick={run} variant="outline" className="mt-3"><RotateCcw className="w-4 h-4 mr-2" aria-hidden="true" /> Reintentar</Button>

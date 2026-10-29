@@ -223,7 +223,9 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
           <DialogDescription className="mt-1 text-sm text-muted-foreground">
             {mode === "traido"
               ? "Ya tienes vuelos y hotel: guarda tu viaje y planea lo demás."
-              : "Dinos de dónde sales y a dónde vas. Te llevamos al plan con todo lleno para que lo revises."}
+              // Tres entradas, un solo camino (R3 viajes P2-16): el cuadro de Inicio, «Planear» y este «+» llevan
+              // al mismo plan; aquí se dice para que nadie crea que son cosas distintas.
+              : "Dos formas, el mismo plan que en Inicio: llena ruta y fechas aquí, o describe tu viaje abajo con tus palabras. En las dos revisas todo antes de armarlo."}
           </DialogDescription>
 
           {/* ¿Buscar vuelos y hotel o ya los tiene? */}

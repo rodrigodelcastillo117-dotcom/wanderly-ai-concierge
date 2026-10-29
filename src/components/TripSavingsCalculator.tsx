@@ -9,6 +9,7 @@ import { computeGoal } from "@/lib/savingsGoal";
 import { estimateTripCost, regionOf, REGIONS, type Region } from "@/lib/tripEstimate";
 import { localISODate, parseLocalDate } from "@/lib/localDate";
 import { shortTripName } from "@/lib/tripName";
+import { duplicateTripMarks, markedTripName } from "@/lib/tripList";
 
 export type Trip = {
   id: string;
@@ -18,6 +19,7 @@ export type Trip = {
   fecha_regreso: string | null;
   total_estimado: number | null;
   moneda: string | null;
+  created_at?: string | null;
 };
 
 const FIXED_FIELDS: { key: string; label: string }[] = [
@@ -219,7 +221,7 @@ export const TripSavingsCalculator = () => {
   useEffect(() => {
     if (!user) return;
     supabase.from("trips")
-      .select("id,destino,pais_destino,fecha_salida,fecha_regreso,total_estimado,moneda")
+      .select("id,destino,pais_destino,fecha_salida,fecha_regreso,total_estimado,moneda,created_at")
       .eq("user_id", user.id)
       .order("fecha_salida", { ascending: true })
       .then(({ data }) => setTrips(((data ?? []) as Trip[]).filter((t) => isUpcoming(t))));
@@ -275,6 +277,9 @@ export const TripSavingsCalculator = () => {
   const setFijo = (k: string, v: string) => setState(s => ({ ...s, fijos: { ...s.fijos, [k]: v } }));
   const setVar = (k: string, v: string) => setState(s => ({ ...s, variables: { ...s.variables, [k]: v } }));
 
+  // Viajes iguales (mismo nombre y fechas) con (2), (3)… como en Mis viajes (R3 viajes P2-14: tres chips
+  // «Madrid · 10 mar 2027» idénticos).
+  const dups = useMemo(() => duplicateTripMarks(trips as any), [trips]);
   const pct = Math.round(goal.avance * 100);
   const maxBar = Math.max(1, goal.costo);
 
@@ -289,7 +294,7 @@ export const TripSavingsCalculator = () => {
               {trips.map((t) => (
                 <button key={t.id} type="button" onClick={() => linkTrip(plan.tripId === t.id ? null : t)} aria-pressed={plan.tripId === t.id}
                   className={`snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs transition ${plan.tripId === t.id ? "bg-gradient-gold text-primary-foreground border-transparent" : "border-primary/25 text-foreground/85 hover:border-primary/50"}`}>
-                  <Plane className="w-3 h-3" aria-hidden="true" /> {shortTripName(t)} · {shortDate(t.fecha_salida)}
+                  <Plane className="w-3 h-3" aria-hidden="true" /> {markedTripName(shortTripName(t), dups.n.get(t.id))} · {shortDate(t.fecha_salida)}
                 </button>
               ))}
               <button type="button" onClick={() => linkTrip(null)} aria-pressed={!plan.tripId}

@@ -13,6 +13,9 @@ import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
 import { destinationQuery } from "@/lib/categoryImagery";
 import { shortTripName } from "@/lib/tripName";
+import { savedTripMissing } from "@/lib/tripMissing";
+import { MARKS_COLUMNS, type TripPurchaseMarkRow } from "@/lib/purchaseMarks";
+import type { PurchaseMarkRow } from "@/lib/purchasePlan";
 
 type TripSummary = {
   id: string;
@@ -41,6 +44,8 @@ export function TripCommandCenter({ trip, today }: Props) {
   const [flights, setFlights] = useState<TrackedFlightLike[]>([]);
   const [weather, setWeather] = useState<WeatherNow | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Reservas y marcas de «Ya lo compré»: para saber qué falta elegir, igual que la página del viaje.
+  const [marks, setMarks] = useState<{ bookings: PurchaseMarkRow[]; group: TripPurchaseMarkRow[] | null; userId: string | null }>({ bookings: [], group: null, userId: null });
 
   const timing = tripTiming(trip, today);
 
@@ -55,6 +60,22 @@ export function TripCommandCenter({ trip, today }: Props) {
       .select("flight, flight_date, last_status, last_checked_at").eq("trip_id", trip.id).eq("active", true))
       .then(({ data: fl }) => { if (alive) setFlights(Array.isArray(fl) ? (fl as TrackedFlightLike[]).slice(0, 2) : []); })
       .catch(() => { /* sin vuelos seguidos */ });
+    // Reservas y marcas de «Ya lo compré» en paralelo: con ellas se sabe qué falta elegir (P1-2 R3).
+    setMarks({ bookings: [], group: null, userId: null });
+    void (async () => {
+      try {
+        const [b, g] = await Promise.all([
+          Promise.resolve(supabase.from("bookings").select("id, trip_id, category, status, confirmation_code, partner_reference, title, subtitle, raw_payload, created_at").eq("trip_id", trip.id)).catch(() => null),
+          Promise.resolve(supabase.from("trip_purchase_marks").select(MARKS_COLUMNS).eq("trip_id", trip.id)).catch(() => null),
+        ]);
+        if (!alive) return;
+        setMarks({
+          bookings: Array.isArray((b as any)?.data) ? (b as any).data : [],
+          group: Array.isArray((g as any)?.data) ? (g as any).data : null,
+          userId: null,
+        });
+      } catch { /* sin marcas: cuenta lo elegido */ }
+    })();
     (async () => {
       try {
         const { data } = await supabase.from("trips").select("*").eq("id", trip.id).maybeSingle();
@@ -88,8 +109,11 @@ export function TripCommandCenter({ trip, today }: Props) {
   // La acción que depende de la cotización espera a tener la fila completa (no se muestra "Cotiza
   // tu viaje" un instante a quien ya cotizó). Si la fila no se pudo leer, se ofrece abrir el viaje.
   const quoteIndependent = timing.phase !== "proximo";
+  // Lo que falta elegir, de la misma fuente que la página del viaje (tripTotalSummary): así Inicio no dice
+  // «Prepara tu maleta» cuando el viaje dice «aún te falta elegir cómo llegar y hotel».
+  const missing = full ? savedTripMissing(merged, { bookings: marks.bookings, groupMarks: marks.group, userId: marks.userId }) : null;
   const action = full || quoteIndependent
-    ? nextTripAction(merged, { today, quote })
+    ? nextTripAction(merged, { today, quote, missing })
     : loaded
       ? { title: "Abre tu viaje", detail: "Revisa tu itinerario y la cotización guardada.", cta: "Ver viaje", to: `/dashboard/viajes/${trip.id}` }
       : null;

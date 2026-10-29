@@ -33,9 +33,11 @@ export function DriverService({ driver, tripId, startAt = null, className = "" }
           Folio {req.folio}. La atiende una persona del equipo IATOS: verás su respuesta en Concierge › Mis solicitudes y por correo. Todavía no es una reserva.
         </p>
       ) : (
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          La solicitud la atiende una persona del equipo (no es una reserva). Welcome Pickups: {prefillLine("welcome")} Revisa que opere en {driver.city}.
-        </p>
+        // Una línea por acción (R3 viajes P2-7: antes las dos cosas iban mezcladas en un solo renglón).
+        <ul className="mt-1 space-y-0.5 text-[11px] text-muted-foreground" data-testid="chofer-notas">
+          <li data-testid="chofer-nota-equipo"><span className="text-foreground/80">Pedírselo al equipo:</span> lo atiende una persona de IATOS; no es una reserva.</li>
+          <li data-testid="chofer-nota-welcome"><span className="text-foreground/80">Welcome Pickups:</span> {prefillLine("welcome")} Revisa que opere en {driver.city}.</li>
+        </ul>
       )}
     </div>
   );
