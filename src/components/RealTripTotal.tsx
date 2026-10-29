@@ -38,6 +38,13 @@ type Props = {
   split?: TotalSplit | null;
   /** Desglose (plegado debajo de este mismo total, sin repetir título ni cifra). */
   children?: ReactNode;
+  /** Dentro del tablero del Resumen: sin tarjeta propia (el tablero es la tarjeta). */
+  embedded?: boolean;
+  /**
+   * Lo que va entre la cifra y lo plegado (desglose, análisis): en el tablero, «Qué falta» y «Qué sigue»,
+   * para que lo secundario quede al final.
+   */
+  beforeDetails?: ReactNode;
 };
 
 const fmtMXN = (n: number) =>
@@ -47,7 +54,7 @@ const fmtMXN = (n: number) =>
 export { tripTotals } from "@/lib/tripPageTotal";
 import { tripTotals } from "@/lib/tripPageTotal";
 
-export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, priceAge, fxNote, onRequote, selectionDesglose, trust, summary, split, children }: Props) {
+export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLabel, validityExpired, priceAge, fxNote, onRequote, selectionDesglose, trust, summary, split, children, embedded = false, beforeDetails }: Props) {
   const { total, porPersona, presupuesto, excedente, fromSelection } = tripTotals(trip, viajeros, selectionDesglose);
 
   const [showAnalisis, setShowAnalisis] = useState(false);
@@ -66,7 +73,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full"
+      className={embedded ? "relative max-w-full" : "glass-card rounded-2xl p-5 sm:p-8 md:p-10 mb-8 relative overflow-hidden max-w-full"}
       data-testid="trip-total-card" data-state={summary?.state ?? (fromSelection ? "seleccion" : "estimado")}
     >
       <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
@@ -141,6 +148,8 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
           viaje (fechas, hotel o actividades) para acercarlo.
         </p>
       )}
+
+      {beforeDetails}
 
       {/* Desglose plegado debajo de ESTE total (antes era otro bloque con "Total estimado" y la cifra repetida).
           Lo consultado en vivo renglón por renglón también va aquí: arriba ya lo dice una sola línea. */}

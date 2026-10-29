@@ -28,9 +28,9 @@ export const TRIP_SECTION_LABEL: Record<TripSection, string> = {
 export function tripSectionHelp(id: TripSection, ctx: SectionHelpCtx = {}): string {
   switch (id) {
     case "resumen":
-      return ctx.documento
-        ? "Lo esencial de tu viaje y lo que ya pagaste."
-        : "Lo esencial de tu viaje: cuánto cuesta y qué sigue. El botón dorado te lleva al siguiente paso.";
+      if (ctx.documento) return "Lo esencial de tu viaje y lo que ya pagaste.";
+      if (ctx.brought) return "Tu viaje de un vistazo: lo que ya tienes y qué sigue.";
+      return "Tu viaje de un vistazo: cuánto cuesta, qué falta y qué sigue.";
     case "comprar":
       if (ctx.documento) return "Este viaje viene de tus documentos: ya está pagado.";
       if (ctx.brought) return "Tus vuelos y hotel ya los tienes; aquí puedes agregar restaurantes y experiencias.";
@@ -38,9 +38,11 @@ export function tripSectionHelp(id: TripSection, ctx: SectionHelpCtx = {}): stri
     case "ruta":
       return "Tu recorrido en coche por tramos: distancias, costos y renta del auto.";
     case "destinos":
-      return ctx.multi
-        ? "Tu plan día por día en cada ciudad. Toca un día para ver mañana, tarde y noche."
-        : "Tu plan día por día. Toca un día para ver mañana, tarde y noche.";
+      // Ola «9.5 en todo»: cada día ya muestra mañana, tarde y noche (y su transporte); al tocarlo, el detalle.
+      {
+        const transporte = ctx.brought || ctx.documento ? "" : ", con el transporte de cada día";
+        return `Tu plan día por día${ctx.multi ? " en cada ciudad" : ""}${transporte}. Toca un día para ver el detalle.`;
+      }
     case "experiencias":
       // Una sola introducción (R3 viajes P2-10: esta línea y «Lo TOP de cada ciudad…» iban seguidas).
       return "Lo mejor de cada ciudad: restaurantes, museos y tours. Reservas en su sitio y aquí marcas lo ya reservado.";
@@ -82,7 +84,7 @@ export function tripTourSteps(ctx: SectionHelpCtx & { sections: TripSection[] })
       section: "resumen",
       title: "Resumen",
       // «Abajo»: la guía va arriba de «Tu viaje en 30 segundos» (R3 viajes P2-2 decía «Arriba»).
-      text: "Abajo ves tu viaje en 30 segundos, el total y el botón dorado con lo que sigue.",
+      text: "Abajo ves tu viaje en 30 segundos: el total, qué falta y el botón dorado con lo que sigue.",
     },
   ];
   if (has("comprar") && !ctx.documento) {

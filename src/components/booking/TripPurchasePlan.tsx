@@ -14,6 +14,7 @@ import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 import { SmartImage } from "@/components/media/SmartImage";
 import { logBookingClick } from "@/lib/trackBooking";
 import { itemPurchaseState, primaryAction, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
+import { purchaseProgress } from "@/lib/purchaseProgress";
 import { buildBuyFlow, FLIGHT_TIER_WORD, hotelTotal, TIER_WORD, type BuyStep } from "@/lib/buyFlow";
 import { isPlaceholderHotel, placeholderHotelLabel } from "../../../supabase/functions/_shared/booking/placeholderHotel.ts";
 import { flightAirlineLabel, flightDurationLabel, flightLiveLine, flightScheduleLabel, flightStopsLabel } from "@/lib/flightDisplay";
@@ -106,10 +107,12 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const items = flow.items;
   if (!items.length && !flow.steps.length) return null;
   // Lo que hay que comprar: lo de la lista y, en multi-destino, cada traslado entre ciudades.
-  const core = [...items.filter((i) => !i.optional), ...flow.steps.flatMap((s) => (s.kind === "traslado" ? [s.item] : []))];
+  // La misma cuenta que la lista «Qué falta» del Resumen (purchaseProgress).
   const state = (it: PurchaseItem | null) => (it ? itemPurchaseState(it, rows, marks) : "pendiente");
-  const doneCore = core.filter((i) => state(i) !== "pendiente").length;
-  const stepDone = (s: BuyStep) => ((s.kind === "vuelo" || s.kind === "hospedaje") && s.skipped) || (!!s.item && state(s.item) !== "pendiente");
+  const progress = purchaseProgress(flow, (it) => itemPurchaseState(it, rows, marks));
+  const coreCount = progress.total;
+  const doneCore = progress.done;
+  const stepDone = progress.stepDone;
 
   // ── Flujo guiado: "Siguiente →" en cada paso, los chips saltan y el último es "Listo · Revisa y compra". ──
   const nav: Array<{ id: string; title: string }> = [
@@ -155,7 +158,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
     );
   };
   const box = (done: boolean, id?: string) => `scroll-mt-28 rounded-xl border p-3 sm:p-4 transition-shadow duration-500 ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-border/60 bg-surface/30"} ${id && current === id ? "ring-2 ring-primary/50" : ""}`;
-  const falta = flow.steps.filter((s) => s.kind !== "auto" && !stepDone(s)).map((s) => (s.kind === "vuelo" || s.kind === "hospedaje" ? s.title.charAt(0).toLowerCase() + s.title.slice(1) : s.title));
+  const falta = progress.falta;
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
   // "Ya tengo mi viaje": vuelo y hoteles los trajo la persona (sin precio, sin "Volver a elegir").
   const brought = isBroughtTrip(trip);
@@ -249,15 +252,15 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         <h2 id="trip-comprar-title" className="font-display text-2xl sm:text-3xl">Comprar mi viaje</h2>
         {/* Sin nada que reservar aquí (viaje traído: vuelo y hotel ya los tiene) no se dice «0 de 0 reservados»
             ni «Ya marcaste todo como comprado» si la persona no marcó nada (R3 viajes P2-6, Oaxaca). */}
-        {core.length > 0 && (
+        {coreCount > 0 && (
           <p className="text-sm text-muted-foreground" data-testid="trip-comprar-progreso">
-            {doneCore} de {core.length} reservado{core.length === 1 ? "" : "s"}
+            {doneCore} de {coreCount} reservado{coreCount === 1 ? "" : "s"}
           </p>
         )}
       </div>
       <p className="mt-1 text-sm" data-testid="trip-comprar-falta">
         {falta.length ? <><span className="text-muted-foreground">Te falta:</span> {falta.join(" · ")}</>
-          : core.length === 0 ? <span className="text-muted-foreground">{brought ? "Vuelo y hotel ya los tienes: aquí agregas restaurantes y experiencias." : "Nada pendiente por reservar."}</span>
+          : coreCount === 0 ? <span className="text-muted-foreground">{brought ? "Vuelo y hotel ya los tienes: aquí agregas restaurantes y experiencias." : "Nada pendiente por reservar."}</span>
           : <span className="text-emerald-400">Ya marcaste todo como comprado.</span>}
       </p>
 

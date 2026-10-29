@@ -141,6 +141,21 @@ function outboundFlight(trip: any, firstCity: string): any | null {
     ?? rows[0];
 }
 
+/**
+ * El vuelo de ida que usa el itinerario (el mismo con que se alinea el día 1) y sus horas, si se conocen:
+ * el chip «Vuelo Ciudad de México → Roma · sale 19:50» del itinerario dice lo mismo que el texto del día.
+ */
+export function tripOutbound(trip: any): { row: any; times: FlightTimes | null; firstCity: string } | null {
+  const it = trip?.itinerario_json;
+  const raw: any[] = Array.isArray(it) ? it : Array.isArray(it?.days) ? it.days : [];
+  const start = isIso(trip?.fecha_salida) ? trip.fecha_salida : null;
+  const firstCity = String(raw.find((d) => d && Number(d.dia) === 1)?.ciudad ?? (Array.isArray(it?.destinations) ? it.destinations[0] : "") ?? "").trim() || String(trip?.destino ?? "");
+  const row = outboundFlight(trip, firstCity);
+  if (!row) return null;
+  const times = start ? flightTimesOfRow(row, start, { origen: trip?.ciudad_origen, destino: firstCity }) : null;
+  return { row, times, firstCity };
+}
+
 export const FREE_DAY_TITLE = "Día libre · sin plan todavía";
 export const RETURN_DAY_TITLE = "Día de regreso · sin plan todavía";
 

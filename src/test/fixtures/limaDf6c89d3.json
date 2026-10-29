@@ -1,0 +1,279 @@
+{
+ "id": "df6c89d3-3493-4ba7-b933-1aeca4610994",
+ "destino": "Lima",
+ "pais_destino": "Perú",
+ "ciudad_origen": "Ciudad de México",
+ "fecha_salida": "2027-02-11",
+ "fecha_regreso": "2027-02-16",
+ "num_viajeros": 2,
+ "fuente": "plan",
+ "status": "listo",
+ "selections": null,
+ "desglose_presupuesto": {
+  "tours": 4800,
+  "comida": 18000,
+  "extras": 3000,
+  "vuelos": 18966,
+  "hospedaje": 13135,
+  "transporte_local": 2500
+ },
+ "total_estimado": 60401,
+ "itinerario_json": {
+  "days": [
+   {
+    "dia": 1,
+    "tipo": "llegada",
+    "fecha": "2027-02-11",
+    "noche": "Llegas a Lima a las 23:00 (hora local) y te trasladas a tu hotel (aprox. 1 h 30 min).",
+    "tarde": "Traslado al aeropuerto: tu vuelo a Lima sale a las 16:00 (hora de Ciudad de México).",
+    "titulo": "Llegada a Lima y primera noche en Miraflores",
+    "mañana": "Tiempo libre en Ciudad de México antes de ir al aeropuerto.",
+    "costo_aprox_dia": 1500
+   },
+   {
+    "dia": 2,
+    "fecha": "2027-02-12",
+    "noche": "Regreso a Miraflores. Cena en Panchita - Miraflores, cocina peruana clásica y platillos para compartir.",
+    "tarde": "Museo del Convento de San Francisco y Catacumbas, y después el Santuario de Las Nazarenas. Almuerzo en el centro.",
+    "titulo": "Lima colonial: Plaza Mayor, catedral y conventos",
+    "mañana": "Plaza Mayor de Lima y Basílica Catedral de Lima, con la guardia y los balcones coloniales alrededor.",
+    "costo_aprox_dia": 2600
+   },
+   {
+    "dia": 3,
+    "fecha": "2027-02-13",
+    "noche": "Cena de cocina de autor en Maido, cocina nikkei. Reserva con anticipación.",
+    "tarde": "Museo de Sitio Huaca Pucllana, una pirámide de adobe dentro de Miraflores.",
+    "titulo": "Arqueología y alta cocina",
+    "mañana": "Museo Larco en Pueblo Libre, con su colección precolombina y el jardín del café.",
+    "costo_aprox_dia": 4500
+   },
+   {
+    "dia": 4,
+    "fecha": "2027-02-14",
+    "noche": "Cena en Isolina Taberna Peruana, cocina criolla casera. Después, un cóctel en Barranco.",
+    "tarde": "Ceviche en Punto Azul y paseo por Barranco: puente de los Suspiros, galerías y calles con murales.",
+    "titulo": "Malecón, Barranco y mercado",
+    "mañana": "Caminata por el Malecón de Miraflores y el Parque John F. Kennedy, con vista al Pacífico.",
+    "costo_aprox_dia": 2800
+   },
+   {
+    "dia": 5,
+    "fecha": "2027-02-15",
+    "noche": "Cena de despedida en Central Restaurante, uno de los más reconocidos de Lima. Reserva con anticipación.",
+    "tarde": "Visita a la Basílica y Convento de San Francisco o al Museo Metropolitano, según tu ánimo.",
+    "titulo": "Día libre y despedida gastronómica",
+    "mañana": "Mañana libre: compras de artesanía y textiles en Miraflores, o repetir el Malecón. Un café con calma.",
+    "costo_aprox_dia": 5500
+   },
+   {
+    "dia": 6,
+    "fecha": "2027-02-16",
+    "noche": "Llegada a Ciudad de México.",
+    "tarde": "Vuelo de regreso a Ciudad de México. Sala VIP en LIM con Platinum o tu estatus SkyTeam, según la aerolínea.",
+    "titulo": "Regreso a Ciudad de México",
+    "mañana": "Desayuno tranquilo y check-out. Sal hacia el aeropuerto con 3 horas de anticipación para tu vuelo internacional, considerando el tráfico de Lima.",
+    "costo_aprox_dia": 800
+   }
+  ]
+ },
+ "vuelos_json": [
+  {
+   "aerolinea": "COPA",
+   "duracion": "9h 35m",
+   "escalas": "1 escala",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente_precio": "serpapi",
+   "notas": "Redondo MEX→LIM, sale 13:10 del 11 feb. Precio por persona en tarifa turista, estimado; verifica equipaje y cambios al reservar.",
+   "precio_por_persona": 7490,
+   "tier": "ahorro",
+   "consultado_at": "2026-10-29T02:44:42.079Z"
+  },
+  {
+   "aerolinea": "LATAM",
+   "duracion": "6h 0m",
+   "escalas": "Directo",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente_precio": "serpapi",
+   "notas": "Redondo directo, sale 16:00 del 11 feb. Llegada de noche; sin escalas por solo ~$2,000 MXN más que COPA.",
+   "precio_por_persona": 9483,
+   "tier": "equilibrio",
+   "salida": "2027-02-11 16:00",
+   "llegada": "2027-02-11 23:00",
+   "consultado_at": "2026-10-29T02:44:42.079Z"
+  },
+  {
+   "aerolinea": "Aeroméxico",
+   "duracion": "6h 0m",
+   "escalas": "Directo",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente_precio": "serpapi",
+   "notas": "Redondo directo, sale 10:50 del 11 feb (mejor horario). Con tu SkyTeam Elite Plus acumulas millas y accedes a salas VIP y prioridad.",
+   "precio_por_persona": 10638,
+   "tier": "premium",
+   "salida": "2027-02-11 10:50",
+   "llegada": "2027-02-11 17:50",
+   "consultado_at": "2026-10-29T02:44:42.079Z"
+  }
+ ],
+ "hospedaje_json": [
+  {
+   "nombre": "INNSiDE by Meliá Lima Miraflores",
+   "tier": "ahorro",
+   "precio_por_noche": 1900,
+   "fuente_precio": "serpapi",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "consultado_at": "2026-10-29T02:44:38.547Z",
+   "rating": 4.8
+  },
+  {
+   "nombre": "SOUMA Lima, Vignette Collection",
+   "tier": "equilibrio",
+   "precio_por_noche": 2627,
+   "fuente_precio": "serpapi",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "consultado_at": "2026-10-29T02:44:38.547Z",
+   "rating": 4.7
+  },
+  {
+   "nombre": "Pullman Lima Miraflores",
+   "tier": "premium",
+   "precio_por_noche": 2869,
+   "fuente_precio": "serpapi",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "consultado_at": "2026-10-29T02:44:38.547Z",
+   "rating": 4.7
+  }
+ ],
+ "tours_json": [
+  {
+   "nombre": "Malecón de Miraflores",
+   "place_id": "ChIJJXcC-R_IBZERMAJSdHEXWK0",
+   "maps_url": "https://maps.google.com/?cid=12490759342562345520&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.7,
+   "por_que": "Caminata gratuita frente al Pacífico, con parques y miradores. Fácil de encajar en un ritmo equilibrado.",
+   "duracion": "1.5 a 2 horas",
+   "precio_por_persona": 0,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Plaza Mayor de Lima",
+   "place_id": "ChIJsX6q1bXIBZERqiIeSAseBhY",
+   "maps_url": "https://maps.google.com/?cid=1586988952498086570&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "El corazón histórico de la ciudad, con 4.6 ★ y más de 80,000 reseñas. Punto de partida para el centro colonial.",
+   "duracion": "1 a 1.5 horas",
+   "precio_por_persona": 0,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Museo de Sitio Huaca Pucllana",
+   "place_id": "ChIJZVVYKD7IBZERQgSuheJS10o",
+   "maps_url": "https://maps.google.com/?cid=5392870211658318914&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Pirámide preinca de adobe en pleno Miraflores, a poca distancia de tu hotel. Precio estimado de entrada con visita guiada.",
+   "duracion": "1.5 horas",
+   "precio_por_persona": 150,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Museo Larco",
+   "place_id": "ChIJPWUAUBrJBZER6aEuGlDVVBY",
+   "maps_url": "https://maps.google.com/?cid=1609145506891473385&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.8,
+   "por_que": "Colección de arte precolombino con 4.8 ★ en Google. Precio estimado de entrada; confírmalo en el sitio oficial.",
+   "duracion": "2 a 2.5 horas",
+   "precio_por_persona": 350,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Museo del Convento de San Francisco y Catacumbas",
+   "place_id": "ChIJ56pU9rPIBZERdkkimxR7VUA",
+   "maps_url": "https://maps.google.com/?cid=4635746719880071542&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Biblioteca antigua y catacumbas coloniales en el centro histórico. Precio estimado de entrada con visita guiada.",
+   "duracion": "1.5 horas",
+   "precio_por_persona": 200,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Santuario de Las Nazarenas",
+   "place_id": "ChIJiTNpwcvIBZER8MSVO27q90M",
+   "maps_url": "https://maps.google.com/?cid=4897640878955676912&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.7,
+   "por_que": "Santuario del Señor de los Milagros, con 4.7 ★ y más de 20,000 reseñas. Se integra bien en la ruta por el centro.",
+   "duracion": "1 hora",
+   "precio_por_persona": 0,
+   "estado_dato": "ESTIMADO",
+   "fuente": "google_places",
+   "verificado": true
+  }
+ ],
+ "restaurantes_json": [
+  {
+   "nombre": "Isolina Taberna Peruana",
+   "ciudad": "Lima",
+   "place_id": "ChIJGR_e8O23BZERtIDRCkVeiTg",
+   "maps_url": "https://maps.google.com/?cid=4073890988560580788&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Cocina criolla casera en Barranco, con buen valor y reservaciones disponibles. Como escribiste en tu diario, te encantó la comida de mercado, y aquí el enfoque es de platos tradicionales.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Punto Azul",
+   "ciudad": "Lima",
+   "place_id": "ChIJY7V5mR7IBZERZyY5uRFw180",
+   "maps_url": "https://maps.google.com/?cid=14832447119192303207&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Ceviches y mariscos frescos, un clásico limeño con 4.6 ★ y más de 13,000 reseñas en Google. Ideal para un almuerzo informal.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Panchita - Miraflores",
+   "ciudad": "Lima",
+   "place_id": "ChIJRY1ylxfIBZERqGq4nJw313s",
+   "maps_url": "https://maps.google.com/?cid=8923662332441684648&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Cocina peruana clásica con parrillas y platos para compartir, a pocos minutos de tu hotel en Miraflores.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Maido",
+   "ciudad": "Lima",
+   "place_id": "ChIJObzkJx_IBZERAQaFKNwiTws",
+   "maps_url": "https://maps.google.com/?cid=814908386545305089&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.7,
+   "por_que": "Alta cocina que cruza Perú y Japón, con 4.7 ★ en Google. Es la cena de autor del viaje; reserva con anticipación.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente": "google_places",
+   "verificado": true
+  },
+  {
+   "nombre": "Central Restaurante",
+   "ciudad": "Lima",
+   "place_id": "ChIJ01sth-G3BZERHLHau6WPXV8",
+   "maps_url": "https://maps.google.com/?cid=6871806548421292316&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+   "rating": 4.6,
+   "por_que": "Menú que recorre altitudes y ecosistemas del Perú, ideal para cerrar el viaje con una cena memorable. Reserva con anticipación.",
+   "estado_dato": "CONSULTADO_EN_VIVO",
+   "fuente": "google_places",
+   "verificado": true
+  }
+ ]
+}

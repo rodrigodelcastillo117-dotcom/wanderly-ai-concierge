@@ -53,7 +53,6 @@ import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, typ
 import { TripExperiencias } from "@/components/trip/TripExperiencias";
 import { tripCities } from "@/lib/experiencias";
 import { BeforeYouTravelCard } from "@/components/trip/BeforeYouTravelCard";
-import { TripNextStep } from "@/components/TripNextStep";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { SendSelectionEmail } from "@/components/booking/SendSelectionEmail";
 import { ConvertToRouteBanner, convertToRouteHref } from "@/components/route/ConvertToRouteBanner";
@@ -79,6 +78,12 @@ import { daySummaryLine, tripGlance, tripPlaceNames, type GlanceCost } from "@/l
 import { itineraryBuyLink, TRIP_SECTION_LABEL, tripSectionHelp, tripTourSteps } from "@/lib/tripSectionHelp";
 import { TripGlance } from "@/components/trip/TripGlance";
 import { SectionIntro, TripPageTour } from "@/components/trip/TripPageTour";
+// Ola «9.5 en todo» (29-oct-2026): Resumen como tablero (qué es, cuánto cuesta, qué falta, qué sigue) e
+// itinerario escaneable (mañana · tarde · noche con el lugar, chips de transporte y ruta del día en Maps).
+import { CHECKLIST_DONE, purchaseProgress } from "@/lib/purchaseProgress";
+import { TripChecklist } from "@/components/trip/TripChecklist";
+import { dayRouteUrl, daySlots, groundSummary, itineraryTransport, tripPlaces, type DayChip } from "@/lib/itineraryDay";
+import { TripNextStep, scrollToSection } from "@/components/TripNextStep";
 
 
 const fmtMXN = (n: number) =>
@@ -103,6 +108,8 @@ const TripDetail = () => {
   // Sección visible (pestañas): Resumen · Comprar · Ruta · Destinos · Documentos.
   const [section, setSection] = useState<TripSection>(() => sectionFromHash());
   const [activeCity, setActiveCity] = useState<string | null>(null);
+  // Días del itinerario abiertos: la ficha del lugar y la ruta del día se arman solo al abrir.
+  const [openDays, setOpenDays] = useState<Set<number>>(() => new Set());
   // Pestaña que señala el recorrido de primer uso (TripPageTour).
   const [tourHighlight, setTourHighlight] = useState<TripSection | null>(null);
   const toggleCity = (city: string) => {
@@ -410,9 +417,17 @@ const TripDetail = () => {
   const pageTotalsOf = (t: any) => tripTotals(t, quoteTravelers, pageSelDesglose);
 
   // Lo mismo que muestra "Comprar" (buildBuyFlow): qué está elegido y qué ya se compró.
-  const buyItems = useMemo(
-    () => (trip ? buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt: quote?.created_at ?? null }).items : []),
+  const buyFlow = useMemo(
+    () => (trip ? buildBuyFlow(trip, { selVuelo, selHospedaje, selTours, selHoteles }, serverOffers, { quoteCreatedAt: quote?.created_at ?? null }) : null),
     [trip, selVuelo, selHospedaje, selTours, selHoteles, serverOffers, quote?.created_at],
+  );
+  const buyItems = useMemo(() => buyFlow?.items ?? [], [buyFlow]);
+  // Itinerario escaneable: lugares del plan (con su ficha de Google) y chips de transporte por día.
+  const dayPlaces = useMemo(() => (trip ? tripPlaces(trip) : []), [trip]);
+  const daySlotsByDia = useMemo(() => new Map(shownDays.filter((d: any) => !d.pendiente).map((d: any) => [d.dia, daySlots(d, dayPlaces)])), [shownDays, dayPlaces]);
+  const dayChips = useMemo(
+    () => (trip ? itineraryTransport(trip, shownDays, buyFlow?.steps ?? [], { byLand: arrivalByLand(trip), brought: isBroughtTrip(trip) }) : {}),
+    [trip, shownDays, buyFlow],
   );
 
   if (loading) {
@@ -509,6 +524,63 @@ const TripDetail = () => {
     }
     : { kind: "sin_cotizacion" };
   const glance = tripGlance(trip, glanceCost);
+  // Ni la portada (destino, fechas, viajeros) ni el total de su tarjeta se repiten: queda «Lo más destacado».
+  const glanceShown = glance.filter((b) => b.key === "destacado");
+  // Tablero del Resumen: viaje cotizado con total válido (no traído, no por recotizar).
+  const dashboard = !brought && hasQuotedTotal && !requote;
+  // «Qué falta»: los mismos pasos y la misma cuenta que «Comprar» (purchaseProgress).
+  const progress = buyFlow ? purchaseProgress(buyFlow, (it) => itemPurchaseState(it, purchaseMarks.rows, purchaseMarks.marks)) : null;
+  // Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas. Un viaje importado
+  // de documentos dice lo que se PAGÓ, no un estado de cotización.
+  const bookingBadge = isDocumento
+    ? <ImportedTripBanner trip={trip} />
+    : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={badgeEstimatedKinds(totalSummary)} byLand={arrivalByLand(trip)} requote={requote} />;
+  // La cifra grande de la página, con su desglose plegado debajo (sin repetir título ni cifra).
+  const totalCard = dashboard ? (
+    <RealTripTotal
+      trip={trip}
+      noches={quoteNights}
+      viajeros={quoteTravelers}
+      onUpdated={loadTrip}
+      staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis, staleness.reasons) : null}
+      selectionDesglose={pageSelDesglose}
+      validityLabel={validity.label}
+      validityExpired={validity.expired}
+      priceAge={validity.age}
+      fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${fxSourceName(quote.fx_source, !!quote.fx_is_fallback)} (${formatInstant(quote.fx_at)})` : null}
+      onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
+      trust={trustForTotal}
+      summary={totalSummary}
+      split={totalSplit}
+      embedded
+      beforeDetails={
+        <>
+          {!isDocumento && progress && progress.rows.length > 0 ? (
+            <div className="mt-5 border-t border-border/40 pt-4">
+              <TripChecklist rows={progress.rows} done={progress.done} total={progress.total} onGo={scrollToSection} footer={bookingBadge} />
+            </div>
+          ) : bookingBadge ? <div className="mt-4">{bookingBadge}</div> : null}
+          <div className="mt-5 border-t border-border/40 pt-4">
+            <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing} embedded
+              hideStaleNotice={validity.expired} />
+          </div>
+        </>
+      }
+    >
+      {computedTotal > 0 ? (
+        <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
+          embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
+      ) : null}
+    </RealTripTotal>
+  ) : null;
+  // Pasos de «Comprar» que aún piden algo. Estando en Comprar, la barra del celular lleva al siguiente que
+  // queda debajo de lo que se está viendo (o, si ya pasó todos, al primero que falta).
+  const pendingSteps = (progress?.rows ?? []).filter((r) => !CHECKLIST_DONE.has(r.status));
+  const goNextPending = () => {
+    const els = pendingSteps.map((r) => document.getElementById(r.id)).filter((e): e is HTMLElement => !!e);
+    const below = els.find((e) => e.getBoundingClientRect().top > 160);
+    scrollToSection((below ?? els[0])?.id ?? "paso-listo");
+  };
   const heroCover = destinationCoverUrl(trip.cover_image_url);
   const placeNames = tripPlaceNames(trip);
   const tourSteps = tripTourSteps({ ...helpCtx, sections: sections.map((x) => x.id) });
@@ -661,13 +733,80 @@ const TripDetail = () => {
         <div className="mb-4 empty:hidden"><TripPageTour steps={tourSteps} onHighlight={setTourHighlight} /></div>
         <div role="tabpanel" id="panel-resumen" aria-labelledby="tab-resumen" data-trip-panel="resumen" hidden={section !== "resumen"} className="space-y-6">
         <SectionIntro text={tripSectionHelp("resumen", helpCtx)} />
+        {dashboard ? (
+          // Tablero (ola «9.5 en todo»): una sola tarjeta con lo esencial —lo imperdible, cuánto cuesta, qué
+          // falta y qué sigue—. Antes eran 4 bloques seguidos que repetían el total, «falta elegir» y la fecha.
+          <motion.section id="trip-total" data-testid="trip-dashboard" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            className="glass-card rounded-2xl p-4 sm:p-6 md:p-8 scroll-mt-20 focus:outline-none">
+            {glanceShown.length > 0 && (
+              <div className="mb-4 border-b border-border/40 pb-4"><TripGlance bullets={glanceShown} embedded /></div>
+            )}
+            {totalCard}
+          </motion.section>
+        ) : (
+          <>
         {/* Tu viaje en 30 segundos: arriba del total y del texto largo (análisis, itinerario). */}
-        <TripGlance bullets={glance} />
-        {/* Reservado vs. cotizado ("listo" no lo distingue): derivado de las reservas confirmadas.
-            Un viaje importado de documentos dice lo que se PAGÓ, no un estado de cotización. */}
-        {(trip as any).fuente === "documento"
-          ? <ImportedTripBanner trip={trip} />
-          : brought ? null : <BookingStateBadge summary={deriveTripBookingState(trip, bookings)} estimated={badgeEstimatedKinds(totalSummary)} byLand={arrivalByLand(trip)} requote={requote} />}
+        <TripGlance bullets={glanceShown} />
+        {bookingBadge}
+        {/* Total + Análisis narrativo */}
+        <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">
+          {brought ? (
+            <BroughtTripSummary trip={trip}>
+              {/* Solo lo que la persona elija aquí (experiencias) suma; vuelos y hotel nunca. */}
+              {computedTotal > 0 && (
+                <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
+                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
+                  <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
+                    embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
+                </div>
+              )}
+            </BroughtTripSummary>
+          ) : hasQuotedTotal && requote ? (
+            // Cotización guardada con error (desglose como texto: "Total $7 MXN"): no se muestra un total falso.
+            <div className="glass-card rounded-2xl p-5 sm:p-8 mb-8 border border-amber-500/40" data-testid="trip-total-recotizar" role="status">
+              <p className="text-xs tracking-[0.2em] uppercase text-amber-400">{REQUOTE_LABEL}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{REQUOTE_DETAIL}</p>
+              {isOwner && (
+                <Button onClick={() => navigate(`/dashboard/viajes/${id}/editar`)} className="mt-4 bg-gradient-gold text-primary-foreground rounded-2xl min-h-[44px]">
+                  Volver a cotizar
+                </Button>
+              )}
+            </div>
+          ) : (
+            <LiveTripQuote
+              tripId={trip.id}
+              origin={trip.ciudad_origen}
+              destination={isMulti ? destinationsMulti[0] : trip.destino}
+              depart={trip.fecha_salida}
+              return_date={trip.fecha_regreso}
+              nights={noches}
+              travelers={viajeros}
+              fallbackMxn={computedTotal}
+            />
+          )}
+          {/* Sin cotización (LiveTripQuote): el desglose de la estimación, sin repetir el total. */}
+          {!hasQuotedTotal && !brought && computedTotal > 0 && (
+            <details className="group glass-card rounded-2xl -mt-4" data-testid="trip-desglose">
+              <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-5">
+                <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" /> Ver desglose del total</span>
+                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
+                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded labels={rubroLabels} />
+              </div>
+            </details>
+          )}
+        </motion.section>
+
+        {/* Qué sigue: guardado, cuánto falta y UNA acción principal. Con «Por recotizar» la tarjeta de arriba ya
+            dice qué pasó y trae «Volver a cotizar»: no se repite (antes el mismo aviso y el mismo botón dos veces). */}
+        {!(hasQuotedTotal && requote && isOwner) && (
+          <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing}
+            hideStaleNotice={hasQuotedTotal && !requote && validity.expired} />
+        )}
+          </>
+        )}
+
         {/* Smart Date Resolution: fechas optimizadas por IATOS */}
         {trip.dates_optimized && (
           <motion.div
@@ -710,91 +849,12 @@ const TripDetail = () => {
           </motion.div>
         )}
 
-
-
         {/* Tarifas guardadas que eran de otra ruta: se descartan y se dice (nunca se muestran como vuelo del viaje). */}
         {discardedNotice && (
           <div role="status" data-testid="trip-tarifas-descartadas" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-500">
             {discardedNotice}
           </div>
         )}
-
-        {/* Total + Análisis narrativo */}
-        <motion.section id="trip-total" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="scroll-mt-20 focus:outline-none">
-          {brought ? (
-            <BroughtTripSummary trip={trip}>
-              {/* Solo lo que la persona elija aquí (experiencias) suma; vuelos y hotel nunca. */}
-              {computedTotal > 0 && (
-                <div className="mt-4 border-t border-border/40 pt-3" data-testid="brought-elegido">
-                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">Lo que elegiste en IATOS</p>
-                  <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                    embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
-                </div>
-              )}
-            </BroughtTripSummary>
-          ) : hasQuotedTotal && requote ? (
-            // Cotización guardada con error (desglose como texto: "Total $7 MXN"): no se muestra un total falso.
-            <div className="glass-card rounded-2xl p-5 sm:p-8 mb-8 border border-amber-500/40" data-testid="trip-total-recotizar" role="status">
-              <p className="text-xs tracking-[0.2em] uppercase text-amber-400">{REQUOTE_LABEL}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{REQUOTE_DETAIL}</p>
-              {isOwner && (
-                <Button onClick={() => navigate(`/dashboard/viajes/${id}/editar`)} className="mt-4 bg-gradient-gold text-primary-foreground rounded-2xl min-h-[44px]">
-                  Volver a cotizar
-                </Button>
-              )}
-            </div>
-          ) : hasQuotedTotal ? (
-            <RealTripTotal
-              trip={trip}
-              noches={quoteNights}
-              viajeros={quoteTravelers}
-              onUpdated={loadTrip}
-              staleMessage={staleness.stale && staleness.basis ? staleQuoteMessage(staleness.basis, staleness.reasons) : null}
-              selectionDesglose={pageSelDesglose}
-              validityLabel={validity.label}
-              validityExpired={validity.expired}
-              priceAge={validity.age}
-              fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${fxSourceName(quote.fx_source, !!quote.fx_is_fallback)} (${formatInstant(quote.fx_at)})` : null}
-              onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
-              trust={trustForTotal}
-              summary={totalSummary}
-              split={totalSplit}
-            >
-              {/* Un solo desglose, plegado bajo el mismo total (sin repetir título ni cifra). */}
-              {computedTotal > 0 ? (
-                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={quoteTravelers}
-                  embedded estimatedKeys={estimatedKeys} labels={rubroLabels} />
-              ) : null}
-            </RealTripTotal>
-          ) : (
-            <LiveTripQuote
-              tripId={trip.id}
-              origin={trip.ciudad_origen}
-              destination={isMulti ? destinationsMulti[0] : trip.destino}
-              depart={trip.fecha_salida}
-              return_date={trip.fecha_regreso}
-              nights={noches}
-              travelers={viajeros}
-              fallbackMxn={computedTotal}
-            />
-          )}
-          {/* Sin cotización (LiveTripQuote): el desglose de la estimación, sin repetir el total. */}
-          {!hasQuotedTotal && !brought && computedTotal > 0 && (
-            <details className="group glass-card rounded-2xl -mt-4" data-testid="trip-desglose">
-              <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-5">
-                <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" /> Ver desglose del total</span>
-                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-border/40">
-                <ReadonlyBudget desglose={computedDesglose} total={computedTotal} travelers={viajeros} embedded labels={rubroLabels} />
-              </div>
-            </details>
-          )}
-        </motion.section>
-
-        {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
-        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing}
-          hideStaleNotice={hasQuotedTotal && !requote && validity.expired} />
 
         {/* Por tierra no hay vuelo que vigilar (caso E2E 28-oct-2026, Valle de Bravo). */}
         {/* Con la cotización con error («Por recotizar») no se ofrece vigilar un precio que no sirve (R3 P2-4). */}
@@ -911,6 +971,19 @@ const TripDetail = () => {
             </button>
           </div>
 
+          {/* Sin plan día por día (p. ej. un viaje traído): qué hacer, en vez de solo días «sin plan». */}
+          {shownDays.length > 0 && shownDays.every((d: any) => d.pendiente) && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-4" data-testid="itinerario-vacio">
+              <p className="text-sm font-medium">Aún no hay plan para tus días</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Elige restaurantes, museos y tours para llenarlos, o arma el plan con «Editar con IA», arriba en la foto.
+              </p>
+              <Button type="button" onClick={() => showSection("experiencias")} className="mt-3 min-h-[44px] rounded-xl bg-gradient-gold text-primary-foreground">
+                Ver restaurantes y experiencias <ArrowRight className="ml-1 w-4 h-4" aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+
           {(isMulti ? destinationsMulti : [trip.destino]).map((city: string, cityIdx: number, allCities: string[]) => {
             const cityKey = isMulti ? cityKeyFor(city) : city;
             // Coche, tren, bus y ferry (no son vuelos), del plan guardado; en viajes viejos, los que
@@ -930,58 +1003,100 @@ const TripDetail = () => {
                 onToggle={() => toggleCity(city)}
               >
                 <div className="space-y-6">
+                  {/* Cómo llegar por tierra: plegado con una línea (antes 2-3 tarjetas grandes antes del día 1). */}
                   {cityGround.length > 0 && (
-                    <SubBlock icon={Car} title="Cómo llegar por tierra">
-                      <div className="grid min-w-0 md:grid-cols-2 gap-3">
+                    <details className="group rounded-xl border border-border/60 bg-surface/30" data-testid="itinerario-tierra">
+                      <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2 text-sm font-medium"><Car className="w-4 h-4 text-primary shrink-0" aria-hidden="true" /> Cómo llegar por tierra</span>
+                          <span className="block text-xs text-muted-foreground">{groundSummary(cityGround)}</span>
+                        </span>
+                        <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
+                      </summary>
+                      <div className="grid min-w-0 md:grid-cols-2 gap-3 px-3 pb-3">
                         {cityGround.map((g: any, gi: number) => (
                           <ArrivalOptionCard key={`tierra-${gi}`} option={g} active={false} quotedAt={quote?.created_at ?? trip.created_at} trip={trip} />
                         ))}
                       </div>
-                    </SubBlock>
+                    </details>
                   )}
 
-                  {/* Itinerario día por día */}
+                  {/* Itinerario día por día: cada día en 3 renglones (mañana · tarde · noche con el lugar) y
+                      chips del transporte de ese día; el texto completo queda en «Ver detalle». */}
                   {cityDays.length > 0 && (
                     <SubBlock icon={Calendar} title="Itinerario día por día">
-                      <div className="space-y-2">
+                      <ol className="space-y-2" aria-label={`Días en ${city}`}>
                         {cityDays.map((d: any) => {
+                          const chips = dayChips[d.dia] ?? [];
                           if (d.pendiente) {
                             // Día del calendario sin plan: visible y marcado como pendiente (no se esconde).
                             return (
-                              <div key={`p-${d.dia}`} className="flex items-center gap-3 rounded-xl border border-dashed border-border/60 bg-surface/20 p-4" data-testid="itinerario-dia-pendiente">
+                              <li key={`p-${d.dia}`} className="flex items-start gap-3 rounded-xl border border-dashed border-border/60 bg-surface/20 p-4" data-testid="itinerario-dia-pendiente">
                                 <span className="font-display text-xl text-muted-foreground w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
-                                <span className="min-w-0">
+                                <span className="min-w-0 flex-1">
                                   {tripDayDate(d.fecha) && <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{tripDayDate(d.fecha)}</span>}
                                   <span className="text-sm text-muted-foreground break-words">{d.titulo}</span>
+                                  <DayChips chips={chips} onGo={scrollToSection} interactive />
                                 </span>
-                              </div>
+                              </li>
                             );
                           }
-                          // Una línea que resume el día arriba del detalle (el texto de mañana, tarde y noche no cambia).
-                          const resumenDia = daySummaryLine(d, placeNames);
+                          const slots = daySlotsByDia.get(d.dia) ?? [];
+                          const route = dayRouteUrl(slots);
                           return (
-                            <details key={d.dia} className="rounded-xl border border-border/60 bg-surface/40 group" data-testid="itinerario-dia">
+                            <li key={d.dia}>
+                            <details className="rounded-xl border border-border/60 bg-surface/40 group" data-testid="itinerario-dia"
+                              onToggle={(e) => { const isOpen = (e.currentTarget as HTMLDetailsElement).open; setOpenDays((prev) => { const next = new Set(prev); if (isOpen) next.add(d.dia); else next.delete(d.dia); return next; }); }}>
                               <summary
-                                className="flex items-center justify-between gap-3 p-4 cursor-pointer list-none hover:bg-surface/60 transition"
+                                className="flex items-start justify-between gap-3 p-4 cursor-pointer list-none hover:bg-surface/60 transition [&::-webkit-details-marker]:hidden"
                               >
-                                <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex min-w-0 flex-1 items-start gap-3">
                                   <span className="font-display text-xl gold-text w-8 shrink-0">{String(d.dia).padStart(2, "0")}</span>
-                                  <span className="min-w-0">
+                                  <span className="min-w-0 flex-1">
                                     {tripDayDate(d.fecha) && <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">{tripDayDate(d.fecha)}</span>}
                                     <span className="font-medium text-sm break-words">{d.titulo}</span>
-                                    {resumenDia && <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-3 break-words" data-testid="itinerario-dia-resumen">{resumenDia}</span>}
-                                    <span className="mt-1 block text-[11px] text-primary">
+                                    {slots.length > 0 && (
+                                      <span className="mt-1.5 block space-y-0.5" data-testid="itinerario-dia-resumen">
+                                        {slots.filter((sl) => !sl.repeated).map((sl) => (
+                                          <span key={sl.part} className="flex min-w-0 items-baseline gap-2 text-xs" data-part={sl.part}>
+                                            <span className="w-12 shrink-0 text-[10px] uppercase tracking-wider text-primary/80">{sl.label}</span>
+                                            <span className={`min-w-0 break-words ${sl.place ? "line-clamp-1 text-foreground/90" : "line-clamp-2 text-muted-foreground"}`}>{sl.headline}</span>
+                                          </span>
+                                        ))}
+                                      </span>
+                                    )}
+                                    <DayChips chips={chips} />
+                                    <span className="mt-1.5 block text-[11px] text-primary">
                                       <span className="group-open:hidden">Ver detalle</span>
                                       <span className="hidden group-open:inline">Ocultar detalle</span>
                                     </span>
                                   </span>
                                 </div>
-                                <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
+                                <ChevronDown className="mt-1 w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
                               </summary>
-                              <div className="px-4 pb-4 pt-1 border-t border-border/40 space-y-2 text-xs">
-                                <div><span className="text-primary tracking-wider uppercase">Mañana</span><p className="mt-0.5 text-muted-foreground">{d["mañana"] ?? d.manana}</p></div>
-                                <div><span className="text-primary tracking-wider uppercase">Tarde</span><p className="mt-0.5 text-muted-foreground">{d.tarde}</p></div>
-                                <div><span className="text-primary tracking-wider uppercase">Noche</span><p className="mt-0.5 text-muted-foreground">{d.noche}</p></div>
+                              <div className="px-4 pb-4 pt-2 border-t border-border/40 space-y-3 text-xs">
+                                {slots.map((sl) => (
+                                  <div key={sl.part} data-testid="itinerario-franja" data-part={sl.part}>
+                                    <span className="text-primary tracking-wider uppercase">{sl.label}</span>
+                                    <p className="mt-0.5 text-muted-foreground leading-relaxed">{sl.text}</p>
+                                    {/* La ficha del lugar solo al abrir el día (menos peso en la página). */}
+                                    {openDays.has(d.dia) && sl.place && (sl.place.mapsUrl || sl.place.porQue) && (
+                                      <div className="mt-1.5 rounded-lg border border-border/50 bg-background/40 px-2.5 py-2" data-testid="itinerario-lugar">
+                                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                          <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
+                                          <span className="font-medium text-foreground/90">{sl.place.name}</span>
+                                          {sl.place.rating != null && <span className="inline-flex items-center gap-0.5 text-muted-foreground"><Star className="w-3 h-3 fill-current text-primary" aria-hidden="true" />{sl.place.rating.toFixed(1)} <span className="sr-only">de 5 en Google</span></span>}
+                                          {sl.place.mapsUrl && (
+                                            <a href={sl.place.mapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[32px] items-center text-primary underline-offset-2 hover:underline" data-testid="itinerario-lugar-mapa">
+                                              Ver en Google Maps
+                                            </a>
+                                          )}
+                                        </p>
+                                        {sl.place.porQue && <p className="mt-0.5 text-muted-foreground"><span className="text-foreground/80">Por qué: </span>{plainProviderText(sl.place.porQue)}</p>}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                                 {/* Agregado con Iato (acción confirmada por el usuario en el chat). */}
                                 {Array.isArray(d.agregados) && d.agregados.length > 0 && (
                                   <div>
@@ -993,11 +1108,24 @@ const TripDetail = () => {
                                     </ul>
                                   </div>
                                 )}
+                                {openDays.has(d.dia) && chips.find((c) => c.target) && (
+                                  <button type="button" onClick={() => scrollToSection(chips.find((c) => c.target)!.target!)} data-testid="itinerario-ir-comprar"
+                                    className="inline-flex min-h-[40px] items-center gap-1 text-primary underline-offset-2 hover:underline">
+                                    Ver opciones y comprar el transporte en Comprar <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                                  </button>
+                                )}
+                                {openDays.has(d.dia) && route && (
+                                  <a href={route} target="_blank" rel="noopener noreferrer" data-testid="itinerario-ruta-dia"
+                                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary hover:bg-primary/10">
+                                    <MapIcon className="w-3.5 h-3.5" aria-hidden="true" /> Ruta del día en Google Maps (tiempos de traslado reales)
+                                  </a>
+                                )}
                               </div>
                             </details>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ol>
                     </SubBlock>
                   )}
 
@@ -1144,7 +1272,8 @@ const TripDetail = () => {
         </div>
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
-      <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} missing={totalSummary.missing} />
+      <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} missing={totalSummary.missing}
+        inComprar={section === "comprar" && progress && progress.rows.length > 0 ? { pending: pendingSteps.length > 0, onNext: goNextPending } : null} />
     </DashboardLayout>
   );
 };
@@ -1159,6 +1288,38 @@ const SubBlock = ({ icon: Icon, title, children }: any) => (
     {children}
   </div>
 );
+
+const CHIP_ICON: Record<string, any> = { vuelo: Plane, tren: Train, coche: Car, bus: Bus, ferry: Ship };
+
+// Transporte del día (vuelo, llegada, tren a la siguiente ciudad, regreso): una ficha corta y escaneable.
+// En un día sin plan (pendiente) la ficha es un botón que lleva a ese paso de «Comprar».
+const DayChips = ({ chips, onGo, interactive = false }: { chips: DayChip[]; onGo?: (id: string) => void; interactive?: boolean }) => {
+  if (!chips.length) return null;
+  return (
+    <span className="mt-2 flex flex-wrap gap-1.5" data-testid="itinerario-transporte">
+      {chips.map((c, i) => {
+        const Icon = CHIP_ICON[c.mode] ?? RouteIcon;
+        const cls = "inline-flex max-w-full items-start gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.07] px-2.5 py-1.5 text-left text-[11px] leading-snug";
+        const body = (
+          <>
+            <Icon className={`mt-px h-3.5 w-3.5 shrink-0 text-primary ${Icon === Plane && c.kind === "regreso" ? "-scale-x-100" : ""}`} aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="block font-medium text-foreground/90 break-words">{c.text}</span>
+              {c.sub && <span className="block text-muted-foreground break-words">{c.sub}</span>}
+            </span>
+          </>
+        );
+        return interactive && c.target && onGo ? (
+          <button key={i} type="button" onClick={() => onGo(c.target!)} className={`${cls} min-h-[40px] hover:bg-primary/15`} data-testid="itinerario-chip" data-kind={c.kind}>
+            {body}<ArrowRight className="ml-0.5 mt-px h-3.5 w-3.5 shrink-0 text-primary" aria-label="Ver en Comprar" />
+          </button>
+        ) : (
+          <span key={i} className={cls} data-testid="itinerario-chip" data-kind={c.kind}>{body}</span>
+        );
+      })}
+    </span>
+  );
+};
 
 // Elegante conector entre destinos (multi-ciudad), con el ícono del modo del tramo (sin dato: una ruta).
 const FlightConnector = ({ from, to, mode }: { from: string; to: string; mode?: string | null }) => {
