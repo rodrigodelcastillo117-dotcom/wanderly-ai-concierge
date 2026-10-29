@@ -1127,6 +1127,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     const cal = applyTripCalendar(a.itinerario, {
       fechaSalida: body.fecha_salida, fechaRegreso: body.fecha_regreso, destino: body.destino, origen: body.ciudad_origen,
       flight: vueloElegido, internacional: paisO && paisD ? paisO !== paisD : null,
+      // En avión sin hora de llegada (tarifa estimada), el Día 1 no afirma la llegada (R3 viajes P1-1).
+      enAvion: !shortTrip,
     });
     if (cal.ajustes.length) console.warn("analizar-viaje: itinerario ajustado al calendario", cal.ajustes, body.destino);
     a.itinerario = cal.days;
