@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { partsList, type TotalSplit } from "@/lib/totalSplit";
+import type { TotalSplit } from "@/lib/totalSplit";
 import { motion } from "framer-motion";
 import { Receipt, Lightbulb, ChevronDown, AlertTriangle, Clock, RefreshCw, BadgeCheck, Sparkles, Compass } from "lucide-react";
 import type { QuoteTrust } from "@/lib/quoteTrust";
@@ -54,6 +54,7 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
   const hint = summary?.hint ?? (fromSelection ? null : "Elige vuelo y hotel en Comprar para ver el total real.");
   const estimated = summary?.state === "estimado" || !!summary?.sinPrecioReal?.length || (!summary && !fromSelection);
   const quien = viajeros > 1 ? `Total para ${viajeros} personas` : "Total para 1 persona";
+  const splitLine = !!split && split.estimado > 0;
 
   return (
     <motion.div
@@ -83,25 +84,25 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         aria-label={`${quien}: ${fmtMXN(total)}`}>
         {fmtMXN(total)}
       </p>
-      {viajeros > 1 && (
-        <p className="text-base text-foreground/90 mb-1" data-testid="trip-total-pp">
-          {fmtMXN(porPersona)} <span className="text-muted-foreground">por persona</span>
-        </p>
-      )}
+      {/* Por persona y noches en una sola línea (R3 viajes P1-3: «demasiado texto»). */}
       <p className="text-sm text-muted-foreground mb-1">
+        {viajeros > 1 && (
+          <><span className="text-base text-foreground/90" data-testid="trip-total-pp">{fmtMXN(porPersona)} <span className="text-muted-foreground">por persona</span></span>{" · "}</>
+        )}
         {noches} {noches === 1 ? "noche" : "noches"}
       </p>
       {hint && <p className="text-sm text-foreground/90 mb-2" data-testid="trip-total-hint">{hint}</p>}
-      {/* El mismo total, separado: precios reales y gastos estimados (comida, transporte local, extras…). */}
-      {split && split.estimado > 0 && (
-        <p className="mb-2 flex flex-col gap-0.5 text-sm sm:flex-row sm:gap-3" data-testid="trip-total-reparto">
-          {/* Sin ningún precio real no se dice "Total con precios reales: $0" (caso Bogotá). */}
-          {split.real > 0
-            ? <span data-testid="trip-total-real">Total con precios reales: <span className="tabular-nums">{fmtMXN(split.real)}</span></span>
+      {/* El mismo total, separado, en UNA línea secundaria (R3 viajes P1-3: antes «Total con precios reales:
+          $76,984» bajo el total y luego otra vez «$76,984 con precio consultado en vivo · $40,200 estimado»). */}
+      {splitLine ? (
+        <p className="mb-2 text-sm text-muted-foreground" data-testid="trip-total-reparto">
+          {split!.real > 0
+            ? <span data-testid="trip-total-real">De eso, <span className="tabular-nums text-foreground/90">{fmtMXN(split!.real)}</span> con precio en vivo y <span className="tabular-nums" data-testid="trip-total-estimado">{fmtMXN(split!.estimado)}</span> estimado.</span>
             : <span data-testid="trip-total-sin-reales">Aún sin precios consultados en vivo: todo el total es estimado.</span>}
-          <span className="text-muted-foreground" data-testid="trip-total-estimado">Gastos estimados del viaje ({partsList(split.estParts)}): ~<span className="tabular-nums">{fmtMXN(split.estimado)}</span></span>
         </p>
-      )}
+      ) : trust?.known ? (
+        <p className="mb-2 text-sm text-muted-foreground" data-testid="trip-total-reparto">{trust.summary}</p>
+      ) : null}
       {/* Ya comprado: lo pagado y lo que falta suman el mismo total de arriba. */}
       {summary && summary.state === "comprado" && (
         <p className="mb-2 flex flex-col gap-0.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm sm:inline-flex sm:flex-row sm:gap-3" data-testid="trip-total-pagado">
@@ -135,54 +136,52 @@ export function RealTripTotal({ trip, noches, viajeros, staleMessage, validityLa
         </p>
       )}
 
-      {/* Qué está verificado y qué es estimado (de los renglones de la cotización guardada). */}
-      {trust && (
-        <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 p-3 sm:p-4" aria-label="Qué tan confiable es este total">
-          {trust.known ? (
-            <>
-              <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.06]" aria-hidden>
-                {trust.verified > 0 && <span className="h-full bg-primary" style={{ width: `${(trust.verified / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
-                {trust.toVerify > 0 && <span className="h-full bg-amber-500/80" style={{ width: `${(trust.toVerify / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
-                {trust.estimated > 0 && <span className="h-full bg-white/25" style={{ width: `${(trust.estimated / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
-              </div>
-              <p className="mt-2 text-xs text-foreground/90">{trust.summary}</p>
-              <ul className="mt-2 grid gap-1 sm:grid-cols-2 text-[11px] text-muted-foreground">
-                {trust.lines.map((l) => (
-                  <li key={l.category} className="flex items-center justify-between gap-2" data-trust={l.trust}>
-                    <span className="inline-flex items-center gap-1.5 min-w-0">
-                      {l.trust === "verificado"
-                        ? <BadgeCheck className="w-3 h-3 text-primary shrink-0" aria-hidden />
-                        : l.trust === "por_verificar"
-                          ? <Clock className="w-3 h-3 text-amber-500 shrink-0" aria-hidden />
-                          : <Sparkles className="w-3 h-3 shrink-0" aria-hidden />}
-                      <span className="truncate">{l.label}</span>
-                      <span className="text-muted-foreground/70">· {l.trust === "verificado" ? "en vivo" : l.trust === "por_verificar" ? "por verificar" : "estimado"}</span>
-                    </span>
-                    <span className="text-foreground/80 tabular-nums">{fmtMXN(l.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">{trust.summary}</p>
-          )}
-        </div>
-      )}
-
-      {/* Desglose plegado debajo de ESTE total (antes era otro bloque con "Total estimado" y la cifra repetida). */}
-      {children && (
+      {/* Desglose plegado debajo de ESTE total (antes era otro bloque con "Total estimado" y la cifra repetida).
+          Lo consultado en vivo renglón por renglón también va aquí: arriba ya lo dice una sola línea. */}
+      {(children || trust?.known) && (
         <details className="group mt-5 border-t border-border/40" data-testid="trip-desglose">
           <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 pt-3">
             <span className="inline-flex items-center gap-2 text-sm"><Compass className="w-4 h-4 text-primary shrink-0" aria-hidden="true" /> Ver desglose del total</span>
             <ChevronDown className="w-4 h-4 shrink-0 text-primary transition-transform group-open:rotate-180" aria-hidden="true" />
           </summary>
           <div className="pt-2">
+          {/* Qué está verificado y qué es estimado (de los renglones de la cotización guardada). */}
+          {trust?.known && (
+            <div className="mb-3 rounded-xl border border-white/[0.06] bg-black/20 p-3 sm:p-4" aria-label="Qué tan confiable es este total">
+              {trust.known ? (
+                <>
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.06]" aria-hidden>
+                    {trust.verified > 0 && <span className="h-full bg-primary" style={{ width: `${(trust.verified / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+                    {trust.toVerify > 0 && <span className="h-full bg-amber-500/80" style={{ width: `${(trust.toVerify / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+                    {trust.estimated > 0 && <span className="h-full bg-white/25" style={{ width: `${(trust.estimated / (trust.verified + trust.estimated + trust.toVerify)) * 100}%` }} />}
+                  </div>
+                  <ul className="mt-2 grid gap-1 sm:grid-cols-2 text-[11px] text-muted-foreground">
+                    {trust.lines.map((l) => (
+                      <li key={l.category} className="flex items-center justify-between gap-2" data-trust={l.trust}>
+                        <span className="inline-flex items-center gap-1.5 min-w-0">
+                          {l.trust === "verificado"
+                            ? <BadgeCheck className="w-3 h-3 text-primary shrink-0" aria-hidden />
+                            : l.trust === "por_verificar"
+                              ? <Clock className="w-3 h-3 text-amber-500 shrink-0" aria-hidden />
+                              : <Sparkles className="w-3 h-3 shrink-0" aria-hidden />}
+                          <span className="truncate">{l.label}</span>
+                          <span className="text-muted-foreground/70">· {l.trust === "verificado" ? "en vivo" : l.trust === "por_verificar" ? "por verificar" : "estimado"}</span>
+                        </span>
+                        <span className="text-foreground/80 tabular-nums">{fmtMXN(l.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </div>
+          )}
             {children}
             {fxNote && <p className="mt-3 text-[11px] text-muted-foreground">{fxNote}</p>}
           </div>
         </details>
       )}
-      {!children && fxNote && <p className="text-[11px] text-muted-foreground mb-2">{fxNote}</p>}
+      {!children && !trust?.known && fxNote && <p className="text-[11px] text-muted-foreground mb-2">{fxNote}</p>}
+      {!trust?.known && trust && <p className="mb-2 text-xs text-muted-foreground">{trust.summary}</p>}
 
       {/* Análisis del concierge integrado en la misma tarjeta */}
       {trip?.analisis_ai && (
