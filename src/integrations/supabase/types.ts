@@ -1422,6 +1422,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "concierge_requests_fixer_escalation_fk"
+            columns: ["fixer_escalation_id"]
+            isOneToOne: false
+            referencedRelation: "fixer_escalations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "concierge_requests_fixer_escalation_id_fkey"
             columns: ["fixer_escalation_id"]
             isOneToOne: false
@@ -7564,6 +7571,10 @@ export type Database = {
       }
       _ai_res_enabled: { Args: never; Returns: boolean }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
+      _fixer_request_title: {
+        Args: { _motivo: string; _urgencia: string }
+        Returns: string
+      }
       _ops_ai_json: {
         Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
         Returns: Json
@@ -7863,6 +7874,7 @@ export type Database = {
         Args: { p_amigo: string; p_limite?: number }
         Returns: Json
       }
+      amigo_existe: { Args: { p_id: string }; Returns: boolean }
       amigo_perfil: { Args: { p_amigo: string }; Returns: Json }
       amigo_viajes: { Args: { p_amigo: string }; Returns: Json }
       amigos_actividad: { Args: { p_limite?: number }; Returns: Json }
