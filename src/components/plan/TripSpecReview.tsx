@@ -17,6 +17,7 @@ import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
 import { DRAFT_STATUS, DRAFT_WAITING_LABEL } from "@/lib/tripSpecDraft";
 import { answerKindOf, answerQuestion, autoResolveQuestions, modeFromText, numericOptions, returnLegText, returnModeOf, setReturnMode } from "@/lib/tripSpecAnswers";
+import { IatoName } from "@/lib/iatoMark";
 
 type Props = {
   spec: TripSpec;
@@ -330,7 +331,7 @@ export function TripSpecReview({ spec, onChange: onChangeRaw, onConfirm, busy, a
         <section className="space-y-1 text-xs text-muted-foreground">
           {spec.preferencias.length > 0 && <p>Preferencias: <span className="text-foreground">{spec.preferencias.join(" · ")}</span></p>}
           {spec.reservas.length > 0 && <p>Ya compraste: <span className="text-foreground">{spec.reservas.join(" · ")}</span></p>}
-          {spec.sugerencias.map((s, i) => <p key={i} data-testid="spec-sugerencia">Sugerencia de Iato (no cambia tu orden): {s}</p>)}
+          {spec.sugerencias.map((s, i) => <p key={i} data-testid="spec-sugerencia">Sugerencia de <IatoName /> (no cambia tu orden): {s}</p>)}
         </section>
       )}
 

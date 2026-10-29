@@ -25,6 +25,10 @@ vi.mock("@/lib/analytics", () => ({ track: () => {}, initAnalytics: vi.fn(), opt
 
 import Auth from "@/pages/Auth";
 import { CookieBanner, bottomBarOffset } from "@/components/CookieBanner";
+import { Ayuda, Terminos } from "@/pages/Legal";
+import { DNA_LABELS } from "@/lib/social";
+import { iatoMarkHtml, shell, para, SERIF } from "../../supabase/functions/_shared/email-kit";
+import { userConfirmedEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
 
 const src = (p: string) => readFileSync(p, "utf8");
 
@@ -117,6 +121,69 @@ describe("P2-2 · /auth y registro: un solo mensaje por error", () => {
     await waitFor(() => expect(auth.value.signUp).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByTestId("auth-signup-error")).not.toHaveTextContent("al menos 8 caracteres"));
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+/** Cada "Iato" visible está dentro de la marca con serifa (data-iato-mark), nunca suelto en la sans. */
+function bareIato(root: HTMLElement): string[] {
+  const out: string[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!/\bIato\b/.test(n.textContent ?? "")) continue;
+    if (!(n.parentElement?.closest("[data-iato-mark]"))) out.push((n.textContent ?? "").trim().slice(0, 60));
+  }
+  return out;
+}
+
+describe("P2-3 · \"Iato\" ya no se lee \"lato\"", () => {
+  it("/ayuda y Términos: todos los \"Iato\" van con la serifa de marca", () => {
+    const { container, unmount } = render(<MemoryRouter initialEntries={["/ayuda"]}><Ayuda /></MemoryRouter>);
+    expect(container.querySelectorAll("[data-iato-mark]").length).toBeGreaterThanOrEqual(3);
+    expect(bareIato(container)).toEqual([]);
+    expect(container.textContent).toMatch(/Le dices a Iato, tu concierge/);
+    unmount();
+    const t = render(<MemoryRouter><Terminos /></MemoryRouter>);
+    expect(bareIato(t.container)).toEqual([]);
+  });
+
+  it("Equipaje en español y con la marca; landing y pantallas de alto tráfico con la marca", () => {
+    const packing = src("src/pages/TripPacking.tsx");
+    expect(packing).not.toMatch(/Iato Packing/i);
+    expect(packing).toMatch(/Equipaje con Iato/);
+    expect(packing).toMatch(/Generar lista con <IatoName \/>/);
+    expect(src("src/pages/Landing.tsx")).toMatch(/\{withIatoMark\(f\)\}/);
+    for (const f of ["src/pages/Onboarding.tsx", "src/components/plan/PlanTripDialog.tsx", "src/components/reservas/AskIatoTable.tsx", "src/pages/Favoritos.tsx", "src/pages/Benefits.tsx"]) {
+      expect(src(f), f).toMatch(/<IatoName \/>/);
+    }
+  });
+
+  it("correos: \"Iato\" del pie y de los párrafos sans va en la serifa; el texto plano no cambia", () => {
+    expect(iatoMarkHtml('Pediste a Iato. <a href="https://x.test/Iato">ver</a>')).toBe(
+      `Pediste a <span style="font-family:${SERIF};font-size:1.15em;">Iato</span>. <a href="https://x.test/Iato">ver</a>`);
+    expect(iatoMarkHtml("Iatos e Iatomar no se tocan")).toBe("Iatos e Iatomar no se tocan");
+    const html = shell({ title: "t", preheader: "p", body: [para("Hola, soy Iato.")], reason: "Recibes este correo porque pediste a Iato que escribiera a un restaurante." });
+    expect(html).toContain(`pediste a <span style="font-family:${SERIF};font-size:1.15em;">Iato</span> que escribiera`);
+    expect(html).toContain(`soy <span style="font-family:${SERIF};font-size:1.15em;">Iato</span>.`);
+    // Un correo real (reserva confirmada): el pie lleva la marca y el texto plano sigue igual.
+    const m = userConfirmedEmail({ ref_code: "R-ABC234", venue_name: "Casa Oaxaca", requested_local: "2026-11-03T20:30", party_size: 2, customer_name: "Ana López",
+      venue_address: "Constitución 104", venue_city: "Oaxaca", venue_place_id: "ChIJ_x", requested_for: "2026-11-04T02:30:00Z", confirmation_code: "MX-4821",
+      quote: "Confirmado", receivedAt: "2 nov", icsUrl: null, appUrl: "https://app.test" } as any);
+    expect(m.html).toMatch(/pediste a <span style="font-family:[^"]+;font-size:1\.15em;">Iato<\/span> que escribiera/);
+    expect(m.text).toMatch(/pediste a Iato que escribiera/);
+  });
+});
+
+describe("P2-6 · Beneficios sin \"(JSON)\" · P2-7 · /onboarding/deep en español", () => {
+  it("el botón de descarga no muestra el formato técnico", () => {
+    const b = src("src/pages/Benefits.tsx");
+    expect(b).not.toMatch(/\(JSON\)/);
+    expect(b).toMatch(/Descargar una copia de mis documentos y tarjetas/);
+  });
+  it("\"Slow Travel\" ahora es \"Viaje pausado\" (también en la etiqueta que ven tus amigos)", () => {
+    const d = src("src/pages/OnboardingDeep.tsx");
+    expect(d).not.toMatch(/Slow Travel/i);
+    expect(d).toMatch(/\{ id: "slow", label: "Viaje pausado"/);
+    expect(DNA_LABELS.ritmo.slow.label).toBe("Viaje pausado");
   });
 });
 

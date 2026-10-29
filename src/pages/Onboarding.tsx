@@ -11,6 +11,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { toast } from "sonner";
 import welcomeImg from "@/assets/onboarding-welcome.jpg";
 import tripImg from "@/assets/onboarding-trip.jpg";
+import { IatoName } from "@/lib/iatoMark";
 
 // Lo que lee evolucionar-dna del relato (seedText.slice(0, 6000)): se avisa, no se recorta lo guardado.
 const DNA_SEED_READ_MAX = 6000;
@@ -264,7 +265,7 @@ const Onboarding = () => {
                   Bienvenido a IATOS
                 </h1>
                 <p className="text-base text-white/80 leading-relaxed">
-                  Iato es tu concierge IA para viajes. Son 3 preguntas opcionales y al final eliges cómo empezar;
+                  <IatoName /> es tu concierge IA para viajes. Son 3 preguntas opcionales y al final eliges cómo empezar;
                   puedes saltarlas y completarlas después en tu Perfil.
                 </p>
                 <Button
@@ -274,7 +275,7 @@ const Onboarding = () => {
                   }}
                   className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)]"
                 >
-                  Conoce a Iato
+                  Conoce a <IatoName />
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
@@ -297,7 +298,7 @@ const Onboarding = () => {
                   ¿Qué tarjetas premium tienes?
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Iato usa tus beneficios para mejoras de categoría, créditos, salas VIP y tarifas de hotel con beneficios de tu tarjeta.
+                  <IatoName /> usa tus beneficios para mejoras de categoría, créditos, salas VIP y tarifas de hotel con beneficios de tu tarjeta.
                 </p>
               </div>
 
@@ -365,7 +366,7 @@ const Onboarding = () => {
                   ¿En qué programas de lealtad eres miembro o tienes nivel alto?
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Iato prioriza que acumules puntos y que te reconozcan tu nivel.
+                  <IatoName /> prioriza que acumules puntos y que te reconozcan tu nivel.
                 </p>
               </div>
 
@@ -462,7 +463,7 @@ const Onboarding = () => {
                 </div>
                 {dnaSeed.length > DNA_SEED_READ_MAX && (
                   <p className="text-xs text-amber-400/90" role="status" data-testid="dna-seed-aviso">
-                    Guardamos tu texto completo. Para tu perfil de viajero, Iato lee los primeros {DNA_SEED_READ_MAX.toLocaleString("es-MX")} caracteres: pon lo más importante al principio.
+                    Guardamos tu texto completo. Para tu perfil de viajero, <IatoName /> lee los primeros {DNA_SEED_READ_MAX.toLocaleString("es-MX")} caracteres: pon lo más importante al principio.
                   </p>
                 )}
               </div>
@@ -475,7 +476,7 @@ const Onboarding = () => {
                 {dnaLoading ? (
                   <>
                     <span className="h-4 w-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin mr-2" />
-                    Iato está aprendiendo de ti…
+                    <IatoName /> está aprendiendo de ti…
                   </>
                 ) : (
                   <>
@@ -508,7 +509,7 @@ const Onboarding = () => {
                     Crea tu primer viaje
                   </h2>
                   <p className="text-sm text-white/75">
-                    Iato busca vuelos y hoteles con proveedores en vivo (si alguno no
+                    <IatoName /> busca vuelos y hoteles con proveedores en vivo (si alguno no
                     responde, te lo dice) y arma tu itinerario. Suele tardar alrededor de 1 minuto.
                   </p>
                 </div>
@@ -525,7 +526,7 @@ const Onboarding = () => {
                           Un viaje que YO quiero hacer
                         </div>
                         <div className="text-sm text-muted-foreground mt-0.5">
-                          Cuéntame destino + fechas y Iato lo arma
+                          Cuéntame destino + fechas y <IatoName /> lo arma
                         </div>
                       </div>
                     </div>
@@ -540,7 +541,7 @@ const Onboarding = () => {
                       <div>
                         <div className="font-display text-lg text-foreground">Sorpréndeme</div>
                         <div className="text-sm text-muted-foreground mt-0.5">
-                          Iato propone 3 destinos basados en mi perfil de viajero
+                          <IatoName /> propone 3 destinos basados en mi perfil de viajero
                         </div>
                       </div>
                     </div>

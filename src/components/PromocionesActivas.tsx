@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { readFunctionError } from "@/lib/functionErrors";
+import { IatoName } from "@/lib/iatoMark";
 
 type Promo = {
   titulo: string;
@@ -64,7 +65,7 @@ const PromocionesActivas = () => {
           <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Búsqueda en la web</p>
           <h3 className="font-display text-2xl md:text-3xl mb-2">Promociones para tus tarjetas y programas</h3>
           <p className="text-muted-foreground text-sm">
-            Al tocar «Buscar promos», Iato busca en la web promociones vigentes para las membresías, tarjetas y seguros que guardaste en Documentos y tarjetas. Solo le enviamos el nombre, el nivel y los beneficios de cada programa; nunca tus documentos ni tus números. Cada promoción trae su fuente: confirma las condiciones ahí.
+            Al tocar «Buscar promos», <IatoName /> busca en la web promociones vigentes para las membresías, tarjetas y seguros que guardaste en Documentos y tarjetas. Solo le enviamos el nombre, el nivel y los beneficios de cada programa; nunca tus documentos ni tus números. Cada promoción trae su fuente: confirma las condiciones ahí.
           </p>
         </div>
         <Button

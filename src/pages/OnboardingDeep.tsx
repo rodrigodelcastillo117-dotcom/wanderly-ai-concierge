@@ -140,7 +140,7 @@ const OnboardingDeep = () => {
       render: () => <SingleCards field="ritmo_viaje" options={[
         { id: "explorador", label: "Explorador Imparable", desc: "Todo el día activo", emoji: "🔥" },
         { id: "equilibrado", label: "Equilibrado", desc: "1-2 actividades y fluir", emoji: "⚖️" },
-        { id: "slow", label: "Slow Travel", desc: "Sin prisas, disfrutar y relajar", emoji: "🌿" },
+        { id: "slow", label: "Viaje pausado", desc: "Sin prisas, disfrutar y relajar", emoji: "🌿" },
       ]} />,
     },
     {

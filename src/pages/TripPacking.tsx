@@ -19,6 +19,7 @@ import { BackButton } from "@/components/BackButton";
 import { toast } from "sonner";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
+import { IatoName } from "@/lib/iatoMark";
 
 type Prioridad = "esencial" | "recomendado" | "opcional";
 type Donde = "carry_on" | "documentado" | "ambos";
@@ -186,7 +187,7 @@ const TripPacking = () => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[11px] uppercase tracking-[0.22em] text-[#C9A961] font-semibold">
-              Iato Packing
+              Equipaje con Iato
             </div>
             <h1 className="font-serif text-2xl md:text-4xl leading-tight truncate">
               Tu equipaje para {trip.destino}
@@ -230,7 +231,7 @@ const TripPacking = () => {
               className="bg-[#C9A961] text-black hover:bg-[#C9A961]/90 px-6"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Generar lista con Iato
+              Generar lista con <IatoName />
             </Button>
           </div>
         )}
@@ -365,7 +366,7 @@ const TripPacking = () => {
                                       className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-foreground/50 hover:text-[#C9A961] transition"
                                     >
                                       <Info className="w-3 h-3" />
-                                      {noteOpen ? "Ocultar nota" : "Ver nota de Iato"}
+                                      {noteOpen ? "Ocultar nota" : <>Ver nota de <IatoName /></>}
                                     </button>
                                   )}
                                   {it.nota && noteOpen && (

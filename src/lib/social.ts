@@ -200,7 +200,7 @@ export const DNA_LABELS: Record<"ritmo" | "comida" | "tardes" | "hospedaje", Rec
   ritmo: {
     explorador: { label: "Explorador imparable", emoji: "🔥", comun: "Los dos viajan a todo lo que da" },
     equilibrado: { label: "Equilibrado", emoji: "⚖️", comun: "Mismo ritmo: equilibrado" },
-    slow: { label: "Slow travel", emoji: "🌿", comun: "Los dos viajan sin prisas" },
+    slow: { label: "Viaje pausado", emoji: "🌿", comun: "Los dos viajan sin prisas" },
   },
   comida: {
     foodie: { label: "Foodie aventurero", emoji: "🌮", comun: "Los dos aman la comida callejera" },

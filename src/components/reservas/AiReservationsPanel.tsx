@@ -11,6 +11,7 @@ import { FixerButton } from "@/components/FixerButton";
 import {
   type AiReservation, cancelAiReservation, chooseAiAlternative, confirmAiReservation, formatLocalSlot, listAiReservations, reservationIcsBlob, recipientNote,
 } from "@/lib/aiReservations";
+import { IatoName } from "@/lib/iatoMark";
 
 const ACTIVE = ["draft", "awaiting_user_ok", "sent", "venue_replied", "needs_user", "confirmed"];
 
@@ -56,7 +57,7 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
       {r.status === "awaiting_user_ok" && (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Mail className="w-4 h-4" aria-hidden="true" /> Iato escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.
+            <Mail className="w-4 h-4" aria-hidden="true" /> <IatoName /> escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.
           </p>
           {recipientNote(r) && <p className="text-xs text-amber-300" data-testid="ai-res-piloto">{recipientNote(r)}</p>}
           <label className="flex items-center gap-2 text-sm">
@@ -162,7 +163,7 @@ export function AiReservationsPanel() {
     <section id="reservas-ia" aria-labelledby="reservas-ia-titulo" className="space-y-3">
       <h2 id="reservas-ia-titulo" className="font-display text-xl">Reservas que Iato pidió por correo</h2>
       <p className="text-xs text-muted-foreground">
-        Iato escribe al restaurante en tu nombre solo cuando tú lo confirmas. Una reserva está confirmada únicamente cuando el restaurante lo confirma por escrito.
+        <IatoName /> escribe al restaurante en tu nombre solo cuando tú lo confirmas. Una reserva está confirmada únicamente cuando el restaurante lo confirma por escrito.
       </p>
       {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
       {[...active, ...closed].map((r) => (

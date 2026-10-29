@@ -28,6 +28,7 @@ import { PlaceCombobox } from "./PlaceCombobox";
 import { FareCard } from "./DestinationCards";
 import { ExploreMap } from "./ExploreMap";
 import { BroughtTripForm } from "./BroughtTripForm";
+import { IatoName } from "@/lib/iatoMark";
 
 export type PlanDialogMode = "buscar" | "traido";
 
@@ -324,7 +325,7 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
           {/* ¿Flexible? */}
           <section aria-labelledby="plan-flexible" className="mt-7 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent p-4 sm:p-5">
             <h3 id="plan-flexible" className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Sparkles aria-hidden className="h-4 w-4 text-primary" /> ¿Flexible? Descríbele tu viaje a Iato
+              <Sparkles aria-hidden className="h-4 w-4 text-primary" /> ¿Flexible? Descríbele tu viaje a <IatoName />
             </h3>
             <label htmlFor="plan-libre" className="sr-only">Describe tu viaje</label>
             <textarea id="plan-libre" rows={3} value={libre} onChange={(e) => setLibre(e.target.value)}
@@ -334,7 +335,7 @@ export function PlanTripDialog({ open, onOpenChange, startMode = "buscar" }: { o
               <p className="text-[11px] text-muted-foreground">{libre.trim() ? "Explorar usará tu descripción completa; antes de armar te mostramos lo que entendimos." : "Paradas, cruceros, trenes, regreso por otra ciudad: todo cuenta."}</p>
               <button type="button" onClick={exploreWithIato}
                 className="rounded-full border border-primary/40 px-4 py-2 text-xs text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                Explorar con Iato
+                Explorar con <IatoName />
               </button>
             </div>
           </section>

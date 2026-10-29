@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { invalidateRecommendations } from "@/hooks/useAIRecommendations";
 import { looksLikeFilename } from "../../../supabase/functions/_shared/tasteProfile";
+import { IatoName } from "@/lib/iatoMark";
 
 // "Mejores momentos": cada foto es una señal explícita de "esto me encantó". Con su viaje, lo que
 // más te gustó y unas etiquetas, el perfil de gustos (_shared/tasteProfile.ts) le da la prioridad
@@ -219,7 +220,7 @@ export const BestMomentsPanel = () => {
         >
           {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ImagePlus className="w-7 h-7" />}
           <p className="text-sm font-medium">{uploading ? "Subiendo…" : "Sube fotos de tus mejores viajes"}</p>
-          <p className="text-[11px] text-muted-foreground">Iato aprende de lo que más te gustó para sugerirte mejor</p>
+          <p className="text-[11px] text-muted-foreground"><IatoName /> aprende de lo que más te gustó para sugerirte mejor</p>
         </button>
       ) : (
         <>
@@ -272,7 +273,7 @@ export const BestMomentsPanel = () => {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3 text-primary" /> Iato usa tus momentos para entender lo que te encanta.
+            <Sparkles className="w-3 h-3 text-primary" /> <IatoName /> usa tus momentos para entender lo que te encanta.
           </p>
         </>
       )}
@@ -281,7 +282,7 @@ export const BestMomentsPanel = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{!editing && pending.length > 1 ? `${pending.length} momentos` : "Tu momento"}</DialogTitle>
-            <DialogDescription>Cuéntale a Iato qué fue lo que más te gustó: así entiende mejor qué sugerirte.</DialogDescription>
+            <DialogDescription>Cuéntale a <IatoName /> qué fue lo que más te gustó: así entiende mejor qué sugerirte.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

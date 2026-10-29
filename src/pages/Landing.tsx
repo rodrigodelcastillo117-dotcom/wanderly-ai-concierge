@@ -21,6 +21,7 @@ const LANDING_BENEFITS = [
   { icon: FolderHeart, title: "Todo tu viaje en un lugar", text: "Itinerario, documentos, lista de equipaje y gastos compartidos, guardados en Mis viajes." },
 ] as const;
 import { useTrialCopy } from "@/hooks/usePlanConfig";
+import { withIatoMark } from "@/lib/iatoMark";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -231,7 +232,7 @@ const Landing = () => {
                 <div className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center flex-shrink-0">
                   <Check className="w-3 h-3 text-muted-foreground" />
                 </div>
-                <span>{f}</span>
+                <span>{withIatoMark(f)}</span>
               </div>
             ))}
           </div>
@@ -254,7 +255,7 @@ const Landing = () => {
                 <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3 h-3 text-primary" />
                 </div>
-                <span>{f}</span>
+                <span>{withIatoMark(f)}</span>
               </div>
             ))}
           </div>

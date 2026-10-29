@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   type AiReservation, type AiReservationDraft, cancelAiReservation, confirmAiReservation, recipientNote,
 } from "@/lib/aiReservations";
+import { IatoName } from "@/lib/iatoMark";
 
 export const AI_RESERVATIONS_LINK = "/dashboard/reservas#reservas-ia";
 
@@ -86,7 +87,7 @@ export function AiReservationSend({ draft }: { draft: AiReservationDraft }) {
       <div className="mt-2 space-y-2" data-testid="ai-res-preview">
         <p className="text-xs flex items-start gap-1.5">
           <Mail className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-          <span>Iato escribirá a <strong className="break-all">{preview.to}</strong>{r.venue_email_is_test && <span data-testid="ai-res-test-recipient"> (correo de prueba del piloto: no es del restaurante)</span>} en tu nombre ({r.customer_name}). Aún no le hemos escrito.</span>
+          <span><IatoName /> escribirá a <strong className="break-all">{preview.to}</strong>{r.venue_email_is_test && <span data-testid="ai-res-test-recipient"> (correo de prueba del piloto: no es del restaurante)</span>} en tu nombre ({r.customer_name}). Aún no le hemos escrito.</span>
         </p>
         {recipientNote(r) && <p className="text-[11px] text-amber-300" data-testid="ai-res-piloto">{recipientNote(r)}</p>}
         <div className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-2.5">

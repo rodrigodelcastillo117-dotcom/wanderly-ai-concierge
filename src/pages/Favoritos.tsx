@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { SmartImage } from "@/components/media/SmartImage";
 import { destinationQuery } from "@/lib/categoryImagery";
 import { isSafeStockUrl } from "@/lib/stockPhoto";
+import { IatoName } from "@/lib/iatoMark";
 
 type Reco = {
   id: string;
@@ -57,7 +58,7 @@ const Favoritos = () => {
           <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">
             <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2">Curaduría personal</p>
             <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Favoritos</h1>
-            <p className="text-xs md:text-sm text-white/70 mt-1.5">Tus destinos y lugares guardados. Iato los toma en cuenta para recomendarte.</p>
+            <p className="text-xs md:text-sm text-white/70 mt-1.5">Tus destinos y lugares guardados. <IatoName /> los toma en cuenta para recomendarte.</p>
           </div>
         </section>
 

@@ -18,6 +18,7 @@ import { filterAndSort, type SortKey } from "@/lib/boveda/organize";
 import {
   KIND_LABEL, LIMITS, SECTION_LABEL, VAULT_SECTIONS, type VaultFile, type VaultItem, type VaultItemInput, type VaultKind, type VaultSection,
 } from "@/lib/boveda/types";
+import { IatoName } from "@/lib/iatoMark";
 
 const TAB_KEY = "iatos.boveda.tab";
 const REVEAL_MS = 30_000;
@@ -216,8 +217,8 @@ const Benefits = () => {
             <p className="hidden sm:block text-[13px] text-muted-foreground mt-1">Documentos, membresías, tarjetas y seguros, con sus beneficios. Solo tú lo ves.</p>
           </div>
           <div className="grid grid-cols-2 md:flex gap-2">
-            <Button variant="outline" onClick={() => setSummaryOpen(true)} className="h-11 rounded-xl border-primary/40 hover:bg-primary/10">
-              <Sparkles className="w-4 h-4 mr-2 text-primary" aria-hidden="true" /> Iato, resúmeme
+            <Button variant="outline" onClick={() => setSummaryOpen(true)} aria-label="Iato, resúmeme" className="h-11 rounded-xl border-primary/40 hover:bg-primary/10">
+              <Sparkles className="w-4 h-4 mr-2 text-primary" aria-hidden="true" /> <IatoName />, resúmeme
             </Button>
             <Button onClick={() => openNew()} className="h-11 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 font-semibold">
               <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> Agregar
@@ -294,10 +295,10 @@ const Benefits = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
           <p className="flex items-start gap-1.5"><Lock className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
-            Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA: para resúmenes y promociones, Iato solo usa el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</p>
+            Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA: para resúmenes y promociones, <IatoName /> solo usa el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</p>
           {items.length > 0 && (
             <button type="button" onClick={exportJson} className="inline-flex items-center gap-1 hover:text-foreground self-start sm:self-auto">
-              <Download className="w-3 h-3" aria-hidden="true" /> Descargar mis documentos y tarjetas (JSON)
+              <Download className="w-3 h-3" aria-hidden="true" /> Descargar una copia de mis documentos y tarjetas
             </button>
           )}
         </div>

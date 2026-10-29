@@ -5,6 +5,7 @@ import { openCookieSettings } from "@/lib/consent";
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import { FREE_FEATURES, PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
+import { IatoName, withIatoMark } from "@/lib/iatoMark";
 
 // La prueba se describe según cómo funcione hoy (con o sin tarjeta), igual que en la landing.
 const TrialTermsItem = () => {
@@ -82,7 +83,7 @@ export const Terminos = () => (
   <Shell title="Términos y Condiciones" description="Condiciones de uso de IATOS AI" updated={TERMS_UPDATED}>
     <section>
       <h2>1. Qué es IATOS AI</h2>
-      <p>IATOS AI es una plataforma de planeación de viajes asistida por inteligencia artificial. Nuestro concierge digital, Iato, genera itinerarios, cotizaciones estimadas y recomendaciones personalizadas. <strong>IATOS AI no es una agencia de viajes ni una OTA:</strong> no vendemos boletos de avión, hospedaje, tours ni seguros, y no emitimos reservaciones a tu nombre.</p>
+      <p>IATOS AI es una plataforma de planeación de viajes asistida por inteligencia artificial. Nuestro concierge digital, <IatoName />, genera itinerarios, cotizaciones estimadas y recomendaciones personalizadas. <strong>IATOS AI no es una agencia de viajes ni una OTA:</strong> no vendemos boletos de avión, hospedaje, tours ni seguros, y no emitimos reservaciones a tu nombre.</p>
     </section>
     <section>
       <h2>2. Enlaces de afiliado</h2>
@@ -99,8 +100,8 @@ export const Terminos = () => (
         <TrialTermsItem />
         <li>Al contratar PRO, el cobro mensual se realiza a través de Stripe y se renueva cada mes hasta que canceles. IATOS AI no almacena los datos de tu tarjeta.</li>
         <li>Puedes cancelar en cualquier momento <ManageSubscriptionPath />. Al cancelar conservas el acceso hasta el fin del periodo pagado.</li>
-        <li>Plan gratuito: {FREE_FEATURES.join("; ")}.</li>
-        <li>IATOS PRO incluye: {PRO_FEATURES.join("; ")}. Los límites se aplican por cuenta y pueden ajustarse con aviso previo.</li>
+        <li>Plan gratuito: {withIatoMark(FREE_FEATURES.join("; "))}.</li>
+        <li>IATOS PRO incluye: {withIatoMark(PRO_FEATURES.join("; "))}. Los límites se aplican por cuenta y pueden ajustarse con aviso previo.</li>
       </ul>
     </section>
     <PromoReferidosSection n={5} />
@@ -110,7 +111,7 @@ export const Terminos = () => (
     </section>
     <section>
       <h2>7. Contenido generado por IA</h2>
-      <p>Las respuestas de Iato pueden contener errores u omisiones. Verifica siempre requisitos de visa, vacunas, horarios, direcciones y condiciones de reserva con fuentes oficiales antes de viajar.</p>
+      <p>Las respuestas de <IatoName /> pueden contener errores u omisiones. Verifica siempre requisitos de visa, vacunas, horarios, direcciones y condiciones de reserva con fuentes oficiales antes de viajar.</p>
     </section>
     <section>
       <h2>8. Limitación de responsabilidad</h2>
@@ -206,7 +207,7 @@ export const Reembolsos = () => (
   <Shell title="Política de Reembolsos y Cancelación" description="Suscripción IATOS PRO — $99 MXN al mes, IVA incluido">
     <section>
       <h2>1. Qué estás contratando</h2>
-      <p>IATOS PRO es una suscripción digital de {PRICE_LINE}. Incluye: {PRO_FEATURES.join("; ")}. Es un servicio de software: <strong>no incluye vuelos, hoteles, tours ni seguros</strong>. Esas reservas las haces tú directamente con el proveedor final a través de los enlaces que te entregamos.</p>
+      <p>IATOS PRO es una suscripción digital de {PRICE_LINE}. Incluye: {withIatoMark(PRO_FEATURES.join("; "))}. Es un servicio de software: <strong>no incluye vuelos, hoteles, tours ni seguros</strong>. Esas reservas las haces tú directamente con el proveedor final a través de los enlaces que te entregamos.</p>
     </section>
     <section>
       <h2>2. Periodo de prueba de 30 días</h2>
@@ -269,7 +270,7 @@ export const Ayuda = () => {
   return (
     <Shell title="Ayuda y preguntas frecuentes" description="Cómo funciona IATOS, qué es real y qué es estimado, planes y contacto" updated={AYUDA_UPDATED}>
       <Faq id="como-funciona" q="¿Cómo funciona IATOS?">
-        <p>Le dices a Iato, tu concierge con IA, a dónde y cuándo quieres viajar. IATOS consulta vuelos y hoteles con proveedores, arma un itinerario día por día y te da el total estimado en pesos mexicanos. Puedes guardar el viaje, editarlo, compartirlo y seguirlo durante el viaje (clima, vuelos, gastos y diario).</p>
+        <p>Le dices a <IatoName />, tu concierge con IA, a dónde y cuándo quieres viajar. IATOS consulta vuelos y hoteles con proveedores, arma un itinerario día por día y te da el total estimado en pesos mexicanos. Puedes guardar el viaje, editarlo, compartirlo y seguirlo durante el viaje (clima, vuelos, gastos y diario).</p>
         <p>IATOS no es una agencia de viajes: no vendemos boletos ni hospedaje. Cuando decides reservar, te llevamos al sitio del proveedor y la compra la haces allí, con sus condiciones.</p>
       </Faq>
       <Faq id="real-o-estimado" q="¿Qué es real y qué es estimado?">
@@ -282,8 +283,8 @@ export const Ayuda = () => {
       </Faq>
       <Faq id="planes" q="¿Qué incluye cada plan?">
         <ul>
-          <li><strong>Plan gratuito:</strong> {FREE_FEATURES.join("; ")}.</li>
-          <li><strong>IATOS PRO ({PRICE_LINE}):</strong> {PRO_FEATURES.join("; ")}.</li>
+          <li><strong>Plan gratuito:</strong> {withIatoMark(FREE_FEATURES.join("; "))}.</li>
+          <li><strong>IATOS PRO ({PRICE_LINE}):</strong> {withIatoMark(PRO_FEATURES.join("; "))}.</li>
           <li><strong>Prueba:</strong> {copy.line}. {copy.after}</li>
           <li>Puedes cancelar cuando quieras <ManageSubscriptionPath />. Detalles en la <Link to="/reembolsos" className="text-primary">Política de Reembolsos</Link>.</li>
         </ul>
