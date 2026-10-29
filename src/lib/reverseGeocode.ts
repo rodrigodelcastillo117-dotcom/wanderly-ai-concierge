@@ -1,10 +1,17 @@
 // Lugar aproximado (ciudad, país) de unas coordenadas para el encabezado del Concierge y la hoja de
-// emergencia (BigDataCloud, versión de cliente sin llave). Auditoría 10 #15: el encabezado lo pedía cada
-// minuto con las coordenadas exactas y a veces respondía 400 (error rojo en la consola). Ahora:
+// emergencia. Auditoría 10 #15: el navegador llamaba a api.bigdatacloud.net (a veces 400, error rojo en
+// la consola). Ronda 2: ya no hay servicio de terceros en el navegador; se usa la función geocode de
+// IATOS (Geocoding de Google en el servidor, caché de 30 días por zona, siempre responde 200). Además:
 //   * con 2 decimales (~1 km), que basta para nombrar la ciudad y no manda la ubicación exacta;
 //   * una sola vez por zona en la sesión (memoria + sessionStorage);
 //   * tras un error se pausa 10 minutos y nunca lanza: sin nombre, la pantalla dice "Tu ubicación".
+import { supabase } from "@/integrations/supabase/client";
+
 export type ReverseGeo = { city: string | null; countryCode: string | null };
+
+/** Llamada a la función geocode (modo "city"). Se puede simular en pruebas. */
+export type ReverseInvoke = (body: { mode: "city"; latlng: string; language: string }) => Promise<{ data: unknown; error: unknown }>;
+const defaultInvoke: ReverseInvoke = (body) => supabase.functions.invoke("geocode", { body }) as Promise<{ data: unknown; error: unknown }>;
 
 const mem = new Map<string, ReverseGeo | null>();
 const inflight = new Map<string, Promise<ReverseGeo | null>>();
@@ -34,7 +41,7 @@ export function __resetReverseGeocode() {
   } catch { /* sin almacenamiento */ }
 }
 
-export function reverseGeocode(lat: number, lng: number, fetchImpl: typeof fetch = fetch): Promise<ReverseGeo | null> {
+export function reverseGeocode(lat: number, lng: number, invoke: ReverseInvoke = defaultInvoke): Promise<ReverseGeo | null> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return Promise.resolve(null);
   const k = reverseGeoKey(lat, lng);
   if (mem.has(k)) return Promise.resolve(mem.get(k)!);
@@ -46,11 +53,13 @@ export function reverseGeocode(lat: number, lng: number, fetchImpl: typeof fetch
   const [la, ln] = k.split(",");
   const p = (async () => {
     try {
-      const res = await fetchImpl(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${la}&longitude=${ln}&localityLanguage=es`);
-      if (!res.ok) { pause(); return null; }
-      const g = await res.json().catch(() => null) as Record<string, unknown> | null;
+      const { data, error } = await invoke({ mode: "city", latlng: `${la},${ln}`, language: "es" });
+      if (error) { pause(); return null; }
+      const g = data as Record<string, unknown> | null;
       const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-      const out: ReverseGeo = { city: str(g?.city) ?? str(g?.locality) ?? str(g?.principalSubdivision), countryCode: str(g?.countryCode) };
+      const out: ReverseGeo = { city: str(g?.city) ?? str(g?.label), countryCode: str(g?.country_code) };
+      // Sin nombre (Google no lo dio): no se guarda, para volver a intentar en otra sesión.
+      if (!out.city && !out.countryCode) return null;
       mem.set(k, out);
       write(k, out);
       return out;

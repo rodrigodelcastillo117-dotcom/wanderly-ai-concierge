@@ -2,6 +2,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { reversePlace } from "../_shared/reverseGeo.ts";
+import { dbCacheStore } from "../_shared/serpRuntime.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -28,6 +30,24 @@ Deno.serve(async (req) => {
     let region = url.searchParams.get("region") ?? "";
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
+      // Nombre de la ciudad de unas coordenadas para el encabezado del Concierge y la hoja de emergencia
+      // (antes el navegador llamaba a api.bigdatacloud.net y a veces respondía 400). Siempre 200: sin
+      // nombre, city null (la pantalla dice "Tu ubicación"); caché de 30 días por zona de ~1 km.
+      if (body?.mode === "city" && typeof body.latlng === "string") {
+        const place = await reversePlace(body.latlng, {
+          store: dbCacheStore(),
+          geocode: async (ll) => {
+            const ps = new URLSearchParams({ latlng: ll, language: typeof body.language === "string" ? body.language.slice(0, 5) : "es", result_type: "locality|administrative_area_level_2|administrative_area_level_1|country" });
+            const r = await fetch(`https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?${ps.toString()}`, {
+              headers: { "Authorization": `Bearer ${lovableKey}`, "X-Connection-Api-Key": key },
+              signal: AbortSignal.timeout(4000),
+            });
+            const j = await r.json().catch(() => null);
+            return { ok: r.ok && (j?.status === "OK" || j?.status === "ZERO_RESULTS"), json: j };
+          },
+        });
+        return new Response(JSON.stringify(place), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       address = body.address ?? address;
       latlng = body.latlng ?? latlng;
       language = body.language ?? language;

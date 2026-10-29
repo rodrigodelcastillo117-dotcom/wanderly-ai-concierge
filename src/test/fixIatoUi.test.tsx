@@ -138,13 +138,14 @@ describe("Hablar con una persona (#11 y #21)", () => {
 describe("#15: el nombre del lugar se pide una vez por zona y un 400 no rompe nada", () => {
   it("una sola llamada por zona (con 2 decimales) y sin lanzar en error", async () => {
     __resetReverseGeocode();
-    const f = vi.fn(async () => new Response(JSON.stringify({ city: "Ciudad de México", countryCode: "MX" }), { status: 200 }));
+    // Ronda 2: la función geocode de IATOS (Google en el servidor), ya no api.bigdatacloud.net.
+    const f = vi.fn(async () => ({ data: { city: "Ciudad de México", country_code: "MX" }, error: null }));
     expect(await reverseGeocode(19.43251, -99.13321, f as never)).toEqual({ city: "Ciudad de México", countryCode: "MX" });
     expect(await reverseGeocode(19.43299, -99.13349, f as never)).toEqual({ city: "Ciudad de México", countryCode: "MX" });
     expect(f).toHaveBeenCalledTimes(1);
-    expect(String((f.mock.calls[0] as unknown[])[0])).toContain("latitude=19.43&longitude=-99.13");
+    expect((f.mock.calls[0] as unknown[])[0]).toEqual({ mode: "city", latlng: "19.43,-99.13", language: "es" });
     __resetReverseGeocode();
-    const bad = vi.fn(async () => new Response("{}", { status: 400 }));
+    const bad = vi.fn(async () => ({ data: null, error: new Error("400") }));
     expect(await reverseGeocode(40.4, -3.7, bad as never)).toBeNull();
     // En pausa tras el error: no se vuelve a pedir enseguida.
     expect(await reverseGeocode(41.4, 2.17, bad as never)).toBeNull();

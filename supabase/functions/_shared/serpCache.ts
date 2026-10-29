@@ -26,6 +26,7 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   google_travel_explore: 12 * HOUR, // "Vuelos baratos desde…" / Explorar destinos (por origen y mes)
   google_events: 6 * HOUR, // Event Radar de Iato (por ciudad, fechas y consulta)
   ticketmaster: 6 * HOUR, // Ticketmaster Discovery API (ciudad/coordenadas + fechas + categoría + palabra clave)
+  google_reverse_geocode: 30 * DAY, // nombre de la ciudad de unas coordenadas (2 decimales), _shared/reverseGeo.ts
   viator_products: 6 * HOUR, // Viator Partner API: caché corta y privada, solo para la misma consulta (términos de Viator)
 };
 
