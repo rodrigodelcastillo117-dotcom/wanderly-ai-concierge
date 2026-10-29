@@ -6,7 +6,7 @@
 //   ya_lo_envie | estado | cancelar | resuelto | escalar | queja
 //   ver_todo {permiso:true, alcance?}     → lectura con la sesión del usuario (RLS)
 //   admin_listar | admin_ver {id}         → solo administradores (con su propia sesión)
-// verify_jwt = false en config.toml para poder responder CORS; todo POST valida el JWT aquí y falla cerrado.
+// verify_jwt = true en config.toml (pasarela) y además todo POST valida el JWT aquí y falla cerrado.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";

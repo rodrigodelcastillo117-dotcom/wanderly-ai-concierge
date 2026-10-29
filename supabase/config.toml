@@ -257,9 +257,9 @@ verify_jwt = false
 [functions.ai-reservations-cron]
 verify_jwt = false
 
-# Reclamos (derechos del pasajero): el JWT se valida dentro de la función (falla cerrada); false solo por CORS.
+# Reclamos (derechos del pasajero): JWT en la pasarela y otra vez dentro (getAuthUser, falla cerrada).
 [functions.reclamos]
-verify_jwt = false
+verify_jwt = true
 
 # Reclamos: webhook de Resend Receiving (reclamos+/casos+); exige firma Svix (RECLAMOS_INBOUND_SECRET), falla cerrada
 [functions.reclamos-inbound]
