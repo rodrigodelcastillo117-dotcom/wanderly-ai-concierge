@@ -6,8 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, Check, ChevronDown, Clock, Eye, Hand, Loader2, Mail, MailWarning, MessageSquare, RefreshCw, ShieldAlert, X,
+  ArrowLeft, Check, ChevronDown, Clock, Eye, Hand, LifeBuoy, Loader2, Mail, MailWarning, MessageSquare, RefreshCw, ShieldAlert, X,
 } from "lucide-react";
+// Incidentes: tarjeta propia (severidad, semáforo, tomar/responder/resolver con nota/escalar, bitácora).
+import { IncidentOpsCard } from "@/components/incident/IncidentOpsCard";
+import { severityRank } from "../../supabase/functions/_shared/incident-labels.ts";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminDenied } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
@@ -293,6 +296,8 @@ const AdminOperations = () => {
   const [notice, setNotice] = useState<string | null>(null);
   // "Opiniones": las que mandaron los usuarios desde la app (se combina con el filtro de estado).
   const [onlyOpinions, setOnlyOpinions] = useState(() => params.get("tipo") === "opinion");
+  // "Incidentes": solo problemas de viajeros, los más graves y los que más llevan sin atender primero.
+  const [onlyIncidents, setOnlyIncidents] = useState(() => params.get("tipo") === "incidente");
 
   const load = useCallback(async (f: OpsFilter = filter) => {
     const r = await listOps(f);
@@ -307,8 +312,18 @@ const AdminOperations = () => {
   const countOf = (k: OpsFilter) => k === null ? Object.values(counts).reduce((a, b) => a + (b ?? 0), 0)
     : k === "abiertas" ? (counts.nueva ?? 0) + (counts.en_proceso ?? 0) : counts[k] ?? 0;
   const allItems = useMemo(() => list?.items ?? [], [list]);
-  const items = useMemo(() => (onlyOpinions ? allItems.filter((i) => i.type === "opinion") : allItems), [allItems, onlyOpinions]);
+  const items = useMemo(() => {
+    if (onlyIncidents) {
+      const open = (i: OpsItem) => (i.stage === "nueva" || i.stage === "en_proceso" ? 1 : 0);
+      return allItems.filter((i) => i.type === "incidente").sort((a, b) => open(b) - open(a)
+        || severityRank(b.incident?.severity) - severityRank(a.incident?.severity)
+        || String(a.created_at).localeCompare(String(b.created_at)));
+    }
+    return onlyOpinions ? allItems.filter((i) => i.type === "opinion") : allItems;
+  }, [allItems, onlyOpinions, onlyIncidents]);
   const opinionCount = allItems.filter((i) => i.type === "opinion").length;
+  const incidentCount = allItems.filter((i) => i.type === "incidente" && (i.stage === "nueva" || i.stage === "en_proceso")).length;
+  const incidentRed = allItems.some((i) => i.type === "incidente" && i.incident?.semaforo === "rojo");
 
   if (state === "loading" && !list) {
     return <DashboardLayout><div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></DashboardLayout>;
@@ -352,8 +367,13 @@ const AdminOperations = () => {
             </button>
           ))}
           <span aria-hidden="true" className="shrink-0 w-px my-1 bg-white/10" />
+          <button type="button" aria-pressed={onlyIncidents} data-testid="filter-incidents"
+            onClick={() => { setOnlyIncidents((v) => !v); setOnlyOpinions(false); }}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition inline-flex items-center gap-1 ${onlyIncidents ? "border-primary bg-primary/15 text-primary" : incidentRed ? "border-red-400/50 text-red-200" : "border-white/10 text-muted-foreground hover:text-foreground"}`}>
+            <LifeBuoy className="w-3 h-3" aria-hidden="true" />Incidentes <span className="opacity-70">{incidentCount}</span>
+          </button>
           <button type="button" aria-pressed={onlyOpinions} data-testid="filter-opinions"
-            onClick={() => setOnlyOpinions((v) => !v)}
+            onClick={() => { setOnlyOpinions((v) => !v); setOnlyIncidents(false); }}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition inline-flex items-center gap-1 ${onlyOpinions ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-muted-foreground hover:text-foreground"}`}>
             <MessageSquare className="w-3 h-3" aria-hidden="true" />Opiniones <span className="opacity-70">{opinionCount}</span>
           </button>
@@ -363,11 +383,14 @@ const AdminOperations = () => {
 
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center" role="status">
-            {onlyOpinions ? "No hay opiniones con este estado." : filter === "abiertas" ? "No hay solicitudes abiertas. Todo atendido." : "No hay solicitudes con este estado."}
+            {onlyIncidents ? "No hay incidentes con este estado." : onlyOpinions ? "No hay opiniones con este estado." : filter === "abiertas" ? "No hay solicitudes abiertas. Todo atendido." : "No hay solicitudes con este estado."}
           </p>
         ) : (
           <div className="space-y-3">
-            {items.map((it) => (
+            {items.map((it) => it.type === "incidente" ? (
+              <IncidentOpsCard key={`${it.source}-${it.id}`} it={it} highlight={it.id === focusId}
+                onDone={(msg) => { setNotice(msg); void load(); }} />
+            ) : (
               <OpsCard key={`${it.source}-${it.id}`} it={it} highlight={it.id === focusId}
                 onDone={(msg) => { setNotice(msg); void load(); }} />
             ))}

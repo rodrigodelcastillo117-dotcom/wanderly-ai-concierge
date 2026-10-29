@@ -60,6 +60,7 @@ import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { TripDetailSkeleton } from "@/components/PageSkeletons";
 import { alignTrust, quoteTrust } from "@/lib/quoteTrust";
 import { plainProviderText } from "@/lib/provenance";
+import { IncidentTripLink } from "@/components/incident/IncidentEntry";
 import { buildBuyFlow, FLIGHT_TIER_WORD, TIER_WORD } from "@/lib/buyFlow";
 import { itemPurchaseState } from "@/lib/purchasePlan";
 import { estimatedRubros, tripTotalSummary } from "@/lib/tripTotal";
@@ -1274,6 +1275,8 @@ const TripDetail = () => {
         <TripDocuments tripId={trip.id} ownerId={trip.user_id} />
 
         </div>
+        {/* "Tengo un problema en este viaje": discreto, en todas las pestañas (abre el caso con este viaje). */}
+        <IncidentTripLink tripId={trip.id} />
       </div>
       {/* Acción principal al alcance del pulgar en móvil, encima de la barra de navegación. */}
       <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} variant="bar" totalLabel={stickyTotal} totalNote={stickyTotal ? totalSummary.barNote : null} missing={totalSummary.missing}

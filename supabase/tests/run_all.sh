@@ -22,7 +22,7 @@ PREFIX=${1:-iatos_all}
 OUT=${OUT_DIR:-$(mktemp -d -t iatos_sql_XXXXXX)}
 mkdir -p "$OUT"
 SUITES=(ai_reservations ai_reservations_a2 avatar boveda bridge concierge2 cost edition gastos grupo members_more ops payments prive
-        prive_catalog prive_key privevalor security social wrapped diario prive_ideas tarjetas tarjetas_edicion referidos recuerdos ola3 prive_sesion godmode_estados mesa fix_iato fix_herramientas trip_quotes trip_expediente fix_cuenta_prive opiniones pexels_sin_foto)
+        prive_catalog prive_key privevalor security social wrapped diario prive_ideas tarjetas tarjetas_edicion referidos recuerdos ola3 prive_sesion godmode_estados mesa fix_iato fix_herramientas trip_quotes trip_expediente fix_cuenta_prive incidentes opiniones pexels_sin_foto)
 
 fn_md5() { # $1 base → "esquema.función(args) md5" por línea, ordenado
   $T_PSQL -At -F ' ' -d "$1" -c "

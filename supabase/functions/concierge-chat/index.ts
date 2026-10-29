@@ -60,6 +60,12 @@ import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempoten
 import type { ActionContext } from "./actions.ts";
 import { withTimeout } from "./tools.ts";
 import { summarizeExpenses } from "./expenses.ts";
+// Incidentes: un problema o una queja abre caso SIEMPRE (reglas, antes del modelo) y Iato tiene report_incident.
+import { autoOpenIncident, type IatoIncidentContext, type IatoIncidentDeps, incidentDirectReply, incidentPromptNote, runReportIncidentTool } from "./incident.ts";
+import { reportIncident } from "../_shared/incident-report.ts";
+import { deliverIncidentAlerts } from "../_shared/incident-alerts.ts";
+import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
+import { addIncidentEvent } from "../_shared/incidents.ts";
 
 declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
@@ -97,6 +103,8 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   get_local_time: 1000,
   // Gastos registrados (una lectura de la base con la sesión del usuario).
   get_trip_expenses: 3000,
+  // Abre el caso (una escritura) y avisa al equipo (hasta 3 s; si tarda, sigue en segundo plano).
+  report_incident: 9000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -228,6 +236,19 @@ const bg = (p: Promise<unknown>) => {
   if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(p);
   return p;
 };
+
+/** Abrir un caso desde Iato: crea con la llave de servicio y reparte el aviso (si tarda, sigue en segundo plano). */
+function iatoIncidentDeps(): IatoIncidentDeps {
+  const deps = incidentAlertDeps(adminClient());
+  return {
+    report: (input) => reportIncident({
+      db: deps.admin,
+      deliver: (id) => bg(deliverIncidentAlerts(deps, { requestId: id })) as ReturnType<typeof deliverIncidentAlerts>,
+      deliverTimeoutMs: 3000,
+      warn: (...a) => console.warn(...a.map((x) => redactPii(String(x), 200))),
+    }, input),
+  };
+}
 
 // Reservas IA disponible para el usuario (ai-reservations status → enabled), en caché 60 s por instancia.
 const aiResCache = new Map<string, { at: number; enabled: boolean }>();
@@ -396,6 +417,16 @@ Deno.serve(async (req) => {
       ? { lat: Number(body.context.coords.lat), lng: Number(body.context.coords.lng) }
       : null;
     const explicitId = typeof body.trip_id === "string" && UUID.test(body.trip_id) ? body.trip_id : null;
+    // Incidentes: si el mensaje es un problema o una queja, el caso se abre YA (reglas, sin IA), en paralelo
+    // con lo demás. No depende de la cuota ni del modelo: si alguno falla, se contesta con la guía y el folio.
+    const incidentCtx: IatoIncidentContext = {
+      userId, todayISO, tz: today.tz ?? null, tripId: explicitId, coords,
+      place: typeof body.context?.place === "string" ? body.context.place.slice(0, 80) : null,
+    };
+    const incidentP = autoOpenIncident(lastUserMsg, incidentCtx, iatoIncidentDeps()).catch((e) => {
+      console.error("concierge-chat incidente", redactPii((e as Error)?.message ?? e, 200));
+      return null;
+    });
     const priveSession = req.headers.get("x-prive-session");
 
     // Contexto: viajes, bóveda, preferencias, perfil, travel_profiles, viaje fijado y la caché del
@@ -414,7 +445,15 @@ Deno.serve(async (req) => {
     // Se espera la reserva aunque el contexto falle, para que el catch de abajo la libere.
     const [quota, ctxRes] = await Promise.all([quotaP, contextP.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }))]);
     if (!ctxRes.ok) throw ctxRes.e;
-    if (!quota.allowed) return quotaDeniedResponse(quota, "concierge", corsHeaders);
+    if (!quota.allowed) {
+      // Sin cuota, un problema real igual se atiende: respuesta sin modelo con la guía, el folio y la hora.
+      const inc = await incidentP;
+      if (inc) {
+        const reply = { text: incidentDirectReply(inc), cards: [], actions: [], _tools_used: ["report_incident"], _gaps: [], _incident: { id: inc.id, folio: inc.folio } };
+        return wantsStream ? sseOnce([{ type: "final", data: reply }]) : json(reply);
+      }
+      return quotaDeniedResponse(quota, "concierge", corsHeaders);
+    }
     const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache, allTripsRes] = ctxRes.v;
     const allTrips: any[] = Array.isArray((allTripsRes as any)?.data) ? (allTripsRes as any).data : [];
     // Si hay que recalcular, corre en paralelo con lo demás y tiene 700 ms; si tarda más, se usa el
@@ -485,7 +524,9 @@ Deno.serve(async (req) => {
     // llamar al modelo (antes se respondía sobre el viaje creado más recientemente). Si el mensaje
     // nombra un destino que no está en ningún viaje ("mi viaje a Japón" sin viaje a Japón), no se
     // listan viajes ajenos: responde el modelo (dice que no hay viaje guardado y ofrece planearlo).
-    if (resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg) && !mentionsUntrackedPlace(lastUserMsg, trips)) {
+    // Con un caso abierto no se pregunta "¿cuál viaje?": primero la guía (el equipo ve todos sus viajes).
+    const openedIncident = await incidentP;
+    if (!openedIncident && resolution.reason === "ambiguous" && needsSpecificTrip(lastUserMsg) && !mentionsUntrackedPlace(lastUserMsg, trips)) {
       logInsight(supabase, userId, lastUserMsg, []).catch(() => {});
       // Preguntar "¿cuál viaje?" no gasta mensaje; la liberación va en segundo plano (no retrasa la respuesta).
       bg(releaseQuota(quotaReservation, "trip_clarification"));
@@ -591,6 +632,7 @@ Deno.serve(async (req) => {
     });
 
     plan.notes.push(turnPlaceNote(turnPlace));
+    if (openedIncident) plan.notes.push(incidentPromptNote(openedIncident, today.tz ?? null));
     // "¿Qué viajes tengo en los próximos 2 meses?": todos los que salen en el rango, inclusive (N4-P1-1).
     const rangeNote = rangeTripsNote(lastUserMsg, todayISO, [...trips, ...allTrips]);
     if (rangeNote) plan.notes.push(rangeNote);
@@ -627,7 +669,8 @@ Deno.serve(async (req) => {
     });
 
     // Eventos "aquí" (turnPlace): la ubicación física con permiso; si pidió otra ciudad, esa ciudad.
-    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null, tz: today.tz ?? null });
+    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null, tz: today.tz ?? null,
+      incident: { ...incidentCtx, tripId: trip?.id ?? explicitId } });
 
     const runTurn = async () => {
       const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
@@ -679,6 +722,8 @@ Deno.serve(async (req) => {
         await Promise.all(agent.usage.map((x) => logUsage(usageEntry(userId, x))));
         logInsight(supabase, userId, lastUserMsg, reply._tools_used).catch(() => {});
         bg(persistConversation({ supabase, userId, tripId: trip_id_activo, convPrevia, prevMessages, lastUserMsg, replyText: final.text, replyCards: final.cards, replyActions: final.actions }));
+        // Bitácora del caso: lo que escribió la persona (si el caso ya existía) y lo que Iato le respondió.
+        if (openedIncident) bg(logIatoIncidentTurn(openedIncident, lastUserMsg, final.text));
         if (quotaReservation) await commitQuota(quotaReservation); // Iato respondió: ahora sí cuenta
         quotaReservation = undefined;
       };
@@ -701,6 +746,12 @@ Deno.serve(async (req) => {
       return { code: "INTERNAL_ERROR", status: 500 };
     };
 
+    // Si la IA falla con un caso abierto, se responde igual (guía, folio y hora prometida) en vez de un error.
+    const incidentFallback = () => openedIncident
+      ? { text: incidentDirectReply(openedIncident), cards: [], actions: [], _tools_used: ["report_incident"], _gaps: tripGaps, ...meta,
+          _incident: { id: openedIncident.id, folio: openedIncident.folio } }
+      : null;
+
     if (!wantsStream) {
       try {
         const { reply, settle } = await runTurn();
@@ -708,6 +759,8 @@ Deno.serve(async (req) => {
         return json(reply);
       } catch (e) {
         const { code } = await onTurnError(e);
+        const fb = incidentFallback();
+        if (fb) { bg(logIatoIncidentTurn(openedIncident!, lastUserMsg, fb.text)); return json(fb); }
         return fail(code);
       }
     }
@@ -724,9 +777,17 @@ Deno.serve(async (req) => {
         } catch (e) {
           const { code, status } = await onTurnError(e);
           const { body: eb } = chatError(code);
-          // Si ya se veía la frase de inicio (o un texto a medias), se borra: la app muestra el error.
-          send({ type: "reset", data: {} });
-          send({ type: "error", data: { code: eb.code, message: eb.message, status } });
+          // Con un caso abierto, en vez del error va la guía con el folio (sin depender de la IA).
+          const fb = incidentFallback();
+          if (fb) {
+            send({ type: "reset", data: {} });
+            send({ type: "final", data: fb });
+            bg(logIatoIncidentTurn(openedIncident!, lastUserMsg, fb.text));
+          } else {
+            // Si ya se veía la frase de inicio (o un texto a medias), se borra: la app muestra el error.
+            send({ type: "reset", data: {} });
+            send({ type: "error", data: { code: eb.code, message: eb.message, status } });
+          }
         } finally {
           try { c.close(); } catch { /* ya cerrado */ }
           controller = null;
@@ -744,6 +805,21 @@ Deno.serve(async (req) => {
   }
 });
 
+/** Bitácora del caso abierto en este turno: el mensaje (si el caso ya existía) y la respuesta de Iato. */
+async function logIatoIncidentTurn(inc: { id: string; created: boolean }, userMsg: string, replyText: string): Promise<void> {
+  try {
+    const db = adminClient() as any;
+    if (!inc.created) {
+      await addIncidentEvent(db, inc.id, { kind: "mensaje", actor: "usuario", channel: "iato", direction: "entrante", counterpart: "Iato",
+        body: userMsg.slice(0, 4000), visibleToUser: true, delivery: "recibido" });
+    }
+    await addIncidentEvent(db, inc.id, { kind: "mensaje", actor: "iato", channel: "iato", direction: "saliente", counterpart: "usuario",
+      body: replyText.slice(0, 4000), visibleToUser: true, delivery: "enviado" });
+  } catch (e) {
+    console.warn("concierge-chat bitácora incidente", redactPii((e as Error)?.message ?? e, 200));
+  }
+}
+
 /** SSE con eventos ya conocidos (respuestas que no pasan por el modelo). */
 function sseOnce(events: ConciergeStreamEvent[]): Response {
   const body = events.map(encodeEvent).join("");
@@ -752,15 +828,19 @@ function sseOnce(events: ConciergeStreamEvent[]): Response {
 
 // ═══ Herramientas reales ═══
 
-function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null }) {
+function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext }) {
   // Toda herramienta con hora de consulta la entrega también ya escrita en la zona del usuario (N2).
   const run = makeRawExecTool(c);
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => withLocalStamp(await run(name, rawArgs), c.tz);
 }
 
-function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null }) {
+function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext }) {
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => {
     const args = toolArgs(name, rawArgs ?? {}, { todayISO: c.todayISO, coords: c.coords });
+    // Incidentes: abre (o recupera) el caso y avisa al equipo.
+    if (name === "report_incident") {
+      return runReportIncidentTool(args, c.incident ?? { userId: c.userId, todayISO: c.todayISO, tz: c.tz ?? null, coords: c.coords }, iatoIncidentDeps());
+    }
     // Hora actual en otra ciudad (N-P1-6): Intl + zona IANA, sin red.
     if (name === "get_local_time") return runLocalTime(args, { now: new Date(), userTz: c.tz ?? null });
     if (name === "search_prive") {

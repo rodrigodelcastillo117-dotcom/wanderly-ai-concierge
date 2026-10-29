@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle, ChevronDown } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle, ChevronDown, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
@@ -18,6 +18,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 // Opiniones ("¿Algo no se entiende? Cuéntanos"): opción del menú + enlace gris al pie, sin botón flotante.
 import { OPINION_CTA, OpinionFooterLink, OpinionHost } from "@/components/opinion/OpinionEntry";
 import { openOpinion } from "@/lib/opinionBus";
+// Incidentes ("Tengo un problema"): opción discreta en el menú «Más» y en el menú lateral; el diálogo vive una vez.
+import { IncidentHost } from "@/components/incident/IncidentEntry";
+import { INCIDENT_CTA, openIncident } from "@/lib/incidentBus";
 
 // Ventana "Planear viaje" (la nueva puerta de entrada). Se carga solo al pulsar el botón: hasta
 // entonces no hay ni código ni llamadas de red. /dashboard/planear sigue siendo la ruta del enlace
@@ -298,6 +301,16 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         </button>
         <button
           type="button"
+          onClick={() => openIncident()}
+          aria-haspopup="dialog"
+          data-testid="sidebar-incident"
+          className="shrink-0 flex items-center gap-2 px-3 py-2.5 [@media(max-height:820px)]:py-2 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide text-left"
+        >
+          <LifeBuoy className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          {INCIDENT_CTA}
+        </button>
+        <button
+          type="button"
           onClick={openOpinion}
           aria-haspopup="dialog"
           data-testid="sidebar-opinion"
@@ -478,6 +491,17 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             <li className="col-span-2">
               <button
                 type="button"
+                data-testid="more-incident"
+                aria-haspopup="dialog"
+                onClick={() => { setMoreOpen(false); openIncident(); }}
+                className="w-full flex items-center gap-3 min-h-[48px] px-3 rounded-xl border border-white/[0.06] text-sm text-muted-foreground hover:text-foreground text-left"
+              >
+                <LifeBuoy className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" /> {INCIDENT_CTA}
+              </button>
+            </li>
+            <li className="col-span-2">
+              <button
+                type="button"
                 data-testid="more-opinion"
                 aria-haspopup="dialog"
                 onClick={() => { setMoreOpen(false); openOpinion(); }}
@@ -509,6 +533,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         </Suspense>
       )}
       <OpinionHost />
+      <IncidentHost />
     </div>
   );
 };

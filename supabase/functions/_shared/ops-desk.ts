@@ -119,7 +119,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const folio = it.ref_code || folioOf(it.id);
   const stage = userStageText(it.stage, it.type);
   // "Aún no es una reserva" solo donde podría confundirse con una (una opinión no lo es).
-  const open = (it.stage === "nueva" || it.stage === "en_proceso") && it.type !== "opinion";
+  const open = (it.stage === "nueva" || it.stage === "en_proceso") && it.type !== "opinion" && it.type !== "incidente";
   const body = oneLine(c.reply.body.replace(/\s*\n\s*/g, " ¶ "), 2000).replace(/ ¶ /g, "\n");
   const evidence = oneLine(c.reply.evidence, 500) || null;
   const evidenceUrl = evidence && /^https:\/\//i.test(evidence) ? safeUrl(evidence) : null;
@@ -129,7 +129,10 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const url = myRequestsUrl(site);
   const reason = it.type === "opinion"
     ? "Recibes este correo porque nos mandaste tu opinión desde la app y aceptaste que te escribiéramos."
+    : it.type === "incidente"
+    ? "Recibes este correo porque nos reportaste un problema y una persona del equipo IATOS lo está atendiendo."
     : "Recibes este correo porque le pediste a Iato algo que atiende una persona del equipo IATOS.";
+  const yourLabel = it.type === "opinion" ? "Tu opinión" : it.type === "incidente" ? "Tu caso" : "Tu solicitud";
 
   const html = shell({
     title: subject, preheader, siteUrl: site, supportEmail,
@@ -145,7 +148,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
       `<tr><td class="ek-pad" style="padding:0 56px;font-family:${SERIF};font-size:19px;line-height:29px;color:${EK.ivory};white-space:pre-line;">${escapeHtml(body)}</td></tr>`,
       gap(26),
       kvTable([
-        { k: it.type === "opinion" ? "Tu opinión" : "Tu solicitud", v: escapeHtml(what) },
+        { k: yourLabel, v: escapeHtml(what) },
         times.venue ? { k: "Fecha y hora", v: escapeHtml(times.venue) } : null,
         party ? { k: "Personas", v: String(party) } : null,
         { k: "Estado", v: escapeHtml(stage + (open ? " · aún no es una reserva" : "")) },
@@ -170,7 +173,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
     "",
     body,
     "",
-    `${it.type === "opinion" ? "Tu opinión" : "Tu solicitud"}: ${what}`,
+    `${yourLabel}: ${what}`,
     times.venue ? `Fecha y hora: ${times.venue}` : null,
     party ? `Personas: ${party}` : null,
     `Estado: ${stage}${open ? " · aún no es una reserva" : ""}`,
@@ -182,6 +185,14 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
     ...textFooter({ reason, siteUrl: site, supportEmail }),
   ]);
   return { subject, preheader, html, text };
+}
+
+/** Push web al usuario cuando el equipo le responde (lo manda ops-desk). Sin datos de quién del equipo. */
+export function teamReplyPush(r: { kind?: string | null; body?: string | null; source?: string | null; source_id?: string | null }):
+  { title: string; body: string; url: string } {
+  const title = r.kind === "resuelta" ? "Resuelto por el equipo IATOS" : r.kind === "no_se_pudo" ? "El equipo IATOS no pudo completarlo"
+    : "Te respondió el equipo IATOS";
+  return { title, body: oneLine(String(r.body ?? ""), 160) || "Tienes una respuesta en Mis solicitudes.", url: "/dashboard/concierge?tab=solicitudes" };
 }
 
 // ───────────────────────────── envío con marca (sin duplicados) ─────────────────────────────

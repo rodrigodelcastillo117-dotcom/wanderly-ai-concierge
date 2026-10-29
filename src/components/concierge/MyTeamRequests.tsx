@@ -2,9 +2,11 @@
 // estado REAL (my_team_requests: solo lo suyo), la respuesta del equipo y el comprobante si lo hay.
 // Honesto: mientras está abierta dice que todavía no es una reserva; no promete tiempos.
 import { useCallback, useEffect, useState } from "react";
-import { Check, Clock, Loader2, MessageSquare, RefreshCw, X } from "lucide-react";
+import { Check, Clock, Loader2, MessageSquare, RefreshCw, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cachedMyTeamRequests, formatRequested, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
+import { cachedMyTeamRequests, formatRequested, invalidateMyTeamRequests, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
+import { confirmIncident, messageIncident, promisedTime } from "@/lib/incident";
+import { Textarea } from "@/components/ui/textarea";
 import { folioOf, isBookingLike, opsTypeLabel, userStageText } from "../../../supabase/functions/_shared/ops-labels.ts";
 
 const OPEN = new Set(["nueva", "en_proceso"]);
@@ -18,6 +20,78 @@ function StageLine({ r }: { r: MyTeamRequest }) {
       <Icon className="w-3 h-3 shrink-0" aria-hidden="true" />
       {userStageText(r.stage, r.type)}{open && isBookingLike(r.type) ? " · aún no es una reserva" : ""}
     </span>
+  );
+}
+
+/**
+ * Incidente: siguiente paso con su hora, "¿quedó resuelto?" (sí cierra; no lo reabre con más prioridad),
+ * los mensajes del caso y "Escribir al equipo" (si nadie contesta a tiempo, el equipo recibe una alerta).
+ */
+function IncidentPanel({ r, onChanged }: { r: MyTeamRequest; onChanged: () => void }) {
+  const inc = r.incident ?? {};
+  const [busy, setBusy] = useState(false);
+  const [text, setText] = useState("");
+  const [writing, setWriting] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const hora = promisedTime(inc.next_step_due_at);
+  const msgs = (inc.messages ?? []).filter((m) => m.actor !== "iato" || m.from === "usuario").slice(-4);
+
+  const act = async (fn: () => Promise<{ ok: boolean; message?: string }>, done: string) => {
+    setBusy(true); setNote(null);
+    const res = await fn();
+    setBusy(false);
+    if (!res.ok) { setNote(res.message ?? "No se pudo enviar."); return; }
+    setNote(done); setText(""); setWriting(false);
+    invalidateMyTeamRequests(); onChanged();
+  };
+
+  return (
+    <div className="space-y-2" data-testid="incident-panel">
+      {inc.is_open && inc.next_step ? (
+        <p className="text-xs rounded-xl border border-primary/25 bg-primary/[0.05] px-3 py-2">
+          <span className="text-primary">Siguiente paso:</span> {inc.next_step}{hora ? `, a más tardar a las ${hora}` : ""}.
+        </p>
+      ) : null}
+      {msgs.length > 0 && (
+        <ul className="space-y-1">
+          {msgs.map((m, i) => (
+            <li key={i} className="text-xs text-muted-foreground"><span className="text-foreground/80">{m.from === "usuario" ? "Tú" : "Equipo IATOS"}:</span> {m.body}</li>
+          ))}
+        </ul>
+      )}
+      {inc.can_confirm ? (
+        <div className="rounded-xl border border-primary/40 p-3 space-y-2" data-testid="incident-confirm">
+          <p className="text-sm">¿Quedó resuelto?</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} className="bg-gradient-gold text-primary-foreground hover:opacity-90"
+              onClick={() => act(() => confirmIncident(r.id, true), "Gracias. Cerramos tu caso.")}>Sí, quedó resuelto</Button>
+            <Button size="sm" variant="outline" disabled={busy}
+              onClick={() => act(() => confirmIncident(r.id, false, text), "Lo reabrimos con prioridad; el equipo ya fue avisado.")}>No, sigue el problema</Button>
+          </div>
+        </div>
+      ) : inc.can_reopen ? (
+        <button type="button" disabled={busy} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          onClick={() => act(() => confirmIncident(r.id, false, null), "Lo reabrimos con prioridad; el equipo ya fue avisado.")}>
+          ¿No quedó resuelto? Reabrir el caso
+        </button>
+      ) : null}
+      {inc.is_open ? (
+        writing ? (
+          <div className="space-y-2">
+            <Textarea rows={2} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="Escribe al equipo (dónde estás, qué cambió…)" aria-label="Mensaje para el equipo" />
+            <div className="flex gap-2">
+              <Button size="sm" disabled={busy || text.trim().length < 2} onClick={() => act(() => messageIncident(r.id, text), "Enviado al equipo.")}>
+                <Send className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Enviar
+              </Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => setWriting(false)}>Cancelar</Button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="text-xs text-primary hover:underline underline-offset-4" onClick={() => setWriting(true)}>Escribir al equipo</button>
+        )
+      ) : null}
+      {note ? <p role="status" className="text-xs text-muted-foreground">{note}</p> : null}
+    </div>
   );
 }
 
@@ -94,7 +168,8 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
                     ))}
                   </div>
                 )}
-                {OPEN.has(r.stage) && r.replies.length === 0 ? (
+                {r.type === "incidente" ? <IncidentPanel r={r} onChanged={() => void load()} /> : null}
+                {OPEN.has(r.stage) && r.replies.length === 0 && r.type !== "incidente" ? (
                   <p className="text-[11px] text-muted-foreground">
                     {r.type === "opinion"
                       ? "La lee una persona del equipo IATOS; si te responde, lo verás aquí."
