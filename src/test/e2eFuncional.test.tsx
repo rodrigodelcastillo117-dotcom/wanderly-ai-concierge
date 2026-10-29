@@ -121,7 +121,7 @@ describe("Viaje: insignias y desglose dicen lo mismo que el total", () => {
   });
 
   it("sin alerta de precio de vuelos en un viaje por tierra", () => {
-    expect(readFileSync("src/pages/TripDetail.tsx", "utf8")).toContain("isOwner && !brought && !arrivalByLand(trip) && (");
+    expect(readFileSync("src/pages/TripDetail.tsx", "utf8")).toContain("isOwner && !brought && !arrivalByLand(trip) && !requote && ("); // R3 P2-4: tampoco con «Por recotizar»
   });
 });
 

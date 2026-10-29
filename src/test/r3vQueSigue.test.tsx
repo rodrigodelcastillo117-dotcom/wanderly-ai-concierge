@@ -54,6 +54,8 @@ describe("P1-2 · «Qué sigue» de Inicio = el del viaje", () => {
   it("el viaje dice lo mismo con lo que calcula la misma fuente", () => {
     const missing = savedTripMissing(db.full);
     expect(missing).toEqual(["cómo llegar", "hotel"]);
+    // Sin vuelo ni hotel que elegir no se afirma «ya elegiste todo».
+    expect(savedTripMissing({ ...db.full, vuelos_json: [], hospedaje_json: [] })).toBeNull();
     render(<MemoryRouter><TripNextStep trip={db.full} quote={null} isOwner missing={missing} /></MemoryRouter>);
     expect(screen.getByText("Elige y reserva")).toBeInTheDocument();
     expect(screen.getByText(/Sales mañana y aún te falta elegir cómo llegar y hotel/)).toBeInTheDocument();

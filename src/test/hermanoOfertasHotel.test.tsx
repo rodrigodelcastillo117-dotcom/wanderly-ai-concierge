@@ -35,7 +35,7 @@ describe("ofertas de hotel en MXN", () => {
     fireEvent.click(screen.getByTestId("hotel-ofertas-ver"));
     const row = await screen.findByTestId("hotel-oferta");
     expect(within(row).getByTestId("hotel-oferta-precio").textContent).toBe("$20,600 MXN");
-    expect(screen.getByTestId("hotel-ofertas-tc").textContent).toMatch(/1 USD = 20\.00 MXN · Tipo de cambio de open\.er-api\.com/);
+    expect(screen.getByTestId("hotel-ofertas-tc").textContent).toMatch(/1 USD = 20\.00 MXN · Tipo de cambio de ExchangeRate-API/); // R3 P2-17
   });
 
   it("donde la tarjeta es en USD (Hoteles) sigue en USD", async () => {

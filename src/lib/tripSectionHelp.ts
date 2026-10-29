@@ -43,7 +43,7 @@ export function tripSectionHelp(id: TripSection, ctx: SectionHelpCtx = {}): stri
         : "Tu plan día por día. Toca un día para ver mañana, tarde y noche.";
     case "experiencias":
       // Una sola introducción (R3 viajes P2-10: esta línea y «Lo TOP de cada ciudad…» iban seguidas).
-      return "Lo mejor de cada ciudad: restaurantes, museos y tours. Reservas en el sitio de cada lugar y aquí marcas lo que ya reservaste.";
+      return "Lo mejor de cada ciudad: restaurantes, museos y tours. Reservas en su sitio y aquí marcas lo ya reservado.";
     case "documentos":
       return "Guarda boletos, pasaportes y reservas para tenerlos a la mano en el viaje.";
   }
