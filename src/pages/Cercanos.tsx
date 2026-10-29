@@ -312,7 +312,7 @@ const Cercanos = () => {
       <div className="px-4 py-6 md:p-10 max-w-6xl">
         <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h1 className="font-display text-3xl md:text-5xl mb-2">Cercanos</h1>
+            <h1 className="font-display text-3xl md:text-5xl mb-2">Cerca de ti</h1>
             <p className="text-muted-foreground">
               {userLoc
                 ? <>Lugares reales cerca de <span className="text-primary">tu ubicación</span>.{topCuisine ? ` IATOS resalta los de comida ${topCuisine}.` : ""}</>

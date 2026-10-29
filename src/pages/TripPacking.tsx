@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { IatoName } from "@/lib/iatoMark";
+import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
 
 type Prioridad = "esencial" | "recomendado" | "opcional";
 type Donde = "carry_on" | "documentado" | "ambos";
@@ -408,6 +409,8 @@ const TripPacking = () => {
           </>
         )}
       </div>
+      {/* Buzón de opiniones: esta pantalla no usa el layout principal (ronda 3, P2-3). */}
+      <StandaloneOpinion />
     </div>
   );
 };

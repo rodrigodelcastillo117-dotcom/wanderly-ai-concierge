@@ -6,6 +6,9 @@ import iatosLogo from "@/assets/iatos-logo-320.png";
 import { FREE_FEATURES, PRICE_LINE, PRO_FEATURES } from "@/lib/planCopy";
 import { useTrialCopy } from "@/hooks/usePlanConfig";
 import { IatoName, withIatoMark } from "@/lib/iatoMark";
+import { useAuth } from "@/contexts/AuthContext";
+import { OPINION_CTA, OpinionHost } from "@/components/opinion/OpinionEntry";
+import { openOpinion } from "@/lib/opinionBus";
 
 // La prueba se describe según cómo funcione hoy (con o sin tarjeta), igual que en la landing.
 const TrialTermsItem = () => {
@@ -52,12 +55,34 @@ const ManageSubscriptionPath = () => (
   <>en <Link to="/dashboard/pro" className="text-primary">Plan IATOS PRO</Link> (en el celular, menú <strong>Más → Plan IATOS PRO</strong>), con el botón <strong>Gestionar suscripción</strong>, que abre el portal de Stripe</>
 );
 
-const Shell = ({ title, description, children, updated = UPDATED }: { title: string; description: string; children: React.ReactNode; updated?: string }) => (
+/**
+ * Con la sesión iniciada (ronda 3, P1-1) se llega aquí desde «Más» o el menú lateral: el botón dice
+ * «Volver a la app» y regresa a la pantalla de donde vino (state.from) o a Inicio. Sin sesión, igual que antes.
+ */
+function useBackToApp(): { to: string; label: string; signedIn: boolean } {
+  const { user } = useAuth();
+  const { state } = useLocation();
+  const from = (state as { from?: unknown } | null)?.from;
+  if (!user) return { to: "/", label: "Volver al inicio", signedIn: false };
+  const safe = typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : "/dashboard";
+  return { to: safe, label: "Volver a la app", signedIn: true };
+}
+
+const Shell = ({ title, description, children, updated = UPDATED }: { title: string; description: string; children: React.ReactNode; updated?: string }) => {
+  const back = useBackToApp();
+  return (
   <div className="min-h-screen bg-background">
     <header className="border-b border-border/40">
-      <div className="container mx-auto flex items-center justify-between py-5">
-        <Link to="/"><img src={iatosLogo} alt="IATOS AI" width={320} height={91} decoding="async" className="h-8 w-auto object-contain" /></Link>
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition">Volver al inicio</Link>
+      <div className="container mx-auto flex items-center justify-between gap-3 py-5">
+        <Link to={back.signedIn ? "/dashboard" : "/"}><img src={iatosLogo} alt="IATOS AI" width={320} height={91} decoding="async" className="h-8 w-auto object-contain" /></Link>
+        {back.signedIn ? (
+          <Link to={back.to} data-testid="legal-back-to-app"
+            className="inline-flex min-h-[44px] items-center rounded-full border border-primary/40 px-4 text-sm text-primary hover:bg-primary/10 transition">
+            {back.label}
+          </Link>
+        ) : (
+          <Link to={back.to} className="text-sm text-muted-foreground hover:text-foreground transition">{back.label}</Link>
+        )}
       </div>
     </header>
     <main className="container mx-auto max-w-3xl py-12 px-4">
@@ -77,8 +102,11 @@ const Shell = ({ title, description, children, updated = UPDATED }: { title: str
         <a href={`mailto:${CONTACT}`} className="hover:text-foreground transition">{CONTACT}</a>
       </footer>
     </main>
+    {/* El buzón se puede abrir desde Ayuda (Contacto) cuando hay sesión. */}
+    {back.signedIn ? <OpinionHost /> : null}
   </div>
-);
+  );
+};
 
 export const Terminos = () => (
   <Shell title="Términos y Condiciones" description="Condiciones de uso de IATOS AI" updated={TERMS_UPDATED}>
@@ -253,7 +281,7 @@ export const Reembolsos = () => (
 // ───────────── Ayuda (auditoría de cuenta #9) ─────────────
 // Antes /ayuda, /faq y /precios daban 404 y el pie solo ofrecía un mailto. Respuestas cortas y reales:
 // todo sale de lo que la app hace hoy y de los mismos textos de planes (planCopy) que Términos y la landing.
-export const AYUDA_UPDATED = "28 de octubre de 2026";
+export const AYUDA_UPDATED = "29 de octubre de 2026";
 
 const Faq = ({ id, q, children }: { id?: string; q: string; children: React.ReactNode }) => (
   <section id={id} className="scroll-mt-6">
@@ -261,6 +289,28 @@ const Faq = ({ id, q, children }: { id?: string; q: string; children: React.Reac
     {children}
   </section>
 );
+
+/** Contacto → el buzón "¿Algo no se entiende? Cuéntanos" (ronda 3, P2-9): dónde está y, con sesión, el botón. */
+const ContactOpinion = () => {
+  const { user } = useAuth();
+  return (
+    <>
+      <p>
+        <strong>¿Algo no se entiende o no funciona?</strong> Dentro de la app toca <strong>«{OPINION_CTA}»</strong>: está en el menú
+        {" "}<strong>«Más»</strong> (en el celular), en el menú lateral (en la computadora) y al pie de cada pantalla. Lo lee una persona
+        del equipo IATOS y, si te responde, lo verás en Concierge › Mis solicitudes.{user ? "" : " Necesitas haber iniciado sesión."}
+      </p>
+      {user ? (
+        <p>
+          <button type="button" onClick={openOpinion} aria-haspopup="dialog"
+            className="mt-1 inline-flex min-h-[44px] items-center rounded-full border border-primary/40 px-4 text-sm text-primary hover:bg-primary/10 transition">
+            {OPINION_CTA}
+          </button>
+        </p>
+      ) : null}
+    </>
+  );
+};
 
 export const Ayuda = () => {
   const { copy } = useTrialCopy();
@@ -296,12 +346,13 @@ export const Ayuda = () => {
       <Faq id="cuenta" q="Mi cuenta">
         <ul>
           <li><strong>Olvidé mi contraseña:</strong> en la pantalla de inicio de sesión escribe tu correo y toca «¿Olvidaste tu contraseña?». Te enviamos un enlace.</li>
-          <li><strong>Mis datos:</strong> en <Link to="/dashboard/perfil" className="text-primary">Mi perfil</Link> puedes editar tus preferencias, borrar tu avatar, elegir qué ven tus amigos y eliminar tu cuenta. Lo que se borra y lo que no está en el <Link to="/privacidad" className="text-primary">Aviso de Privacidad</Link>.</li>
+          <li><strong>Mis datos:</strong> en <Link to="/dashboard/perfil" className="text-primary">Mi perfil</Link> puedes editar tus preferencias y borrar tu avatar (pestaña Avatar), elegir qué ven tus amigos (pestaña Amigos) y eliminar tu cuenta (pestaña Ajustes). Lo que se borra y lo que no está en el <Link to="/privacidad" className="text-primary">Aviso de Privacidad</Link>.</li>
           <li><strong>Cookies:</strong> puedes cambiar tu elección en la <Link to="/cookies" className="text-primary">Política de Cookies</Link>.</li>
         </ul>
       </Faq>
       <Faq id="contacto" q="Contacto">
-        <p>Escríbenos a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a> desde el correo de tu cuenta. Respondemos en un máximo de 5 días hábiles. Para un cobro, indica la fecha del cargo.</p>
+        <ContactOpinion />
+        <p>También puedes escribirnos a <a href={`mailto:${CONTACT}`} className="text-primary">{CONTACT}</a> desde el correo de tu cuenta. Respondemos en un máximo de 5 días hábiles. Para un cobro, indica la fecha del cargo.</p>
       </Faq>
     </Shell>
   );

@@ -41,15 +41,16 @@ export function opinionContext(pathname: string): OpinionContext {
   return { ruta, pantalla: screenName(ruta), dispositivo: deviceKind(), version: appVersion(), trip_id: tripIdFromRoute(ruta) };
 }
 
-/** Renglones que ve el usuario antes de enviar ("Se adjunta: …"). */
+/**
+ * Renglones que ve el usuario antes de enviar ("Se adjunta: …"). Solo lo que entiende una persona:
+ * "Pantalla: Inicio · Celular" y, dentro de un viaje, "Viaje: el que tienes abierto". La ruta, la versión
+ * de la app y el id del viaje se envían completos (los lee el equipo), pero no se muestran (ronda 3, P2-1).
+ */
 export function contextLines(c: OpinionContext): string[] {
-  // Los id largos se acortan en pantalla (se envían completos).
-  const ruta = c.ruta ? c.ruta.replace(/([0-9a-f]{8})-[0-9a-f-]{27}/gi, "$1…") : null;
+  const device = c.dispositivo === "celular" ? "Celular" : "Escritorio";
   return [
-    `Pantalla: ${c.pantalla ? `${c.pantalla} (${ruta})` : ruta ?? "—"}`,
-    `Dispositivo: ${c.dispositivo === "celular" ? "Celular" : "Escritorio"}`,
-    c.version ? `Versión de la app: ${c.version}` : null,
-    c.trip_id ? `Viaje: el que tienes abierto (id ${c.trip_id.slice(0, 8)}…)` : null,
+    `Pantalla: ${c.pantalla ?? "la que tienes abierta"} · ${device}`,
+    c.trip_id ? "Viaje: el que tienes abierto" : null,
   ].filter((x): x is string => !!x);
 }
 
@@ -112,14 +113,5 @@ export async function sendOpinion(d: OpinionDraft & { tipo: OpinionType }, ctx: 
 
 export { newIdemKey };
 
-// ───────────────────────────── abrir el diálogo desde cualquier pantalla ─────────────────────────────
-// El menú, el pie de página y el perfil llaman openOpinion(); el diálogo vive una sola vez en el layout.
-type Listener = () => void;
-const listeners = new Set<Listener>();
-export function openOpinion(): void {
-  listeners.forEach((l) => l());
-}
-export function onOpenOpinion(l: Listener): () => void {
-  listeners.add(l);
-  return () => { listeners.delete(l); };
-}
+// Abrir el diálogo desde cualquier pantalla: ver lib/opinionBus (aquí se reexporta por compatibilidad).
+export { onOpenOpinion, openOpinion } from "@/lib/opinionBus";

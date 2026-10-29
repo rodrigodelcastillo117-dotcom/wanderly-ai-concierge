@@ -1,6 +1,7 @@
 // "¿Algo no se entiende? Cuéntanos": diálogo sencillo para mandar una opinión al equipo IATOS.
 // Tipo, texto (obligatorio, máx. 2000), calificación opcional 1–5 y "pueden contactarme por correo"
-// (marcada). Se le dice al usuario qué se adjunta solo (pantalla, dispositivo, versión, viaje). Estados
+// (marcada). Se le dice al usuario qué se adjunta solo (pantalla, dispositivo y viaje; la versión de la app
+// y la ruta se envían sin mostrarse). Estados
 // honestos: enviada (le llegó al equipo), sin conexión (no se envió; el texto se queda) y error.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -131,26 +132,30 @@ export function OpinionDialog({ open, onOpenChange, pathname }: { open: boolean;
 
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-xs text-muted-foreground" data-testid="opinion-context">
               <p className="text-foreground/80 mb-1">Se adjunta automáticamente:</p>
-              <ul className="space-y-0.5 break-all">
+              <ul className="space-y-0.5 break-words">
                 {contextLines(ctx).map((l) => <li key={l}>{l}</li>)}
               </ul>
               <p className="mt-1.5">El equipo ve tu nombre y tu correo. Sin capturas de pantalla ni otros datos.</p>
             </div>
 
-            {touched && problem ? <p role="alert" className="text-sm text-red-300">{problem}</p> : null}
-            {failed ? (
-              <p role="alert" data-testid="opinion-error" className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${failed.kind === "offline" ? "border-amber-400/40 text-amber-200" : "border-red-400/40 text-red-300"}`}>
-                {failed.kind === "offline" ? <WifiOff className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" /> : null}
-                <span>{failed.message}</span>
-              </p>
-            ) : null}
-
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="submit" disabled={busy} className="bg-gradient-gold text-primary-foreground hover:opacity-90">
-                {busy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" /> : null}
-                {busy ? "Enviando…" : failed ? "Reintentar" : "Enviar"}
-              </Button>
+            {/* Barra fija al pie del diálogo (ronda 3, P2-2): a 390 px el aviso de "sin conexión" o de error
+                empujaba «Reintentar» debajo del borde y había que desplazarse dentro del diálogo. */}
+            <div data-testid="opinion-actions"
+              className="sticky bottom-0 z-10 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 space-y-2 border-t border-white/[0.06] bg-background px-5 pt-3 pb-5 sm:px-6 sm:pb-6">
+              {touched && problem ? <p role="alert" className="text-sm text-red-300">{problem}</p> : null}
+              {failed ? (
+                <p role="alert" data-testid="opinion-error" className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${failed.kind === "offline" ? "border-amber-400/40 text-amber-200" : "border-red-400/40 text-red-300"}`}>
+                  {failed.kind === "offline" ? <WifiOff className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" /> : null}
+                  <span>{failed.message}</span>
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button type="submit" disabled={busy} className="flex-1 sm:flex-none bg-gradient-gold text-primary-foreground hover:opacity-90">
+                  {busy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" /> : null}
+                  {busy ? "Enviando…" : failed ? "Reintentar" : "Enviar"}
+                </Button>
+              </div>
             </div>
           </form>
         )}

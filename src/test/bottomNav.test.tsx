@@ -36,7 +36,7 @@ it("'Más' da acceso a todos los destinos que salieron de la barra (Favoritos, C
   fireEvent.click(screen.getByRole("button", { name: "Más" }));
   const dialog = screen.getByRole("dialog");
   for (const [name, href] of [
-    ["Favoritos", "/dashboard/favoritos"], ["Cercanos", "/dashboard/cercanos"], ["Social", "/dashboard/social"],
+    ["Favoritos", "/dashboard/favoritos"], ["Cerca de ti", "/dashboard/cercanos"], ["Social", "/dashboard/social"],
     ["Gastos y ahorro", "/dashboard/gastos"], ["Mis reservas", "/dashboard/reservas"], ["Mi perfil", "/dashboard/perfil"],
     ["Documentos y tarjetas", "/dashboard/beneficios"],
   ]) {

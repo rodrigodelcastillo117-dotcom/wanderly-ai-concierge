@@ -54,14 +54,26 @@ export const VENDOR_GROUPS: [string, (pkg: string) => boolean][] = [
     "recharts", "recharts-scale", "react-smooth", "victory-vendor", "decimal.js-light",
     "lodash", "eventemitter3", "fast-equals", "react-transition-group", "dom-helpers",
   ].includes(p)],
-  // jsPDF y TODO lo que arrastra (canvg trae core-js, raf, etc.).
-  ["vendor-pdf", (p) => [
-    "jspdf", "jspdf-autotable", "html2canvas", "dompurify", "canvg", "fflate", "core-js", "fast-png", "iobuffer", "pako",
-    "performance-now", "raf", "rgbcolor", "stackblur-canvas", "svg-pathdata", "css-line-break", "text-segmentation", "utrie",
-    "base64-arraybuffer", "regenerator-runtime",
+  // Opcionales de jsPDF que jsPDF solo pide con import() dinámico (.html() y SVG). Ninguna pantalla los
+  // usa (tripPdf y priveEditionPdf solo escriben texto y tablas), así que en su propio chunk no se bajan
+  // al generar el PDF: vendor-pdf pasa de 774 KB a 389 KB (240 → 128 KB gzip; ronda 3, P2-8). Hojas cerradas: sus
+  // paquetes solo dependen de su grupo o de vendor-core.
+  ["vendor-pdf-html", (p) => [
+    "html2canvas", "css-line-break", "text-segmentation", "utrie", "base64-arraybuffer", "dompurify",
   ].includes(p)],
+  ["vendor-pdf-svg", (p) => [
+    "canvg", "core-js", "performance-now", "raf", "rgbcolor", "stackblur-canvas", "svg-pathdata", "regenerator-runtime",
+  ].includes(p)],
+  // jsPDF y lo que importa de forma estática (la tabla, la compresión y PNG).
+  ["vendor-pdf", (p) => [
+    "jspdf", "jspdf-autotable", "fflate", "fast-png", "iobuffer", "pako",
+  ].includes(p)],
+  // preact solo: lo usan el globo de /dashboard/ruta (globe.gl → float-tooltip), PostHog y el widget de
+  // Sentry. Estaba dentro de vendor-posthog y el globo descargaba 115 KB gzip de PostHog con la analítica
+  // apagada; ahora baja 4.5 KB gzip (ronda 3, P2-8). Hoja: preact no depende de nada.
+  ["vendor-preact", (p) => p === "preact"],
   ["vendor-posthog", (p) => p === "posthog-js" || p.startsWith("@posthog/") || [
-    "preact", "query-selector-shadow-dom", "web-vitals", "web-vitals-soft-navs",
+    "query-selector-shadow-dom", "web-vitals", "web-vitals-soft-navs",
   ].includes(p)],
   ["vendor-sentry", (p) => p.startsWith("@sentry/") || p.startsWith("@sentry-internal/")],
 ];

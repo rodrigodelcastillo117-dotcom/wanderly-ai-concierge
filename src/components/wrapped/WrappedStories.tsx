@@ -25,7 +25,7 @@ async function defaultShare(stats: WrappedStats, { kind, index, includePhotos, d
   return shareCardImage(buildCardSpec(kind, stats, { includePhotos }), stats.year, cardFilename(kind, index, stats.year), download);
 }
 
-export function WrappedStories({ stats, cards, onClose, onShare, initialIndex = 0, autoplay, otherYears = [], openVideo = false }: {
+export function WrappedStories({ stats, cards, onClose, onShare, initialIndex = 0, autoplay, otherYears = [], openVideo = false, onOpinion }: {
   stats: WrappedStats;
   /** Otros años con viajes (enlaces en la tarjeta de cierre). */
   otherYears?: number[];
@@ -37,6 +37,8 @@ export function WrappedStories({ stats, cards, onClose, onShare, initialIndex = 
   autoplay?: boolean;
   /** Abrir de entrada «Hazme mi video» (enlace desde Recuerdos: /wrapped?video=1). */
   openVideo?: boolean;
+  /** Abre "¿Algo no se entiende? Cuéntanos" (enlace discreto en la tarjeta final; ronda 3, P2-3). */
+  onOpinion?: () => void;
 }) {
   const reduce = usePrefersReducedMotion();
   const auto = autoplay ?? !reduce;
@@ -161,7 +163,7 @@ export function WrappedStories({ stats, cards, onClose, onShare, initialIndex = 
       >
         <div className="h-full w-full" style={{ ["--u" as string]: "min(1cqw, 0.5625cqh)" }}>
           <WrappedCardView key={index} spec={spec} year={stats.year} still={reduce} index={index} total={count}
-            reserveBottom={`calc(${otherYears.length && kind === "outro" ? 116 : 76}px + env(safe-area-inset-bottom))`} />
+            reserveBottom={`calc(${76 + (otherYears.length && kind === "outro" ? 40 : 0) + (onOpinion && kind === "outro" ? 32 : 0)}px + env(safe-area-inset-bottom))`} />
 
           {/* Barra de progreso */}
           <div className="absolute inset-x-0 top-0 z-10 flex gap-1 px-3 pt-[max(12px,env(safe-area-inset-top))]" aria-hidden="true">
@@ -199,6 +201,14 @@ export function WrappedStories({ stats, cards, onClose, onShare, initialIndex = 
                   <Link key={y} to={`/wrapped/${y}`} className="inline-flex min-h-9 items-center rounded-full border border-white/20 px-3 text-xs font-semibold text-[#F5EBDD] hover:border-primary/60">{y}</Link>
                 ))}
               </nav>
+            )}
+            {kind === "outro" && onOpinion && (
+              <div className="mb-1 flex justify-center">
+                <button type="button" onClick={onOpinion} data-testid="wrapped-opinion" aria-haspopup="dialog"
+                  className="min-h-8 px-2 text-xs text-[#F5EBDD]/60 underline-offset-4 hover:text-[#F5EBDD] hover:underline">
+                  ¿Algo no se entiende? Cuéntanos
+                </button>
+              </div>
             )}
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => go(-1)} disabled={index === 0} className={`${ctrl} pl-2 pr-3.5 text-[#F5EBDD]/85 hover:bg-white/10`}>

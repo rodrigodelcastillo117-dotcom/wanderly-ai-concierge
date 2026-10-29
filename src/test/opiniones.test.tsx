@@ -210,9 +210,11 @@ describe("envío desde la app", () => {
     expect(c).toMatchObject({ ruta: `/dashboard/viajes/${TRIP}`, pantalla: "Detalle del viaje", trip_id: TRIP });
     expect(["celular", "escritorio"]).toContain(c.dispositivo);
     const lines = contextLines(c).join(" | ");
-    expect(lines).toContain("Pantalla: Detalle del viaje");
-    expect(lines).toMatch(/Dispositivo: (Celular|Escritorio)/);
-    expect(lines).toContain("Viaje: el que tienes abierto (id 0b100000…)");
+    // Ronda 3, P2-1: en palabras ("Pantalla: Detalle del viaje · Celular"); la ruta, la versión y el id
+    // del viaje se envían pero no se muestran.
+    expect(lines).toMatch(/Pantalla: Detalle del viaje · (Celular|Escritorio)/);
+    expect(lines).toContain("Viaje: el que tienes abierto");
+    expect(lines).not.toContain("0b100000");
   });
 
   it("sin conexión no llama al servidor y lo dice; red caída y límite también", async () => {
@@ -238,7 +240,7 @@ describe("envío desde la app", () => {
     render(<MemoryRouter><OpinionDialog open onOpenChange={() => {}} pathname="/dashboard/viajes" /></MemoryRouter>);
     const dlg = screen.getByTestId("opinion-dialog");
     expect(within(dlg).getByRole("checkbox", { name: "Pueden contactarme por correo" })).toHaveAttribute("data-state", "checked");
-    expect(within(dlg).getByTestId("opinion-context")).toHaveTextContent("Pantalla: Mis viajes (/dashboard/viajes)");
+    expect(within(dlg).getByTestId("opinion-context")).toHaveTextContent(/Pantalla: Mis viajes · (Celular|Escritorio)/);
     // Sin tipo no se envía.
     fireEvent.click(within(dlg).getByRole("button", { name: "Enviar" }));
     expect(await within(dlg).findByText("Elige qué nos quieres contar.")).toBeInTheDocument();

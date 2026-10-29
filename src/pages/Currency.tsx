@@ -63,7 +63,7 @@ const Currency = () => {
         <div className="mb-6 flex items-center gap-3">
           <DollarSign className="w-7 h-7 text-primary" />
           <div>
-            <p className="text-primary text-xs tracking-[0.2em] uppercase">Conversor</p>
+            <p className="text-primary text-xs tracking-[0.2em] uppercase">Convertidor de moneda</p>
             <h1 className="font-display text-3xl md:text-4xl">Moneda en vivo</h1>
           </div>
         </div>

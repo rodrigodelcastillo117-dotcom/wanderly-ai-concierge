@@ -28,6 +28,7 @@ import {
   EMERGENCY_SOURCE_NOTE,
   UNKNOWN_EMERGENCY_SOURCE_NOTE,
 } from "@/lib/emergencyNumbers";
+import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
 
 const LiveTrip = () => {
   const { id } = useParams();
@@ -236,6 +237,8 @@ const LiveTrip = () => {
           <InfoCard icon={Utensils} label="Restaurantes" count={(trip.restaurantes_json ?? []).length} onClick={() => navigate(`/dashboard/viajes/${trip.id}`)} />
         </div>
       </div>
+      {/* Buzón de opiniones: esta pantalla no usa el layout principal (ronda 3, P2-3). */}
+      <StandaloneOpinion />
 
       {/* SOS overlay */}
       {sosOpen && (

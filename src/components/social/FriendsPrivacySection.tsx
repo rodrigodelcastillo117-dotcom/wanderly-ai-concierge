@@ -19,7 +19,7 @@ type RpcClient = Parameters<typeof saveSettings>[0];
 const client = () => supabase as unknown as RpcClient;
 
 const TOGGLES: { key: keyof SocialSettings; label: string; hint: string; group: "perfil" | "viajes" | "actividad" }[] = [
-  { key: "avatar", label: "Mi avatar", hint: "Tu Travel Avatar en tu perfil, la lista de amigos y la postal.", group: "perfil" },
+  { key: "avatar", label: "Mi avatar", hint: "Tu avatar de viaje en tu perfil, la lista de amigos y la postal.", group: "perfil" },
   { key: "viajes_pasados", label: "Viajes pasados", hint: "Destino, países y portada.", group: "viajes" },
   { key: "viajes_proximos", label: "Viajes próximos", hint: "Los que aún no haces (y el que estás viviendo).", group: "viajes" },
   { key: "fechas_completas", label: "Fechas exactas", hint: "Apagado: solo mes y año.", group: "viajes" },

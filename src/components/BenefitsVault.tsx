@@ -31,11 +31,12 @@ const BenefitsVault = () => {
         </div>
         <ChevronRight className="w-5 h-5 text-primary shrink-0 transition group-hover:translate-x-0.5" aria-hidden="true" />
       </div>
-      <div className="mt-4 grid grid-cols-4 gap-2">
+      {/* 2 columnas en el celular: a 390 px, en 4 columnas se cortaban "Document…" y "Membresí…" (ronda 3, P2-4). */}
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="vault-counts">
         {VAULT_SECTIONS.map((s) => (
           <div key={s} className="rounded-xl bg-surface/70 border border-border/50 px-2 py-2 text-center">
             <p className="font-display text-lg tabular-nums">{counts ? counts[s] : "–"}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{SECTION_LABEL[s]}</p>
+            <p className="text-xs text-muted-foreground leading-tight break-words">{SECTION_LABEL[s]}</p>
           </div>
         ))}
       </div>
