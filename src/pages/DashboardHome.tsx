@@ -1,4 +1,4 @@
-import { canonicalCategory, categoryColor } from "@/lib/expenseCategories";
+import { homeSpendCard, loadMySpend, mergeMySpend } from "@/lib/mySpend";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass, Ship, UtensilsCrossed, TrainFront, Anchor, Receipt } from "lucide-react";
@@ -33,7 +33,7 @@ import tulum640 from "@/assets/destination-tulum-640.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 import santorini960 from "@/assets/hero-santorini-960.jpg";
 import { daysFromToday, formatLocalDate, localISODate } from "@/lib/localDate";
-import { convert, fetchFxTable, fxLabel } from "@/lib/fx";
+import { fetchFxTable, fxLabel } from "@/lib/fx";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 import { withTripParam } from "@/lib/tripLink";
@@ -129,7 +129,7 @@ const DashboardHome = () => {
   const [reelFading, setReelFading] = useState(false);
   const reelTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const REEL_DURATION = 10_000;
-  const [spendUsd, setSpendUsd] = useState(0);
+  const [spendMxn, setSpendMxn] = useState(0);
   const [spendDeltaPct, setSpendDeltaPct] = useState<number | null>(null);
   const [spendCats, setSpendCats] = useState<{ label: string; pct: number; color: string }[]>([]);
   // De dónde salió el tipo de cambio y de cuándo es; y gastos que no se pudieron convertir.
@@ -152,48 +152,17 @@ const DashboardHome = () => {
   useEffect(() => {
     if (!user) return;
     return afterCritical(() => void (async () => {
-      // ───── Smart Spend real (gastos del mes actual vs mes anterior) ─────
-      const now = new Date();
-      const startThis = localISODate(new Date(now.getFullYear(), now.getMonth(), 1));
-      const startPrev = localISODate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
-      const { data: exps } = await supabase
-        .from("expenses")
-        .select("amount, currency, category, expense_date")
-        .eq("user_id", user.id)
-        .gte("expense_date", startPrev);
-
-      // Tipo de cambio en vivo (open.er-api.com) o, si no responde, uno de respaldo con su fecha.
-      // Una moneda sin tasa no se toma 1:1: se deja fuera y se avisa.
-      const fx = await fetchFxTable();
-      setSpendFxLabel(exps && exps.length ? fxLabel(fx) : null);
-      const missing = new Set<string>();
-      const toUsd = (a: number, c: string) => {
-        const v = convert(a, c || "MXN", "USD", fx);
-        if (v == null) { missing.add(String(c || "").toUpperCase()); return 0; }
-        return v;
-      };
-
-      const thisMonth = (exps ?? []).filter((e) => e.expense_date >= startThis);
-      const prevMonth = (exps ?? []).filter((e) => e.expense_date < startThis);
-
-      const totalUsd = thisMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
-      const prevUsd = prevMonth.reduce((s, e) => s + toUsd(Number(e.amount) || 0, e.currency || "MXN"), 0);
-      setSpendUsd(totalUsd);
-      setSpendDeltaPct(prevUsd > 0 ? Math.round(((totalUsd - prevUsd) / prevUsd) * 100) : null);
-
-      // Mismas categorías y colores que Smart Spend (las filas viejas caen en su categoría nueva).
-      const groups: Record<string, number> = {};
-      for (const e of thisMonth) {
-        const key = canonicalCategory(e.category);
-        groups[key] = (groups[key] ?? 0) + toUsd(Number(e.amount) || 0, e.currency || "MXN");
-      }
-      const sum = Object.values(groups).reduce((a, b) => a + b, 0);
-      const cats = Object.entries(groups)
-        .map(([k, v]) => ({ label: k, pct: sum > 0 ? Math.round((v / sum) * 100) : 0, color: categoryColor(k) }))
-        .sort((a, b) => b.pct - a.pct)
-        .slice(0, 5);
-      setSpendCats(cats);
-      setSpendUnconverted([...missing]);
+      // ───── Tus gastos: el mismo cálculo que Gastos › Resumen ─────
+      // Mis gastos + mi parte de lo compartido, en pesos, con summarizeSpend y las mismas categorías
+      // (antes Inicio convertía a USD y no contaba la parte compartida: decía otra cifra que Gastos).
+      const [{ own, shared }, fx] = await Promise.all([loadMySpend(supabase, user.id), fetchFxTable()]);
+      const items = mergeMySpend(own, shared);
+      const card = homeSpendCard(items, fx);
+      setSpendFxLabel(items.length ? fxLabel(fx) : null);
+      setSpendMxn(card.thisMonth);
+      setSpendDeltaPct(card.deltaPct);
+      setSpendCats(card.cats);
+      setSpendUnconverted(card.unconvertedCurrencies);
     })());
   }, [user]);
 
@@ -606,7 +575,7 @@ const DashboardHome = () => {
               </div>
 
               {/* Sin gastos no se pinta un "$0.00" gigante con una dona vacía: se explica qué hacer. */}
-              {spendUsd <= 0 && spendCats.length === 0 ? (
+              {spendMxn <= 0 && spendCats.length === 0 ? (
                 <div className="py-4">
                   <p className="font-display text-xl md:text-2xl">Aún no registras gastos este mes</p>
                   <p className="text-xs text-muted-foreground mt-2 leading-relaxed max-w-sm">
@@ -616,12 +585,12 @@ const DashboardHome = () => {
               ) : (<>
               <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
               <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
-                ${spendUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {`$${Math.round(spendMxn).toLocaleString("es-MX")}\u00A0`}<span className="text-[0.4em] text-muted-foreground font-sans tracking-wide">MXN</span>
               </p>
               <p className="text-[11px] text-muted-foreground mb-5">
                 {spendDeltaPct !== null ? (
-                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · USD</>
-                ) : spendUsd > 0 ? "USD · primer mes con gastos" : "Aún sin gastos registrados · USD"}
+                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · en pesos</>
+                ) : spendMxn > 0 ? "En pesos · sin gastos el mes pasado" : "Sin gastos este mes · en pesos"}
               </p>
               {spendFxLabel && (
                 <p className="text-[10px] text-muted-foreground/80 -mt-4 mb-4">
@@ -631,7 +600,8 @@ const DashboardHome = () => {
               )}
               <div className="flex items-center gap-5 min-w-0">
                 <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
-                <ul className="flex-1 space-y-2 text-sm">
+                <ul className="flex-1 space-y-2 text-sm" aria-label="Por categoría, todos tus gastos">
+                  {spendCats.length > 0 && <li className="text-[10px] text-muted-foreground/80 tracking-wide">Por categoría · todos tus gastos</li>}
                   {spendCats.length === 0 && (
                     <li className="text-xs text-muted-foreground italic">
                       Registra gastos en tus viajes y aquí verás tu desglose real por categoría.
@@ -653,7 +623,7 @@ const DashboardHome = () => {
                 onClick={() => navigate("/dashboard/smart-spend")}
                 className="w-full mt-6 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] text-sm tracking-wide"
               >
-                {spendUsd <= 0 && spendCats.length === 0 ? "Registrar un gasto" : "Ver detalles y análisis"}
+                {spendMxn <= 0 && spendCats.length === 0 ? "Registrar un gasto" : "Ver detalles y análisis"}
               </Button>
             </div>
           </section>
