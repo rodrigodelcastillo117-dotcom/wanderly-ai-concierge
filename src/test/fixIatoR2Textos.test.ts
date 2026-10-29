@@ -21,7 +21,9 @@ describe("#16 · sin frases iniciales que no aplican", () => {
     const p = plan("quiero cenar en Valle de Bravo");
     expect(leadSentence(p, { message: "quiero cenar en Valle de Bravo" })).toMatch(/^Busco .* en Google Maps\.$/);
     const e = planTurn({ message: "necesito ayuda urgente", intents: detectIntents("necesito ayuda urgente"), trip: VB, todayISO: HOY, coords: { lat: 19.4, lng: -99.1 }, hasPriveSession: false, exigente: true });
-    expect(leadSentence(e, { exigente: true, message: "necesito ayuda urgente" })).toMatch(/emergencias local/);
+    // Ronda 4 (N4-P2-5): sigue habiendo frase en exigente; el aviso de llamar a emergencias va solo en la tarjeta "Ayuda inmediata".
+    expect(leadSentence(e, { exigente: true, message: "necesito ayuda urgente" })).toBe("Busco el hospital más cercano a tu ubicación.");
+    expect(e.cards).toEqual(expect.arrayContaining([expect.objectContaining({ type: "alert", title: "Ayuda inmediata", body: expect.stringMatching(/emergencias local/) })]));
   });
   it("sin una frase concreta no hay relleno ('Consulto los datos en vivo para responderte.')", () => {
     expect(leadSentence({ intents: [], prefetch: [{ name: "web_search", args: { query: "x" }, reason: "x" }] })).toBeNull();

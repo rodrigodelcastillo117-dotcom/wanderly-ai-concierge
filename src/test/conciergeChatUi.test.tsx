@@ -23,7 +23,7 @@ vi.mock("@/hooks/useSubscription", () => ({
   notifyAccessChanged: () => {},
 }));
 vi.mock("@/lib/profileActiveTrip", () => ({ readPinnedTrip: async () => undefined, savePinnedTrip: async () => null }));
-vi.mock("@/lib/conciergeHistory", () => ({ loadConversation: async () => [] }));
+vi.mock("@/lib/conciergeHistory", async (importOriginal) => ({ ...(await importOriginal<object>()), loadConversation: async () => [], loadRecentConversations: async () => [] }));
 vi.mock("@/lib/conciergeStream", () => ({
   streamConcierge: (...a: any[]) => stream(...a),
   incompleteReplyText: (t: string, m: string) => t || m,

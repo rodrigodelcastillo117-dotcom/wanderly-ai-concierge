@@ -11,7 +11,7 @@ import { FixerButton } from "@/components/FixerButton";
 import {
   type AiReservation, cancelAiReservation, chooseAiAlternative, confirmAiReservation, formatLocalSlot, listAiReservations, reservationIcsBlob, recipientNote,
 } from "@/lib/aiReservations";
-import { IatoName } from "@/lib/iatoMark";
+import { IatoName, withIatoMark } from "@/lib/iatoMark";
 
 const ACTIVE = ["draft", "awaiting_user_ok", "sent", "venue_replied", "needs_user", "confirmed"];
 
@@ -43,6 +43,9 @@ export function aiReservationsNoteText(items: Pick<AiReservation, "status" | "se
   ].filter(Boolean);
   return `Mesas por correo con Iato: ${parts.join(" · ")}.`;
 }
+
+/** Nombre del botón que envía la mesa: el mismo en el chat (AiReservationSend) y en Mis reservas. */
+export const AI_RES_SEND_LABEL = "Enviar al restaurante";
 
 /** Última cantidad de mesas vista (para mostrar el esqueleto mientras carga solo si había alguna). */
 const COUNT_KEY = "iatos_ai_res_count";
@@ -100,12 +103,14 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={cc} onCheckedChange={(v) => setCc(v === true)} /> Mandarme una copia del correo
           </label>
+          {/* Ronda 4 (N4-P2-4): el botón se llama igual que en el chat («Enviar al restaurante»); la frase que
+              confirmas va escrita aquí arriba, como en el chat. */}
+          <p className="text-[11px] text-muted-foreground" data-testid="ai-res-confirm-prompt">Al enviar confirmas: «{r.confirm_prompt}». Nunca pedimos ni enviamos datos de pago.</p>
           <div className="flex flex-wrap gap-2">
-            {/* En 390 px el texto largo ("Confirmar: escribiremos a Contramar en tu nombre") se partía fuera
-                de la tarjeta (N-P2-5): ahora baja de renglón dentro del botón. */}
+            {/* En 390 px un texto largo se partía fuera de la tarjeta (N-P2-5): baja de renglón dentro del botón. */}
             <Button size="sm" disabled={busy} className="h-auto min-h-9 max-w-full whitespace-normal text-left py-2" data-testid="ai-res-confirm"
               onClick={() => run(() => confirmAiReservation(r.id, r.confirm_prompt, { share_contact: share, cc_me: cc }), "Le escribimos al restaurante. Te avisamos cuando responda.")}>
-              {r.confirm_prompt}
+              {AI_RES_SEND_LABEL}
             </Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => cancelAiReservation(r.id))}>No enviar</Button>
           </div>
@@ -241,7 +246,7 @@ export function AiReservationsLinkNote() {
   return (
     <div className="max-w-2xl mx-auto mb-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs" data-testid="ai-res-link-note">
       <p>
-        {text}{" "}
+        {withIatoMark(text)}{" "}
         <Link to="/dashboard/reservas#reservas-ia" className="text-primary underline underline-offset-2">Ver en Mis reservas</Link>
       </p>
     </div>

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Crown, Sparkles, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +18,19 @@ type Perfil = {
   confianza?: number;
 };
 
+/**
+ * Dónde va el panel compacto del avatar: debajo del botón, alineado a su borde derecho y nunca fuera de la
+ * pantalla. En el celular (< 640 px) ocupa el ancho con 16 px de margen a cada lado.
+ */
+export function avatarPanelPosition(rect: { bottom: number; right: number }, viewportW: number, gutter = 16): React.CSSProperties {
+  const top = Math.round(rect.bottom + 8);
+  if (viewportW < 640) return { top, left: gutter, right: gutter };
+  const width = Math.min(420, viewportW - gutter * 2);
+  const right = Math.max(gutter, Math.round(viewportW - rect.right));
+  const left = Math.max(gutter, viewportW - right - width);
+  return { top, left, width };
+}
+
 export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
   const { user } = useAuth();
   const [perfil, setPerfil] = useState<Perfil | null>(null);
@@ -24,6 +39,37 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [evolving, setEvolving] = useState(false);
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [panelPos, setPanelPos] = useState<React.CSSProperties | null>(null);
+  const panelId = "traveler-avatar-panel";
+
+  // Posición del panel (compacto): debajo del botón y siempre dentro de la pantalla.
+  const place = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el || typeof window === "undefined") return;
+    setPanelPos(avatarPanelPosition(el.getBoundingClientRect(), window.innerWidth));
+  }, []);
+  useLayoutEffect(() => {
+    if (!open || !compact) return;
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [open, compact, place]);
+  // Escape y toque fuera cierran el panel; el toque fuera no se come: lo de abajo sigue funcionando.
+  useEffect(() => {
+    if (!open || !compact) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); triggerRef.current?.focus(); } };
+    const onDown = (e: PointerEvent | MouseEvent) => {
+      const t = e.target as Node | null;
+      if (t && (panelRef.current?.contains(t) || triggerRef.current?.contains(t))) return;
+      setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown, true);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
+  }, [open, compact]);
 
   const cargar = async () => {
     if (!user) return;
@@ -124,51 +170,71 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
     return (
       <div className="relative">
         <button
+          ref={triggerRef}
+          type="button"
           onClick={() => setOpen(o => !o)}
-          className="flex items-center gap-2 px-2 py-1 rounded-full border border-primary/30 bg-white/5 hover:bg-primary/10 transition"
-          title={`${nombre} — ${estilo}`}
+          className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-1 rounded-full border border-primary/30 bg-white/5 hover:bg-primary/10 transition"
+          title={`Tu avatar de viajero: ${nombre} — ${estilo}`}
+          aria-label={`Tu avatar de viajero: ${nombre}, ${estilo}`}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
+          data-testid="traveler-avatar-trigger"
         >
           <AvatarCircle size="sm" />
+          {/* N4-P1-3: en el celular la "S" con corona no decía qué era; ahora dice "Tu avatar". */}
+          <span className="sm:hidden text-[10px] leading-[1.1] text-primary/90 text-left" aria-hidden="true">Tu<br />avatar</span>
           <span className="hidden sm:flex flex-col items-start leading-tight pr-2">
             <span className="text-xs font-medium text-foreground">{nombre}</span>
             <span className="text-[9px] text-primary/80 uppercase tracking-wider">
               {estilo}{perfil?.estilo_dominante && version != null ? ` · versión ${version}` : ""}
             </span>
           </span>
-          <ChevronDown className={`w-3 h-3 text-primary/70 transition ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`hidden sm:block w-3 h-3 text-primary/70 transition ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
 
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 mt-2 w-[340px] md:w-[420px] z-50 glass-card rounded-2xl p-4 border border-primary/20 shadow-2xl">
-              <div className="flex items-start gap-3">
-                <AvatarCircle size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex items-center gap-2">
-                    <Sparkles className="w-3 h-3" /> Tu avatar de viajero
-                    {perfil?.estilo_dominante && version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· versión {version}</span>}
-                    {conf != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· {conf}%</span>}
-                  </p>
-                  <h3 className="font-display text-base leading-tight mb-1">
-                    {nombre} <span className="italic gold-text font-light">— {estilo}</span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{resumen}</p>
-                  <div className="mt-3">
-                    <button
-                      onClick={evolucionar}
-                      disabled={evolving}
-                      className="text-[11px] px-3 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition inline-flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
-                      {evolving ? "Evolucionando…" : "Evolucionar avatar"}
-                    </button>
-                  </div>
+        {open && typeof document !== "undefined" && createPortal(
+          // N4-P1-3: el panel salía cortado por la izquierda en el celular (x=-66), con fondo translúcido y
+          // debajo de las pestañas; la capa que lo cerraba bloqueaba "Ayuda". Ahora va en un portal, fijo
+          // y dentro de la pantalla (16 px de margen), opaco y encima de todo el encabezado. Se cierra con
+          // Escape o tocando fuera, sin capa que bloquee lo demás.
+          <div
+            ref={panelRef}
+            id={panelId}
+            role="dialog"
+            aria-label="Tu avatar de viajero"
+            data-testid="traveler-avatar-panel"
+            style={panelPos ?? undefined}
+            className="fixed z-[80] w-auto sm:w-[420px] max-h-[min(70dvh,560px)] overflow-y-auto rounded-2xl p-4 border border-primary/30 bg-card text-card-foreground shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <AvatarCircle size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] tracking-[0.3em] text-primary uppercase mb-1 flex flex-wrap items-center gap-x-2">
+                  <Sparkles className="w-3 h-3" aria-hidden="true" /> Tu avatar de viajero
+                  {perfil?.estilo_dominante && version != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· versión {version}</span>}
+                  {conf != null && <span className="text-[9px] text-muted-foreground tracking-normal normal-case">· {conf}%</span>}
+                </p>
+                <h3 className="font-display text-base leading-tight mb-1">
+                  {nombre} <span className="italic gold-text font-light">— {estilo}</span>
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{resumen}</p>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={evolucionar}
+                    disabled={evolving}
+                    className="text-[11px] px-3 py-1 rounded-full border border-primary/40 text-primary hover:bg-primary/10 transition inline-flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${evolving ? "animate-spin" : ""}`} />
+                    {evolving ? "Evolucionando…" : "Evolucionar avatar"}
+                  </button>
                 </div>
               </div>
-              <DetailPanel />
             </div>
-          </>
+            <DetailPanel />
+          </div>,
+          document.body,
         )}
       </div>
     );

@@ -68,7 +68,7 @@ describe("1. parseo según la documentación", () => {
     expect(out[0]).toMatchObject({
       id: "G5v1", title: "Coldplay: Music of the Spheres", fecha: "2026-11-21", hora: "21:00", date_time: "2026-11-22T03:00:00Z", estado: "onsale",
       recinto: "Foro Sol", direccion: "Av. Viaducto Río de la Piedad s/n, Ciudad de México", ciudad: "Ciudad de México", lat: 19.4053, lng: -99.0947,
-      categoria: "Music · Rock", url: "https://www.ticketmaster.com.mx/G5v1/event/G5v1",
+      categoria: "Música · Rock", url: "https://www.ticketmaster.com.mx/G5v1/event/G5v1",
     });
     expect(out[0].miniatura).toMatch(/16_9/);
   });
@@ -237,7 +237,7 @@ describe("5. card 'event' de Ticketmaster", () => {
 
   it("estado, categoría, coordenadas y precio 'desde' solo con priceRanges", () => {
     const cards = eventCards(runs);
-    expect(cards[0]).toMatchObject({ type: "event", fuente: "ticketmaster", status: "En venta", body: "Music · Rock", lat: 19.4053, lng: -99.0947,
+    expect(cards[0]).toMatchObject({ type: "event", fuente: "ticketmaster", status: "En venta", body: "Música · Rock", lat: 19.4053, lng: -99.0947,
       price: 950, currency: "MXN", price_note: "precio publicado por Ticketmaster · puede cambiar",
       links: [{ kind: "tickets", label: "Boletos en Ticketmaster", url: "https://www.ticketmaster.com.mx/G5v1/event/G5v1" }] });
     expect(cards[1].price).toBeUndefined();
@@ -246,7 +246,7 @@ describe("5. card 'event' de Ticketmaster", () => {
   it("RichCard: 'Desde $950 MXN' con aviso, 'Fuente: Ticketmaster', 'Boletos en Ticketmaster' y 'Llévame' con coordenadas; nunca 'comprado'", () => {
     const { container } = render(<RichCard card={eventCards(runs)[0]} />);
     expect(screen.getByTestId("event-price")).toHaveTextContent(/Desde \$950 MXN · precio publicado por Ticketmaster · puede cambiar/);
-    expect(screen.getByTestId("event-status")).toHaveTextContent("Music · Rock · En venta");
+    expect(screen.getByTestId("event-status")).toHaveTextContent("Música · Rock · En venta");
     expect(screen.getByTestId("event-source")).toHaveTextContent(/^Fuente: Ticketmaster/);
     expect(screen.getByRole("link", { name: /Boletos en Ticketmaster/ })).toHaveAttribute("href", "https://www.ticketmaster.com.mx/G5v1/event/G5v1");
     expect(screen.getByTestId("take-me-there").getAttribute("href")).toBe("https://www.google.com/maps/dir/?api=1&destination=19.4053%2C-99.0947&travelmode=driving");
@@ -283,7 +283,7 @@ describe("6. The Privé Key incorpora UN evento real solo si encaja", () => {
     todayISO: "2026-10-22", hitDaily: vi.fn(async () => true), cache: memoryCache(), now: () => 1_000, liveEvents });
   const WISH = { wish: "Plan de aniversario en CDMX el 2026-11-21 para 2, sin tope" };
   const tmEv = (o: Partial<TmEvent>): TmEvent => ({ id: "e1", title: "Coldplay: Music of the Spheres", fecha: "2026-11-21", hora: "17:00", estado: "onsale", recinto: "Foro Sol",
-    lat: 19.4053, lng: -99.0947, categoria: "Music · Rock", url: "https://www.ticketmaster.com.mx/G5v1/event/G5v1", precio: { min: 950, max: 6500, currency: "MXN" }, ...o });
+    lat: 19.4053, lng: -99.0947, categoria: "Música · Rock", url: "https://www.ticketmaster.com.mx/G5v1/event/G5v1", precio: { min: 950, max: 6500, currency: "MXN" }, ...o });
   const live = (events: TmEvent[]) => vi.fn(async () => ({ ok: true as const, source: "ticketmaster" as const, results: events, consulted_at: "2026-10-23T15:00:00Z" }));
 
   it("en venta y sin encimarse con la noche (20:00 en adelante): entra como paso antes, con fuente y enlace de boletos", async () => {

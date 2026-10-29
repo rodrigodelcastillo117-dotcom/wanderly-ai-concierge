@@ -1,0 +1,81 @@
+{
+ "_fuente": "auditoria10/r4-concierge/out (producción, 29-oct-2026, main 1e3bb0f)",
+ "m10_viajes": {
+  "text": "En los próximos 2 meses (hasta el 29 de diciembre) tienes estos viajes, todos **cotizados y sin reservar**:\n\n- **Valle de Bravo:** 30 oct – 1 nov\n- **Puerto Escondido:** 12 – 16 nov\n- **San Miguel de Allende:** 13 – 15 nov\n- **Valle de Bravo:** 20 – 23 nov\n- **Bogotá:** 4 – 8 dic\n- **Los Cabos:** 4 – 7 dic (aparece dos veces en tu lista, con el mismo itinerario)\n\nEl más incompleto es **San Miguel de Allende**. Solo tiene autobús o auto como transporte, un hotel por confirmar en Google Hotels y no tiene itinerario. El más urgente es **Valle de Bravo** (30 oct), que sale mañana: ya tiene hotel y transporte cotizados, pero le falta un seguro de viaje, que puedes contratar desde la sección Seguros de IATOS."
+ },
+ "m08_gasto": {
+  "deltas": [
+   "Puedo preparar el gasto de $120 MXN en Restaurantes (café, \"PRUEBA AUDITORÍA R4\") para tu viaje a Valle de Bravo. ",
+   "Te dejo el botón para confirmarlo; no se guarda hasta que lo apruebes.\n\n",
+   "```\n"
+  ],
+  "final": "Puedo preparar el gasto de $120 MXN en Restaurantes (café, \"PRUEBA AUDITORÍA R4\") para tu viaje a Valle de Bravo. Te dejo el botón para confirmarlo; no se guarda hasta que lo apruebes.\n\n```"
+ },
+ "m06_eventos": {
+  "text": "Para Madrid, el fin de semana del sábado 31 de octubre al domingo 1 de noviembre, Ticketmaster (consultado hoy 29 oct, 02:58 CDMX) trae estos primeros eventos por fecha:\n\n- **Sáb 31, 17:00:** Perreo Lab x Halloween (Live Las Ventas).\n- **Sáb 31, 20:00:** Morat en Movistar Arena.\n- **Sáb 31, 20:30:** Una Cena Cantada en El Café de la Ópera.\n- **Dom 1 nov, 19:00:** Piano Jazz en El Café de la Ópera.\n\nHay más eventos en Ticketmaster para esas fechas. Los boletos se compran en el sitio de Ticketmaster. ¿Quieres que busque algo de otro tipo o para otra fecha?",
+  "cards": [
+   "PERREO LAB X HALLOWEEN - DALMATA",
+   "Experiencia Galería Inesperada Morat",
+   "Morat",
+   "Una Cena Cantada"
+  ]
+ },
+ "m09_hospital": {
+  "text": "Si hay riesgo para tu vida, llama ya al número de emergencias local. Mientras tanto busco el hospital más cercano a tu ubicación. Si te sientes muy mal o tienes síntomas graves, llama ya al **911** o ve a urgencias.\n\nEl hospital más cercano a tu ubicación en Ciudad de México es el **Hospital de Jesús** (20 de Noviembre 82, Centro Histórico), a unos **412 m**, abierto ahora según Google Maps. Su teléfono es +52 55 5542 6501. Si quieres que una persona del equipo IATOS te acompañe con la atención, puedo dejarte la solicitud.",
+  "actions": [
+   {
+    "id": "ac5a0e18-c75e-4a5a-b3f5-d7f4ecd2973d",
+    "type": "open_emergency",
+    "params": {},
+    "summary": "Ver números de emergencia y el hospital más cercano",
+    "confirm_label": "Abrir emergencia",
+    "runs": "client"
+   },
+   {
+    "id": "98c06b57-e349-4fb6-b89b-eb63b8284ff8",
+    "type": "fixer_request",
+    "params": {
+     "tipo": "other",
+     "titulo": "Ayuda urgente",
+     "detalle": "Me siento mal, ¿cuál es el hospital más cercano a mí ahora?",
+     "trip_id": "b5feaa3f-1bd8-4839-8ba4-b40919c81b67"
+    },
+    "summary": "Pedírselo a nuestro equipo: Ayuda urgente",
+    "confirm_label": "Pedírselo a una persona del equipo",
+    "runs": "server",
+    "note": "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado."
+   }
+  ]
+ },
+ "m03_viaje": {
+  "text": "Para Valle de Bravo (30 oct – 1 nov, 2 viajeros, por tierra):\n\n- **Tienes:** cotizaciones guardadas, sin reservas confirmadas. Hospedaje: El Ensueño (~$1,100 MXN/noche), Múbú Hotel Boutique (~$2,684) y Casa Rodavento (~$9,169), según Google Hotels, consultado el 27 oct 23:37 CDMX. Transporte: en tu coche (~$842 MXN por persona, estimado) o autobús. Itinerario de 2 días armado.\n- **Falta:** elegir y reservar hotel, y la cena del sábado 31 a las 21:00. Esa solicitud aún no existe, aún no está reservado nada. Tampoco veo seguro de viaje, y es lo más importante pendiente: revisa la sección Seguros de IATOS.\n- **Siguiente paso:** reservar hotel hoy, porque es fin de semana de Día de Muertos. Para tu perfil, Múbú (4.7) es el equilibrio: boutique y precio razonable. Después, la mesa.\n\nTe dejo los botones para confirmar."
+ },
+ "m04_chofer": {
+  "text": "Para Oaxaca (15–18 ene 2027, 2 viajeros, hotel Otro Oaxaca), puedo pedir un **chofer privado** que los lleve a Hierve el Agua y los regrese al hotel. Es una solicitud a una persona del equipo IATOS, sujeta a disponibilidad. El precio se cotiza caso por caso y no tengo una tarifa para darte.\n\n¿Qué día quieren hacer la excursión? Con la fecha la incluyo en la solicitud.",
+  "actions": [
+   {
+    "id": "bad1373c-ebed-400c-b37c-a95b9834b32d",
+    "type": "fixer_request",
+    "params": {
+     "tipo": "transport",
+     "titulo": "Chofer privado en Oaxaca",
+     "detalle": "Traslado con chofer para 2 personas a Hierve el Agua y regreso al hotel Otro Oaxaca. Viaje del 15 al 18 de enero de 2027. Precio por cotizar. Falta confirmar fecha del día de excursión.",
+     "personas": 2,
+     "lugar": "Oaxaca",
+     "trip_id": "4ea00558-f563-4797-88b8-850c6264a9d7"
+    },
+    "summary": "Pedírselo a nuestro equipo: Chofer privado en Oaxaca",
+    "confirm_label": "Pedírselo a una persona del equipo",
+    "runs": "server",
+    "note": "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado."
+   }
+  ]
+ },
+ "m01_tokio": {
+  "text": "En Tokio son las **17:54 del jueves 29 de octubre de 2026** (hora de Tokio), según el reloj de IATOS consultado a las 02:54 en CDMX. Estás **15 horas** por detrás de Tokio.",
+  "meta": {
+   "trip": null,
+   "place": "Tokio"
+  }
+ }
+}

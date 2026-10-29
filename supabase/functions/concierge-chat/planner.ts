@@ -508,6 +508,7 @@ export function planTurn(i: PlanInput): TurnPlan {
       body: "Si hay riesgo para tu vida, llama al número de emergencias local ahora. En la pantalla 'Emergencia local' tienes los números y el hospital más cercano.",
     });
     if (i.coords) plan.prefetch.push({ name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "hospital" }, reason: "hospital más cercano" });
+    plan.notes.push("La tarjeta 'Ayuda inmediata' ya le dice que llame al número de emergencias local: NO lo repitas en el texto; da el dato útil (el hospital, cómo llegar, su teléfono).");
     plan.suggestedActions.unshift({ type: "open_emergency", params: {} });
     plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Ayuda urgente", detalle: i.message.slice(0, 400), ...(tripId ? { trip_id: tripId } : {}) } });
   }
@@ -768,8 +769,9 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">, opts:
   const code = status ? LEAD_CLIP(status.args.flight, 12) : "";
   const broader = BROADER_ASK.test(normText(opts.message ?? ""));
   if (has("emergency")) {
-    const base = "Si hay riesgo para tu vida, llama ya al número de emergencias local.";
-    return nearby?.args.kind === "hospital" ? `${base} Mientras tanto busco el hospital más cercano a tu ubicación.` : `${base} Mientras tanto reviso cómo ayudarte.`;
+    // N4-P2-5 (ronda 4): el aviso "llama al número de emergencias" va UNA vez, en la tarjeta "Ayuda
+    // inmediata"; antes salía también aquí y en el texto del modelo (tres veces en un globo).
+    return nearby?.args.kind === "hospital" ? "Busco el hospital más cercano a tu ubicación." : "Reviso cómo ayudarte.";
   }
   if (has("flight_disruption") || has("missed_connection")) {
     const what = has("missed_connection") ? "tu conexión" : code ? `tu vuelo ${code}` : "tu vuelo";

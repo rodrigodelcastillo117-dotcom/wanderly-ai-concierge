@@ -30,7 +30,9 @@ it("apagado y sin reservas → no muestra nada", async () => {
 it("el usuario confirma con la frase exacta y elige qué compartir", async () => {
   invoke.mockResolvedValueOnce({ data: { ok: true, enabled: true, reservations: [{ ...base, status: "awaiting_user_ok", label: "Falta tu confirmación · aún no escribimos al restaurante", is_confirmed: false }] }, error: null });
   render(<AiReservationsPanel />);
-  const btn = await screen.findByRole("button", { name: "Confirmar: escribiremos a Casa Oaxaca en tu nombre" });
+  // Ronda 4 (N4-P2-4): el botón se llama como en el chat; la frase exacta se muestra y se manda igual.
+  const btn = await screen.findByRole("button", { name: "Enviar al restaurante" });
+  expect(screen.getByTestId("ai-res-confirm-prompt")).toHaveTextContent("Al enviar confirmas: «Confirmar: escribiremos a Casa Oaxaca en tu nombre»");
   expect(screen.getByText(/Aún no le hemos escrito/)).toBeInTheDocument();
   invoke.mockResolvedValue({ data: { ok: true, reservations: [] }, error: null });
   fireEvent.click(screen.getByRole("checkbox", { name: /Mandarme una copia/ }));

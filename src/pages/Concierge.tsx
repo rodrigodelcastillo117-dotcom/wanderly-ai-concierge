@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { fetchMetForecast, MET_ATTRIBUTION, nowFromMet } from "@/lib/metNorway";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,7 +31,10 @@ import { localISODate } from "@/lib/localDate";
 import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { notifyAccessChanged } from "@/hooks/useSubscription";
 import { readPinnedTrip, savePinnedTrip } from "@/lib/profileActiveTrip";
-import { loadConversation } from "@/lib/conciergeHistory";
+import { historyForModel, loadRecentConversations, threadLabels } from "@/lib/conciergeHistory";
+import { ThreadLabel } from "@/components/concierge/ThreadLabel";
+import { withIatoMark } from "@/lib/iatoMark";
+import { bubbleFooterParts } from "@/lib/bubbleTime";
 import { readPriveSession } from "@/lib/priveSession";
 import { incompleteReplyText, streamConcierge } from "@/lib/conciergeStream";
 import { buildChips, welcomeText, type Chip, type ChipIcon } from "@/lib/conciergeChips";
@@ -75,6 +78,8 @@ type Msg = {
   placeLabel?: string | null;
   /** Aviso del historial ("Conversación anterior resumida"): no es de Iato ni se manda al modelo. */
   notice?: boolean;
+  /** Hilo guardado del que viene un mensaje restaurado (null = sin viaje). N4-P1-4. */
+  thread?: string | null;
 };
 
 const PIN_KEY = "iatos_concierge_trip";
@@ -209,18 +214,17 @@ const Concierge = () => {
     : null;
   const chips = useMemo(() => buildChips(trip as any, todayLocal, { away }), [trip, todayLocal, away]);
 
-  // E-13: al abrir (o recargar) el chat se muestra la última conversación del viaje activo, que
-  // concierge-chat ya guarda en concierge_conversations. Solo si el usuario aún no escribió nada.
+  // E-13: al abrir (o recargar) el chat se muestra la conversación guardada. Ronda 4 (N4-P1-4): de todos
+  // los hilos recientes (sin viaje y de cada viaje), en orden y con la etiqueta del viaje en cada bloque;
+  // antes solo el del viaje en contexto y lo demás "desaparecía" al recargar. Se carga una vez; cambiar
+  // de viaje ya no esconde nada. Solo si el usuario aún no escribió nada.
   useEffect(() => {
     if (!user || !allowed || !tripsLoaded) return;
+    if (historyFor.current !== undefined) return;
     const key = trip?.id ?? null;
-    if (historyFor.current === key) return;
     historyFor.current = key;
-    loadConversation(supabase, user.id, key).then((restored) => {
-      // Si mientras tanto cambió el viaje en contexto, esta respuesta ya no aplica.
-      if (historyFor.current !== key) return;
+    loadRecentConversations(supabase, user.id, key).then((restored) => {
       setHistoryReady(true);
-      // Al cambiar de viaje se reemplaza el historial mostrado; nunca se pisa lo que el usuario ya escribió.
       setMessages((prev) => (prev.some((m) => m.role === "user" && !m.id.startsWith("hist-"))
         ? prev
         : [...prev.filter((m) => m.id === "welcome"), ...restored]));
@@ -336,7 +340,9 @@ const Concierge = () => {
         apiKey: PUBLISHABLE_KEY,
         headers: ps ? { "x-prive-session": ps } : undefined,
         body: {
-          messages: next.filter((m) => m.id !== "welcome" && !m.notice && m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
+          // Al modelo solo va lo restaurado del hilo del viaje en contexto: su memoria es por viaje (N4-P1-4).
+          messages: historyForModel(next, opts.tripId !== undefined ? opts.tripId : (followTripId ?? pinnedId ?? tripContext.trip?.id ?? null))
+            .filter((m) => m.id !== "welcome" && !m.notice && m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
           god_mode: godMode,
           trip_id: opts.tripId !== undefined ? opts.tripId : (followTripId ?? pinnedId),
           intent: opts.intent,
@@ -476,6 +482,8 @@ const Concierge = () => {
   // Sin conversación (solo el saludo): los atajos van en el hilo, en lista vertical. Con conversación
   // se abren con el botón "Atajos", también en vertical (antes: una fila horizontal que se cortaba).
   const chatEmpty = !messages.some((m) => m.role === "user");
+  // Etiqueta de viaje al empezar cada bloque de un hilo distinto (N4-P1-4).
+  const labels = threadLabels(messages);
 
   // Modo exigente (god_mode en el servidor): modelo más capaz, compara más opciones y deja el plan
   // A/B/C con fuentes. No reserva por sí solo y no promete disponibilidad.
@@ -606,6 +614,8 @@ const Concierge = () => {
           <div className="flex-1 overflow-y-auto">
             <MembersOnlyPanel
               preferredCities={[weather?.place, trip?.destino]}
+              // La primera carga espera a saber dónde estás: tu ciudad primero, no París (N4-P2-11).
+              locating={geoState === "pending"}
               // La solicitud ya quedó con fecha, hora y personas (y la confirmó el usuario): se ve en
               // Mis solicitudes. Ya no se manda un mensaje automático al chat diciendo "Ya pedí mesa".
               onReserve={() => switchTab("solicitudes")}
@@ -617,11 +627,16 @@ const Concierge = () => {
             último mensaje. */}
         <div ref={scrollRef} tabIndex={0} role="region" aria-label="Conversación con Iato" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 md:px-6 py-3 space-y-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40">
 
-          {messages.map(m => m.notice ? (
-            <HistoryNotice key={m.id} text={m.text} />
-          ) : (
-            <MessageBubble key={m.id} msg={m.id === "welcome" ? { ...m, text: welcomeText(trip as any) } : m} trips={trips}
-              onChooseTrip={chooseTripAndRetry} disabled={sending} onOpenEmergency={() => setLiveAction("emergency")} />
+          {messages.map(m => (
+            <Fragment key={m.id}>
+              {labels.has(m.id) && <ThreadLabel tripId={labels.get(m.id) ?? null} trips={trips} />}
+              {m.notice ? (
+                <HistoryNotice text={m.text} />
+              ) : (
+                <MessageBubble msg={m.id === "welcome" ? { ...m, text: welcomeText(trip as any) } : m} trips={trips}
+                  onChooseTrip={chooseTripAndRetry} disabled={sending} onOpenEmergency={() => setLiveAction("emergency")} />
+              )}
+            </Fragment>
           ))}
           {chatEmpty && (
             <div className="flex justify-start">
@@ -784,20 +799,14 @@ function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: bo
 }
 
 /** Hora del mensaje ("20:31"); si no es de hoy, con fecha ("22 oct, 20:31"). Sin hora conocida, nada. */
-function bubbleTime(ts: number, now: Date = new Date()): string {
-  if (!ts || !Number.isFinite(ts)) return "";
-  const d = new Date(ts);
-  const hm = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
-  if (d.toDateString() === now.toDateString()) return hm;
-  return `${d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "")}, ${hm}`;
-}
-
 const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: {
   msg: Msg; trips: ContextTrip[]; onChooseTrip: (id: string) => void; disabled?: boolean; onOpenEmergency?: () => void;
 }) => {
   const isUser = msg.role === "user";
   const aboutPlace = !isUser ? answerPlaceLabel(msg, trips) : null;
-  const time = bubbleTime(msg.ts);
+  // Respuestas de Iato: "consultado 02:54 (hora CDMX)" (N4-P2-2); las del usuario, solo la hora.
+  // El saludo y los avisos no son consultas: solo la hora.
+  const time = bubbleFooterParts(msg.ts, { assistant: !isUser && msg.id !== "welcome", tz: browserTimeZone() });
   const showSteps = !isUser && ((msg.steps?.length ?? 0) > 0 || (msg.streaming && !msg.text.trim()));
   return (
     <motion.div
@@ -819,11 +828,14 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
             )}
             {showSteps && <StepList steps={msg.steps ?? []} streaming={msg.streaming} hasText={!!msg.text.trim()} />}
             {/* Iato responde en Markdown: se interpreta un subconjunto seguro (N-05). */}
-            {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span> : <SafeMarkdown text={scrubProviders(msg.text)} />)}
-            {(time || aboutPlace) && (
+            {/* El saludo es texto de la app (no de Iato): "Iato" va con la serifa de marca (IatoName), no en Manrope. */}
+            {msg.text && (isUser ? <span className="whitespace-pre-wrap">{msg.text}</span>
+              : msg.id === "welcome" ? <p data-testid="welcome-text">{withIatoMark(msg.text)}</p>
+              : <SafeMarkdown text={scrubProviders(msg.text)} />)}
+            {(time.clock || aboutPlace) && (
               <p className={`mt-0.5 flex justify-end gap-1 text-[10px] leading-none ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                 {aboutPlace && <span className="truncate max-w-[12rem]" data-testid="answer-place">{aboutPlace} ·</span>}
-                {time && <time dateTime={new Date(msg.ts).toISOString()}>{time}</time>}
+                {time.clock && <span data-testid="bubble-footer-time">{time.prefix}<time dateTime={new Date(msg.ts).toISOString()}>{time.clock}</time>{time.suffix}</span>}
               </p>
             )}
           </div>

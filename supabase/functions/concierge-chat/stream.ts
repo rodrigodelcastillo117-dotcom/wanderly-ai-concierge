@@ -100,6 +100,11 @@ export class AnswerStreamFilter {
         if (DATA_SENTINEL.startsWith(this.raw.slice(-k))) { safeEnd = this.raw.length - k; break; }
       }
     }
+    // N4-P2-1 (ronda 4): el modelo a veces abre un bloque de código ("```") justo antes del centinela y se
+    // veía un "```" suelto al final. Una cerca al final de una línea se retiene hasta saber qué sigue: si
+    // sigue el centinela (o nada), no se muestra; si sigue otro texto, sale con él.
+    const fence = this.raw.slice(0, safeEnd).match(TRAILING_FENCE);
+    if (fence) safeEnd -= fence[0].length;
     if (safeEnd <= this.emitted) return "";
     const out = this.raw.slice(this.emitted, safeEnd);
     this.emitted = safeEnd;
@@ -109,13 +114,27 @@ export class AnswerStreamFilter {
   /** Al terminar sin centinela: lo retenido que resultó no serlo. */
   flush(): string {
     if (this.stopped || this.jsonMode) return "";
-    const out = this.raw.slice(this.emitted);
+    const rest = this.raw.slice(this.emitted);
     this.emitted = this.raw.length;
-    return out;
+    // Una cerca que quedó sola al final (sin bloque que cerrar) no se muestra.
+    return isDanglingFence(this.raw) ? rest.replace(TRAILING_FENCE, "") : rest;
   }
 
   get fullText() { return this.raw; }
   get visibleSoFar() { return this.raw.slice(0, this.emitted); }
+}
+
+/** Cerca de bloque de código al final ("```", "```json"), sola en su renglón. */
+const TRAILING_FENCE = /(?:^|\n)[ \t]*`{1,3}[a-zA-Z]*[ \t]*\n*$/;
+const FENCE_TOKEN = /```/g;
+/** ¿Termina con una cerca que abre un bloque sin cerrar (número impar de ```)? */
+const isDanglingFence = (text: string) => /```[a-zA-Z]*[ \t]*\n*$/.test(text) && ((text.match(FENCE_TOKEN) ?? []).length % 2 === 1);
+
+/** Quita un "```" suelto al final del texto (también en el historial guardado). N4-P2-1. */
+export function stripDanglingFence(text: string): string {
+  const t = String(text ?? "");
+  if (!isDanglingFence(t)) return t;
+  return t.replace(/\s*```[a-zA-Z]*[ \t]*\n*$/, "").trimEnd();
 }
 
 /** Separa el texto visible del bloque de datos {cards, actions}. Acepta también el formato JSON viejo. */
@@ -123,7 +142,8 @@ export function splitAnswer(raw: string): { text: string; data: Record<string, u
   const s = String(raw ?? "");
   const idx = s.indexOf(DATA_SENTINEL);
   if (idx >= 0) {
-    const text = s.slice(0, idx).trim();
+    // Un "```" que el modelo abrió antes del centinela no es parte del texto (N4-P2-1).
+    const text = stripDanglingFence(s.slice(0, idx).trim()).trim();
     const tail = s.slice(idx + DATA_SENTINEL.length).trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
     return { text, data: looseObject(tail), format: "sentinel" };
   }

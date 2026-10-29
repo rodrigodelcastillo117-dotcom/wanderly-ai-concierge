@@ -283,8 +283,17 @@ export function validateAction(type: unknown, rawParams: unknown, ctx: ActionCon
         ...(txt(p.lugar, 160) ? { lugar: txt(p.lugar, 160) } : {}),
         ...(fixerTrip ? { trip_id: fixerTrip } : {}),
       };
-      return ok(params, `Pedírselo a nuestro equipo: ${titulo}`, "Pedírselo a una persona del equipo",
-        "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado.");
+      // Ronda 4: "Aún no está reservado" solo cuando se pide algo que se reserva (en "Ayuda urgente" no tenía
+      // sentido, N4-P2-5). Y si falta la fecha de algo que la necesita (chofer, mesa), se dice que se puede
+      // enviar así y el equipo la pide (N4-P2-8: Iato preguntaba el día y el botón ya se podía enviar).
+      const bookable = tipo !== "other" || /\b(reserv\w*|mesa|boletos?|entradas?|tour|hotel|vuelo|chofer|traslado|transfer)\b/i.test(titulo);
+      const needsDate = (tipo === "transport" || tipo === "reservation") && !params.fecha;
+      const note = [
+        needsDate ? "Sin fecha todavía: puedes enviarla así y te pedimos la fecha." : "",
+        "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo.",
+        bookable ? "Aún no está reservado." : "",
+      ].filter(Boolean).join(" ");
+      return ok(params, `Pedírselo a nuestro equipo: ${titulo}${needsDate ? " · sin fecha" : ""}`, "Pedírselo a una persona del equipo", note);
     }
     case "prive_request": {
       const exp = typeof p.experience_id === "string" && UUID.test(p.experience_id) ? p.experience_id : null;

@@ -32,7 +32,27 @@ export type MembersVenue = {
 
 export type MembersCity = { ciudad: string; display: string; pais: string | null; venues: number };
 
-type RpcClient = { rpc: (fn: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> };
+type RpcClient = { rpc: (fn: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown; status?: number }> };
+
+// Auditoría 10, ronda 4 (N4-P2-11): una de 8 cargas dio 500 en members_venues y members_cities a la vez
+// (sin efecto en pantalla, 2 errores rojos). No se reprodujo en 44 llamadas con SELECT ni el SQL lo explica
+// (ambas responden en ~250 ms): es un error pasajero del servidor. Se reintenta UNA vez tras una pausa
+// corta; un "sin derecho" (401/403/42501) o un error del cliente no se reintenta.
+export const MEMBERS_RETRY_MS = 400;
+const transient = (r: { error: unknown; status?: number }) => {
+  if (!r.error) return false;
+  const code = String((r.error as { code?: unknown })?.code ?? "");
+  if (code === "42501" || code.startsWith("PGRST3")) return false;
+  const st = typeof r.status === "number" ? r.status : 0;
+  return st === 0 || st >= 500;
+};
+async function rpcWithRetry(client: RpcClient, fn: string, args?: Record<string, unknown>, waitMs = MEMBERS_RETRY_MS) {
+  const call = () => (args === undefined ? client.rpc(fn) : client.rpc(fn, args));
+  const first = await call();
+  if (!transient(first)) return first;
+  await new Promise((r) => setTimeout(r, waitMs));
+  return call();
+}
 
 export const MEMBERS_CATEGORIES: { id: string; emoji: string; label: string }[] = [
   { id: "cabaret", emoji: "🎭", label: "Cabaret" },
@@ -148,7 +168,7 @@ export function isSourcedVenue(v: Pick<MembersVenue, "fuente" | "source_url">): 
 
 /** Lugares de una ciudad (cualquier nombre o sobrenombre: "CDMX", "Mexico City", "Polanco"). */
 export async function fetchMembersVenues(client: RpcClient, city: string): Promise<{ venues: MembersVenue[]; error: boolean }> {
-  const { data, error } = await client.rpc("members_venues", { p_ciudad: city });
+  const { data, error } = await rpcWithRetry(client, "members_venues", { p_ciudad: city });
   if (error || !Array.isArray(data)) return { venues: [], error: true };
   const venues = data
     .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
@@ -159,7 +179,7 @@ export async function fetchMembersVenues(client: RpcClient, city: string): Promi
 
 /** Ciudades con lugares, de más a menos. null si la RPC falla (la pantalla usa su lista fija). */
 export async function fetchMembersCities(client: RpcClient): Promise<MembersCity[] | null> {
-  const { data, error } = await client.rpc("members_cities");
+  const { data, error } = await rpcWithRetry(client, "members_cities");
   if (error || !Array.isArray(data)) return null;
   return data
     .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")

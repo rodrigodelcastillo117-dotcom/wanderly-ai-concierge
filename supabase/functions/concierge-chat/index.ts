@@ -31,7 +31,7 @@ import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSy
 import { actionsForStorage, cardsForStorage, HISTORY_KEEP, HISTORY_SUMMARIZE_OVER, markStoredAction } from "./storedCards.ts";
 import {
   asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, loadReservationStates, reservationGuardInput, savedHotelQuoteStamp,
-  tripBookingContext, tripListBookingState, tripsDigest,
+  tripBookingContext, tripListBookingState, tripsDigest, tripContents, tripContentFacts, rangeTripsNote,
 } from "./context.ts";
 import { reservationStatesForPrompt } from "../_shared/reservationState.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
@@ -554,6 +554,9 @@ Deno.serve(async (req) => {
       const base: Record<string, unknown> = {
         ...tripSummary(tr), origen: tr.ciudad_origen ?? undefined, viajeros: tr.num_viajeros ?? undefined,
         estado_reservas: tripListBookingState(tr, bookingsAll),
+        // N4-P1-1: lo que el viaje SÍ tiene (itinerario, trayectos, hoteles, selección): sin esto el
+        // modelo suponía "no tiene itinerario".
+        contenido: tripContents(tr) ?? undefined,
       };
       if (trip && tr.id === trip.id) return { ...base, detalle: "ver <viaje_en_contexto>" };
       const vuelos = asArray(tr.vuelos_json).slice(0, 4).map((v: any) => compactItem({
@@ -584,6 +587,9 @@ Deno.serve(async (req) => {
     });
 
     plan.notes.push(turnPlaceNote(turnPlace));
+    // "¿Qué viajes tengo en los próximos 2 meses?": todos los que salen en el rango, inclusive (N4-P1-1).
+    const rangeNote = rangeTripsNote(lastUserMsg, todayISO, [...trips, ...allTrips]);
+    if (rangeNote) plan.notes.push(rangeNote);
     // Viaje nacional (mismo país de origen y destino): sin adaptador de corriente en la lista (N10).
     const domesticTrip = isDomesticTrip(trip, profile?.ciudad_origen ?? null);
     if (domesticTrip && intents.includes("packing")) plan.notes.push("Viaje nacional (mismo país de origen y destino): no incluyas adaptador de corriente en la lista.");
@@ -638,6 +644,9 @@ Deno.serve(async (req) => {
         honesty: {
           trips: [...allTrips, ...trips], userMessage: lastUserMsg, todayISO, planCardTypes: (plan.cards as { type?: string }[]).map((c) => String(c?.type ?? "")),
           aiReservations: aiResRows, domesticTrip, hotelQuoteStamp: trip ? savedHotelQuoteStamp(trip, today.tz ?? null) : null,
+          // Solo los viajes cargados completos: con ellos se corrige "no tiene itinerario" si sí tiene (N4-P1-1).
+          tripFacts: trips.map(tripContentFacts),
+          emergencyCard: (plan.cards as { type?: string; title?: string }[]).some((c) => c?.type === "alert" && c?.title === "Ayuda inmediata"),
         },
         // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
         city: turnPlace.searchCity || undefined,

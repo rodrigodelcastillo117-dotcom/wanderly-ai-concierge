@@ -34,6 +34,9 @@ interface FixerButtonProps {
   variant?: "header" | "inline";
 }
 
+/** Nombre del botón en todas partes (chat, celular y escritorio; los textos de Iato lo nombran así). */
+export const FIXER_BUTTON_LABEL = "Hablar con una persona";
+
 const URGENCIAS: Array<{
   id: Urgencia;
   emoji: string;
@@ -250,7 +253,7 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
 
   const triggerClass =
     variant === "header"
-      ? "group relative flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
+      ? "group relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full backdrop-blur-xl bg-white/5 border border-primary/30 hover:border-primary hover:bg-primary/10 transition text-sm"
       : "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-gold text-primary-foreground gold-glow text-sm";
 
   const selectedUrgencia = URGENCIAS.find((u) => u.id === urgencia);
@@ -448,8 +451,10 @@ export const FixerButton = ({ trip: tripProp, ultimosTurnos = [], className = ""
         aria-label="Hablar con una persona del equipo IATOS"
       >
         <Phone className="w-4 h-4 text-primary" />
-        <span className="hidden sm:inline">Hablar con una persona</span>
-        <span className="sm:hidden">Ayuda</span>
+        {/* Auditoría 10, ronda 4: el mismo nombre en el celular y en el escritorio (antes "Ayuda" en el
+            celular). En el celular va en dos renglones para que quepa junto al avatar. */}
+        <span className="hidden sm:inline">{FIXER_BUTTON_LABEL}</span>
+        <span className="sm:hidden text-[11px] leading-[1.15] text-left" data-testid="fixer-label-mobile">Hablar con<br />una persona</span>
       </button>
       {typeof document !== "undefined" ? createPortal(modal, document.body) : modal}
     </>

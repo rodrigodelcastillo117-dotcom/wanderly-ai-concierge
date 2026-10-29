@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MapPin, Phone, Star, ExternalLink, Loader2, Car, Utensils, Siren, AlertCircle, Navigation, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,21 +102,39 @@ export const ConciergeActions = ({
   const mapEmergency = (t: typeof emergencyTab) =>
     t === "hospital" ? "hospital" : t === "police" ? "police" : t === "pharmacy" ? "pharmacy" : "embassy";
 
+  // Auditoría 10, ronda 4, N4-P1-2: al cambiar de pestaña mientras la anterior cargaba, la respuesta que
+  // llegaba al final pisaba a la de la pestaña marcada (Farmacia mostraba hospitales) y el primer
+  // `finally` apagaba el indicador. Cada petición lleva un número y se cancela la anterior: solo pinta
+  // (y apaga el indicador) la última, que es la de la pestaña activa.
+  const reqSeq = useRef(0);
+  const reqAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => { reqAbort.current?.abort(); }, []);
+
   const loadPlaces = async (placeKind: string) => {
     if (!coords) return;
+    const seq = ++reqSeq.current;
+    reqAbort.current?.abort();
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    reqAbort.current = ctrl;
+    const current = () => seq === reqSeq.current;
+    // La lista anterior no se queda debajo del indicador: se vacía mientras carga la nueva.
+    setPlaces([]);
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("places-nearby", {
         body: { lat: coords.lat, lng: coords.lng, kind: placeKind, radius: placeKind === "embassy" ? 25000 : 2000 },
+        ...(ctrl ? { signal: ctrl.signal } : {}),
       });
+      if (!current()) return;
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setPlaces(data?.places ?? []);
     } catch (e: any) {
+      if (!current()) return;
       toast.error(e?.message ?? "No se pudo cargar", { description: "Estoy intentando con fuentes alternativas reales." });
       setPlaces([]);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   };
 
@@ -297,8 +315,8 @@ export const ConciergeActions = ({
                   <p className="text-sm text-muted-foreground text-center py-6">No encontré lugares en esta zona.</p>
                 )}
 
-                <div className="space-y-2">
-                  {places.map(p => (
+                <div className="space-y-2" data-testid="live-action-places" aria-busy={loading}>
+                  {!loading && places.map(p => (
                     <div key={p.id} className="rounded-xl border border-border bg-card overflow-hidden">
                       {p.photo_url && (
                         <img src={p.photo_url} alt={p.name} className="h-28 w-full object-cover" loading="lazy" />
@@ -317,15 +335,17 @@ export const ConciergeActions = ({
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
+                      {/* N4-P2-10: la distancia no se parte en renglones ("a / 280 / m") cuando la categoría es larga:
+                          la distancia y el estado no se encogen; la categoría y la fuente se recortan. */}
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2 min-w-0">
                         {p.open_now !== null && (
-                          <span className={`flex items-center gap-1 ${p.open_now ? "text-emerald-400" : "text-destructive"}`}>
+                          <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap ${p.open_now ? "text-emerald-400" : "text-destructive"}`}>
                             <Clock className="w-3 h-3" /> {p.open_now ? "Abierto" : "Cerrado"}
                           </span>
                         )}
-                        {distanceText(p.distance_m) && <span>{distanceText(p.distance_m)}</span>}
-                        {p.type && <span>· {p.type}</span>}
-                        {p.source && <span>· {p.source}</span>}
+                        {distanceText(p.distance_m) && <span className="shrink-0 whitespace-nowrap" data-testid="place-distance">{distanceText(p.distance_m)}</span>}
+                        {p.type && <span className="min-w-0 truncate">· {p.type}</span>}
+                        {p.source && <span className="shrink-0 whitespace-nowrap">· {p.source}</span>}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {p.phone && (

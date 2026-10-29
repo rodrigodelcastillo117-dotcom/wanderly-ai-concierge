@@ -263,6 +263,45 @@ export function tmParams(q: TmQuery, nowMs = Date.now()): Record<string, string>
 
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)/;
 
+// ═══ Categoría en español (auditoría 10, ronda 4, N4-P2-3) ═══
+// Ticketmaster manda el segmento en el idioma pedido ("Música") pero el género en inglés ("Latin",
+// "Classical"): la tarjeta decía "Música · Latin". Se traduce lo conocido y un nombre sin traducción no
+// se muestra (nada en inglés en la pantalla).
+const tmKey = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const TM_SEGMENT_ES: Record<string, string> = {
+  music: "Música", musica: "Música", sports: "Deportes", deportes: "Deportes", "arts theatre": "Arte y teatro",
+  "artes y teatro": "Arte y teatro", "arte y teatro": "Arte y teatro", film: "Cine", cine: "Cine", miscellaneous: "Varios", varios: "Varios",
+  family: "Familia", familia: "Familia",
+};
+const TM_GENRE_ES: Record<string, string> = {
+  latin: "Latina", latina: "Latina", classical: "Clásica", clasica: "Clásica", "classical vocal": "Clásica", rock: "Rock", pop: "Pop",
+  jazz: "Jazz", blues: "Blues", "jazz blues": "Jazz y blues", country: "Country", "hip hop rap": "Hip hop y rap", "r b": "R&B", rnb: "R&B",
+  "dance electronic": "Electrónica", electronic: "Electrónica", alternative: "Alternativa", metal: "Metal", folk: "Folk", reggae: "Reggae",
+  world: "Música del mundo", "new age": "New age", religious: "Religiosa", "children s music": "Infantil", other: "", undefined: "",
+  theatre: "Teatro", teatro: "Teatro", comedy: "Comedia", comedia: "Comedia", musical: "Musical", opera: "Ópera", ballet: "Ballet",
+  dance: "Danza", danza: "Danza", "fine art": "Arte", "magic illusion": "Magia", "circus specialty acts": "Circo", "children s theatre": "Teatro infantil",
+  family: "Familiar", "fairs festivals": "Ferias y festivales", "performance art": "Performance", cultural: "Cultural", variety: "Variedad",
+  spectacular: "Espectáculo", puppetry: "Títeres", multimedia: "Multimedia", "classical ballet": "Ballet",
+  soccer: "Fútbol", football: "Fútbol americano", basketball: "Básquetbol", baseball: "Béisbol", tennis: "Tenis", boxing: "Box",
+  wrestling: "Lucha libre", "lucha libre": "Lucha libre", hockey: "Hockey", "ice hockey": "Hockey sobre hielo", golf: "Golf",
+  "motorsports racing": "Automovilismo", "mixed martial arts": "Artes marciales mixtas", equestrian: "Ecuestre", volleyball: "Voleibol",
+  rugby: "Rugby", "extreme": "Deportes extremos", miscellaneous: "", "music": "",
+};
+const SPANISH_VALUES = new Set([...Object.values(TM_SEGMENT_ES), ...Object.values(TM_GENRE_ES)].filter(Boolean).map(tmKey));
+
+/** "Música · Latina"; lo que no tiene traducción conocida no se muestra. */
+export function tmCategoryEs(segment: string | null | undefined, genre: string | null | undefined): string | undefined {
+  const tr = (v: string | null | undefined, map: Record<string, string>) => {
+    const k = tmKey(String(v ?? ""));
+    if (!k || k === "undefined") return "";
+    if (k in map) return map[k];
+    return SPANISH_VALUES.has(k) ? String(v).trim() : "";
+  };
+  const seg = tr(segment, TM_SEGMENT_ES);
+  const gen = tr(genre, TM_GENRE_ES);
+  return [seg, gen && tmKey(gen) !== tmKey(seg) ? gen : ""].filter(Boolean).join(" · ") || undefined;
+}
+
 /** Respuesta de la Discovery API → eventos en venta (o fuera de venta), dentro del rango local pedido. */
 export function mapTicketmasterEvents(json: any, range: { from?: string | null; to?: string | null } = {}, stats?: { inRange: number }): TmEvent[] {
   const list = Array.isArray(json?._embedded?.events) ? json._embedded.events : [];
@@ -287,8 +326,7 @@ export function mapTicketmasterEvents(json: any, range: { from?: string | null; 
     const lat = finite(v?.location?.latitude), lng = finite(v?.location?.longitude);
     const coords = validPoint({ lat, lng }) ? { lat, lng } : null;
     const cls = Array.isArray(e?.classifications) ? e.classifications.find((c: any) => c?.primary) ?? e.classifications[0] : null;
-    const seg = clean(cls?.segment?.name, 40), genre = clean(cls?.genre?.name, 40);
-    const categoria = [seg, genre && !/^undefined$/i.test(genre) && genre !== seg ? genre : ""].filter((x) => x && !/^undefined$/i.test(x)).join(" · ") || undefined;
+    const categoria = tmCategoryEs(clean(cls?.segment?.name, 40), clean(cls?.genre?.name, 40));
     const pr = Array.isArray(e?.priceRanges) ? e.priceRanges.find((p: any) => Number.isFinite(finite(p?.min)) && finite(p?.min) > 0 && /^[A-Z]{3}$/.test(String(p?.currency ?? ""))) : null;
     const precio = pr ? { min: finite(pr.min), max: Number.isFinite(finite(pr.max)) && finite(pr.max) >= finite(pr.min) ? finite(pr.max) : null, currency: String(pr.currency) } : undefined;
     const img = (Array.isArray(e?.images) ? e.images : [])
