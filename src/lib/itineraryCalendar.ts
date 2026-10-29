@@ -19,6 +19,14 @@ export type CalendarDay = Record<string, any> & {
   pendiente?: boolean;
 };
 
+/** ¿Es el día en que se sale de regreso? (tipo "regreso"/"salida" o un título como «Salida de Madrid»). */
+export function isDepartureDay(d: Record<string, any>): boolean {
+  const tipo = String(d?.tipo ?? "").toLowerCase();
+  if (tipo === "regreso" || tipo === "salida" || tipo === "partida") return true;
+  const t = String(d?.titulo ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /^(salida de|regreso a|vuelta a|vuelo de regreso|dia de regreso|despedida de)\b/.test(t);
+}
+
 export const FREE_DAY_TITLE = "Día libre · sin plan todavía";
 export const RETURN_DAY_TITLE = "Día de regreso · sin plan todavía";
 
@@ -42,6 +50,16 @@ export function calendarDays(trip: any): CalendarDay[] {
   const have = new Set(days.map((d) => d.dia));
   // Numeración repetida (días por ciudad que reinician en 1): no se adivina qué falta.
   if (have.size !== days.length) return days;
+  // El día de salida del plan va el día del regreso (R2, Madrid 10–17 mar: el día 7 decía «Salida de Madrid…
+  // traslado a Barajas» el 16 y el 8, «Día de regreso · sin plan todavía» el 17). Si el último día con plan es
+  // la salida y después no hay nada, se mueve al día del regreso y el que deja libre queda como día libre.
+  const last = days.reduce<CalendarDay | null>((a, d) => (!a || d.dia > a.dia ? d : a), null);
+  if (last && last.dia < total && isDepartureDay(last)) {
+    const idx = days.indexOf(last);
+    days[idx] = { ...last, dia: total, fecha: end };
+    have.delete(last.dia);
+    have.add(total);
+  }
   const multi = !!(it && !Array.isArray(it) && it.multi);
   const stays = multi ? cityStays(trip) : [];
   const out = [...days];
