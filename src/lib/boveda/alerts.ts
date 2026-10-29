@@ -239,11 +239,18 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
     for (const [group, kind] of [[during, "durante"], [before, "antes"]] as const) {
       if (!group.length) continue;
       const end = tripEnd(group[0]) as string;
+      // Con varios viajes, la fecha de CADA uno (R2: «…tu viaje a Tokio y Lima… regresas el 20 feb», y Lima
+      // regresa el 16 feb).
+      const each = (pick: (t: TripLite) => string) => listJoin(group.map((t) => `${kind === "durante" ? "de" : "a"} ${shortTripName(t)} el ${fmt(pick(t))}`));
       alerts.push({ id: `pp-exp-${kind}-${group[0].id}`, level: "critica", tripId: group[0].id, itemId: passport.id,
         title: kind === "durante" ? `Tu pasaporte vence durante tu viaje a ${places(group)}` : `Tu pasaporte vence antes de tu viaje a ${places(group)}`,
         detail: kind === "durante"
-          ? `Vence el ${fmt(exp)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`
-          : `Vence el ${fmt(exp)}, antes de que salgas el ${fmt(group[0].fecha_salida as string)}. Renuévalo antes de viajar.`,
+          ? group.length > 1
+            ? `Vence el ${fmt(exp)} y regresas ${each((t) => tripEnd(t) as string)}. Renuévalo antes de viajar.`
+            : `Vence el ${fmt(exp)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`
+          : group.length > 1
+            ? `Vence el ${fmt(exp)}, antes de que salgas ${each((t) => t.fecha_salida as string)}. Renuévalo antes de viajar.`
+            : `Vence el ${fmt(exp)}, antes de que salgas el ${fmt(group[0].fecha_salida as string)}. Renuévalo antes de viajar.`,
         sourceUrl: "https://www.gob.mx/sre", sourceLabel: "SRE" });
     }
   }
