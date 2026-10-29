@@ -31,8 +31,9 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
     setLoading(true);
     const r = await myTeamRequests();
     setLoading(false);
-    // Si la actualización falla pero ya hay una lista leída, se queda esa (sin pantalla de error).
-    if (!r.ok) { if (!cachedMyTeamRequests()) setError(true); return; }
+    // Si la actualización falla pero ya hay solicitudes leídas, se quedan (sin pantalla de error); con
+    // una lista vacía (nada que mostrar) se ofrece reintentar.
+    if (!r.ok) { if (!cachedMyTeamRequests()?.length) setError(true); return; }
     setError(false);
     setRows(r.data);
   }, []);
