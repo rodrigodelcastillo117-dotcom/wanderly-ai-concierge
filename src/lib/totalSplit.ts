@@ -89,3 +89,13 @@ export function trustMatchesSplit(trust: { verified: number }, split: TotalSplit
   if (!split || !(split.estimado > 0)) return true;
   return Math.abs(Math.round(trust.verified) - Math.round(split.real)) <= 2;
 }
+
+/**
+ * Línea «De eso, $X con precio en vivo y $Y estimado». Un precio consultado hace más de 24 h ya no se llama
+ * «en vivo» (R4 viajes P2-7, Valle de Bravo: «$6,592 MXN con precio en vivo» con precios de hace 27 h):
+ * con `age` («hace 27 h») dice «con precio consultado hace 27 h». null si no hay nada real que separar.
+ */
+export function splitRealText(split: Pick<TotalSplit, "real" | "estimado">, money: (n: number) => string, age?: string | null): string | null {
+  if (!(split.real > 0) || !(split.estimado > 0)) return null;
+  return `De eso, ${money(split.real)} ${age ? `con precio consultado ${age}` : "con precio en vivo"} y ${money(split.estimado)} estimado.`;
+}

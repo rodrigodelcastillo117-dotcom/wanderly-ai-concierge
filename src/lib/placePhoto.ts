@@ -191,6 +191,18 @@ export async function resolvePlacePhotoUrl(q: PlaceLookup, maxWidth = 800): Prom
   return p;
 }
 
+/**
+ * La foto de un lugar ya obtenida por su nombre de foto (ref) queda también para su búsqueda por id: otra
+ * tarjeta del mismo lugar que solo trae el id no hace otra llamada. Solo en la sesión del navegador (nunca
+ * en el servidor: los términos de Google no permiten guardar fotos ni sus URLs).
+ */
+export function rememberLookupPhoto(q: PlaceLookup, url: string, maxWidth: number): void {
+  if (!isSafePhotoUrl(url)) return;
+  if (!q.placeId && String(q.name ?? "").trim().length < 3) return;
+  const k = lookupKey(q, maxWidth);
+  if (readKnown(k) === undefined) remember(k, url);
+}
+
 /** Igual que cachedPlacePhoto, para resolvePlacePhotoUrl. */
 export function cachedResolvedPhoto(q: PlaceLookup, maxWidth: number): string | null | undefined {
   if (!q.placeId && String(q.name ?? "").trim().length < 3) return null;

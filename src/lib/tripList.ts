@@ -54,3 +54,36 @@ export function duplicateTripMarks(trips: Dup[]): { n: Map<string, number>; ids:
 
 /** "Madrid" → "Madrid (2)" si es el segundo viaje igual. */
 export const markedTripName = (name: string, n?: number) => (n && n > 1 ? `${name} (${n})` : name);
+
+const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const parts = (iso: string) => ({ d: Number(iso.slice(8, 10)), m: MES[Number(iso.slice(5, 7)) - 1], y: iso.slice(0, 4) });
+
+/** "10 may 2027" / con regreso: "10–20 may 2027", "28 may – 2 jun 2027", "29 dic 2026 – 5 ene 2027". */
+export function tripDateLabel(salida: string | null | undefined, regreso?: string | null): string {
+  if (!isIso(salida)) return "sin fecha";
+  const a = parts(salida);
+  if (!isIso(regreso) || regreso <= salida) return `${a.d} ${a.m} ${a.y}`;
+  const b = parts(regreso);
+  if (a.y !== b.y) return `${a.d} ${a.m} ${a.y} – ${b.d} ${b.m} ${b.y}`;
+  if (a.m !== b.m) return `${a.d} ${a.m} – ${b.d} ${b.m} ${b.y}`;
+  return `${a.d}–${b.d} ${b.m} ${b.y}`;
+}
+
+/**
+ * Texto de cada chip de viaje (Ahorro): «Roma → Florencia → Venecia · 10 may 2027». Si otro viaje tiene el
+ * mismo nombre y sale el mismo día, se muestra el rango de fechas (R4 viajes P2-5: dos chips idénticos,
+ * 10–20 y 10–19 may); si además las fechas son las mismas, lleva (2), (3)… como en Mis viajes.
+ */
+export function tripChipLabels(trips: Dup[]): Map<string, string> {
+  const dups = duplicateTripMarks(trips);
+  const sameStart = new Map<string, number>();
+  const k = (t: Dup) => `${shortTripName(t).toLowerCase().trim()}|${t.fecha_salida ?? ""}`;
+  for (const t of trips) sameStart.set(k(t), (sameStart.get(k(t)) ?? 0) + 1);
+  const out = new Map<string, string>();
+  for (const t of trips) {
+    const range = (sameStart.get(k(t)) ?? 0) > 1;
+    out.set(t.id, `${markedTripName(shortTripName(t), dups.n.get(t.id))} · ${range ? tripDateLabel(t.fecha_salida, t.fecha_regreso) : tripDateLabel(t.fecha_salida)}`);
+  }
+  return out;
+}

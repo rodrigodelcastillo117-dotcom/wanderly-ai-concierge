@@ -44,6 +44,7 @@ import { DashboardWrappedPromo } from "@/components/wrapped/WrappedPromo";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { afterCritical, beginCritical } from "@/lib/idleGate";
 import { shortTripName } from "@/lib/tripName";
+import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
 
 
 
@@ -531,7 +532,7 @@ const DashboardHome = () => {
                       {/* Portada real del viaje; si no hay, foto ilustrativa del destino (marcada). */}
                       <SmartImage
                         alt={t.destino}
-                        imageUrl={t.cover_image_url ?? null}
+                        imageUrl={destinationCoverUrl(t.cover_image_url)}
                         stockQuery={destinationQuery(t.destino, t.pais_destino)}
                         size="thumb"
                         icon={MapPin}

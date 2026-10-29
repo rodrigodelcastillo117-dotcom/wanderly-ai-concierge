@@ -33,6 +33,7 @@ import { cityStays, sameCity, tripCountryLabel, tripDestinations, tripFlightSear
 import { tripFlightProblems } from "@/lib/booking";
 import { checkAllowlisted } from "@/lib/bookingAllowlist";
 import { DEFAULT_SITE_URL } from "../../supabase/functions/_shared/email-kit.ts";
+import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
 
 /** Dominio del sitio para el pie del PDF (la misma constante que los correos). */
 export const SITE_URL = DEFAULT_SITE_URL;
@@ -416,7 +417,8 @@ export function buildTripPdfModel(trip: any, opts: TripPdfOptions): TripPdfModel
     buy, buyDone: core.filter((b) => b.done).length, buyTotal: core.length,
     discardedFares,
     cities: pdfCities, notices, useful, tips: distinctTips(trip),
-    coverImageUrl: typeof trip?.cover_image_url === "string" && /^https:\/\//.test(trip.cover_image_url) ? trip.cover_image_url : null,
+    // La portada es el destino, nunca la foto de Google de un lugar (R4 viajes P2-2).
+    coverImageUrl: destinationCoverUrl(trip?.cover_image_url),
     coverQuery: `${cities[0] ?? title} landmark travel`,
     generatedAt: fmtDay(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`),
     domain: SITE_DOMAIN, siteUrl: SITE_URL,

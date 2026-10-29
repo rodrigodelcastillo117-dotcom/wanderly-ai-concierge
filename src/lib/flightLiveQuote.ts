@@ -11,7 +11,8 @@ import type { ReferenceFare } from "../../supabase/functions/_shared/tpReference
 
 // Este aviso sale donde NO hay vuelos en la lista (TripPurchasePlan: «Aún no tenemos precio real…»); antes
 // decía «los vuelos de arriba son estimados» y arriba no había ninguno (R3 viajes P2-5, Budapest).
-export const GENERIC_NO_LIVE = "Este viaje se cotizó sin precio en vivo de vuelos. Consulta el precio en vivo aquí o búscalo en Google Flights.";
+// Una sola frase (R4 viajes P2-7: Budapest repetía «búscalo en Google Flights» en dos frases seguidas).
+export const GENERIC_NO_LIVE = "Aún no tenemos precio en vivo de este vuelo: consúltalo aquí o búscalo en Google Flights.";
 
 export type FlightNoLiveInfo = {
   /** Motivo en español simple. */

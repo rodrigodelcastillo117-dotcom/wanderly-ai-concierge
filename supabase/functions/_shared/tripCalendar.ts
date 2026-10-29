@@ -23,6 +23,11 @@ export type FlightTimes = {
   llegada?: string | null;
   /** "YYYY-MM-DD HH:MM", hora local del destino a la que sale el vuelo de regreso. */
   regreso_salida?: string | null;
+  /**
+   * La llegada no venía guardada: se calculó con la hora de salida y la duración del vuelo, con la zona
+   * horaria de cada ciudad (R4 viajes P2-1). Se dice «hacia las…» en vez de «a las…».
+   */
+  calculada?: boolean;
 };
 
 export type CalendarOptions = {
@@ -98,11 +103,14 @@ export function nightsDaysText(salida: unknown, regreso: unknown): string | null
 }
 
 /** Llegada del vuelo elegido: fecha y hora local del destino. Solo si la salida es la del viaje. */
-export function arrivalFromFlight(f: FlightTimes | null | undefined, fechaSalida: string): { fecha: string; hora: string; salidaHora: string | null } | null {
+export function arrivalFromFlight(
+  f: FlightTimes | null | undefined,
+  fechaSalida: string,
+): { fecha: string; hora: string; salidaHora: string | null; calculada: boolean } | null {
   const dep = dateOf(f?.salida), arr = dateOf(f?.llegada), hora = clockOf(f?.llegada);
   // Una tarifa de fechas aproximadas (otro día del mes) no dice nada del día de llegada.
   if (!f || dep !== fechaSalida || !arr || !hora || arr < dep) return null;
-  return { fecha: arr, hora, salidaHora: clockOf(f.salida) };
+  return { fecha: arr, hora, salidaHora: clockOf(f.salida), calculada: f.calculada === true };
 }
 
 /** Salida del vuelo de regreso (hora local del destino), solo si es el último día del viaje. */
@@ -182,7 +190,11 @@ const TRAVEL_WORDS = /\b(llegada|llegas|llegamos|aterriz\w*|aeropuerto|barajas|v
  * como condicionado a la hora del vuelo. Nunca se inventa una hora. Si mañana, tarde y noche no hablan de
  * la llegada, no se toca.
  */
-export function neutralArrivalDay(day: Record<string, unknown>, destino: string): { day: Record<string, unknown>; changed: boolean } {
+export function neutralArrivalDay(
+  day: Record<string, unknown>,
+  destino: string,
+  o: { llegaElDia1?: boolean } = {},
+): { day: Record<string, unknown>; changed: boolean } {
   const d: Record<string, unknown> = { ...day };
   if ("manana" in d && !("mañana" in d)) { d["mañana"] = d.manana; delete d.manana; }
   // Solo cuentan las actividades (mañana, tarde, noche): un título «Llegada» sin hora no afirma nada.
@@ -200,29 +212,46 @@ export function neutralArrivalDay(day: Record<string, unknown>, destino: string)
     // Frase por frase: lo del vuelo o la llegada se cambia; lo demás se queda, condicionado.
     const kept = own.split(/(?<=[.;])\s+/).filter((f) => f.trim() && !TRAVEL_WORDS.test(norm(f))).join(" ").trim();
     const rest = kept ? kept.charAt(0).toUpperCase() + kept.slice(1) : "";
-    const head = flightSaid ? "Traslado a tu hotel y check-in al llegar." : `Vuelo a ${destino}: la hora de llegada depende de tu vuelo; revísala en Comprar.`;
-    d[s.key] = rest ? `${head} ${cond(rest)}` : head;
+    if (flightSaid) {
+      // El traslado también depende de la hora del vuelo (R4 viajes P2-1: «Traslado… al llegar» iba sin salvedad).
+      const traslado = "Traslado a tu hotel y check-in al llegar";
+      d[s.key] = rest ? `${traslado}; después, ${cond(rest.charAt(0).toLowerCase() + rest.slice(1))}` : `${traslado} (si tu vuelo llega a tiempo).`;
+    } else {
+      const head = `Vuelo a ${destino}: la hora de llegada depende de tu vuelo; revísala en Comprar.`;
+      d[s.key] = rest ? `${head} ${cond(rest)}` : head;
+    }
     flightSaid = true;
   }
-  d.titulo = `Vuelo y llegada a ${destino}`;
+  // «Llegada» en el título solo si alguna opción de vuelo llega ese mismo día (R4 viajes P2-1: Madrid sale
+  // 11:00 con 11 h de vuelo y Tokio 05:45 con 18 h; ninguna llega el día 1).
+  d.titulo = o.llegaElDia1 ? `Vuelo y llegada a ${destino}` : `Vuelo a ${destino}`;
   d.tipo = "llegada_sin_hora";
   return { day: d, changed: true };
 }
+
+/** Misma ciudad sin acentos ni país ("Roma" = "roma, Italia"); sin ciudad no hay tramo. */
+const cityKey = (v: unknown) => norm(v).split(",")[0].trim();
 
 /**
  * Viajes guardados antes de que el servidor ajustara el día de llegada (R3 viajes P1-1: Italia «Sale 22:00 ·
  * llega 22:40 +1» con el Día 1 «Llegada a Fiumicino · Piazza Navona · cena en Trastevere»). Se alinea al
  * mostrar, sin regenerar, con la misma regla que al generar (applyTripCalendar):
- *  - el vuelo llega N días después → los días 1…N son de vuelo y lo planeado se recorre N días (si sobra un
- *    día al final, se quita el penúltimo, como al generar); el día de llegada solo lleva lo posterior a la
- *    hora de llegada y el traslado;
+ *  - el vuelo llega N días después → los días 1…N son de vuelo y el día de llegada solo lleva lo posterior a
+ *    la hora de llegada y el traslado;
+ *     · una sola ciudad: lo planeado se recorre N días (si sobra un día al final, se quita el penúltimo, como
+ *       al generar);
+ *     · varias ciudades (R4 viajes N-P1, Italia 2230848b): SOLO se recorre el tramo de la primera ciudad,
+ *       dentro de sus días; lo que no cabe se recorta (los últimos días de esa ciudad). Las demás ciudades
+ *       se quedan en sus fechas, que son las de los hoteles y trenes de Comprar (cityStays), y el último día
+ *       sigue siendo el de salida. Si la primera ciudad no alcanza ni para el vuelo y la llegada, no se mueve
+ *       nada y el día 1 queda sin afirmar la llegada (como sin hora);
  *  - llega el mismo día → las franjas antes de la llegada se cambian por el vuelo;
  *  - sin hora de llegada → neutralArrivalDay (no se afirma nada de la llegada).
  * `days` con numeración única 1…; un itinerario que el servidor ya ajustó (tipo vuelo/llegada) no se toca.
  */
 export function alignStoredArrival(
   days: Array<Record<string, unknown>>,
-  o: CalendarOptions & { totalDays: number },
+  o: CalendarOptions & { totalDays: number; /** Alguna opción de vuelo de la lista llega el día 1. */ llegaElDia1?: boolean },
 ): { days: Array<Record<string, unknown>>; ajuste: "recorrido" | "llegada" | "sin_hora" | null } {
   const sorted = [...days].sort((a, b) => Number(a.dia) - Number(b.dia));
   const first = sorted[0];
@@ -232,21 +261,39 @@ export function alignStoredArrival(
   const ciudad = first.ciudad != null ? { ciudad: first.ciudad } : {};
   const arrival = arrivalFromFlight(o.flight, o.fechaSalida);
   const t = arrival ? daysBetween(o.fechaSalida, arrival.fecha) : -1;
-  if (!arrival || t < 0 || t >= o.totalDays) {
-    const n = neutralArrivalDay(first, destino);
+  const neutral = () => {
+    const n = neutralArrivalDay(first, destino, { llegaElDia1: o.llegaElDia1 || (!!arrival && t === 0) });
     if (!n.changed) return { days, ajuste: null };
-    return { days: sorted.map((d) => (d === first ? n.day : d)), ajuste: "sin_hora" };
-  }
+    return { days: sorted.map((d) => (d === first ? n.day : d)), ajuste: "sin_hora" as const };
+  };
+  if (!arrival || t < 0 || t >= o.totalDays) return neutral();
   if (t > 0 && looksTransit(first)) return { days, ajuste: null };
+  // Tramo de la primera ciudad: hasta el día antes de que empiece otra ciudad en el plan.
+  const c0 = cityKey(first.ciudad);
+  const nextIdx = c0 ? sorted.findIndex((d) => { const c = cityKey(d.ciudad); return !!c && c !== c0; }) : -1;
+  const multi = nextIdx > 0;
+  const cap = multi ? Number(sorted[nextIdx].dia) - 1 : o.totalDays;
+  if (multi && t > 0 && t + 1 > cap) return neutral();
   // La misma regla de la generación, en una ventana de t + 1 días (vuelo… llegada) sin vuelo de regreso.
-  const flight = { salida: o.flight?.salida ?? null, llegada: o.flight?.llegada ?? null };
+  const flight = { salida: o.flight?.salida ?? null, llegada: o.flight?.llegada ?? null, calculada: o.flight?.calculada === true };
   const win = applyTripCalendar([first], {
     fechaSalida: o.fechaSalida, fechaRegreso: addDaysIso(o.fechaSalida, t), destino, origen: o.origen, flight,
     internacional: o.internacional, transferMin: o.transferMin,
   }).days.map((d): Record<string, unknown> => ({ ...ciudad, ...d }));
   const changed = t > 0 || SLOTS.some((s) => win[0][s.key] !== slotText(first, s.key));
   if (!changed) return { days, ajuste: null };
-  const rest = sorted.slice(1).map((d) => ({ ...d, dia: Number(d.dia) + t, fecha: addDaysIso(o.fechaSalida, Number(d.dia) + t - 1) }));
+  // Llega de noche y no queda nada de lo planeado ese día: el título no promete «Primeros pasos…».
+  const arrDay = win[win.length - 1];
+  if (t > 0 && !SLOTS.some((s) => { const own = slotText(first, s.key); return !!own && String(arrDay[s.key] ?? "").includes(own); })) {
+    arrDay.titulo = `Llegada a ${destino}`;
+  }
+  const shift = (d: Record<string, unknown>) => ({ ...d, dia: Number(d.dia) + t, fecha: addDaysIso(o.fechaSalida, Number(d.dia) + t - 1) });
+  if (multi) {
+    // Solo la primera ciudad se recorre, sin pasar a los días de la siguiente.
+    const block = sorted.slice(1, nextIdx).map(shift).filter((d) => d.dia <= cap);
+    return { days: [...win, ...block, ...sorted.slice(nextIdx)], ajuste: t > 0 ? "recorrido" : "llegada" };
+  }
+  const rest = sorted.slice(1).map(shift);
   let out: Array<Record<string, unknown>> = [...win, ...rest];
   const last = out[out.length - 1];
   if (t > 0 && Number(last.dia) > o.totalDays) {
@@ -299,7 +346,10 @@ export function applyTripCalendar(days: unknown, o: CalendarOptions): { days: It
   const depMin = arrivalOk && arrival!.salidaHora ? toMin(arrival!.salidaHora) : null;
   const arrAbs = arrivalOk ? tDays * 1440 + toMin(arrival!.hora) : null;
   const readyAbs = arrAbs !== null ? arrAbs + transfer : null;
-  const llegaTxt = arrivalOk ? `Llegas a ${destino} a las ${arrival!.hora} (hora local) y te trasladas a tu hotel (aprox. ${fmtHoras(transfer)}).` : "";
+  // Llegada calculada (salida + duración, R4 viajes P2-1): «hacia las», y se dice de dónde sale la hora.
+  const aLas = arrival?.calculada ? "hacia las" : "a las";
+  const horaLocal = arrival?.calculada ? "hora local, calculada con la salida y la duración del vuelo" : "hora local";
+  const llegaTxt = arrivalOk ? `Llegas a ${destino} ${aLas} ${arrival!.hora} (${horaLocal}) y te trasladas a tu hotel (aprox. ${fmtHoras(transfer)}).` : "";
   const ret = returnFromFlight(o.flight, dates[N - 1]);
 
   const out: ItineraryDay[] = list.map((raw, i) => {
@@ -317,7 +367,7 @@ export function applyTripCalendar(days: unknown, o: CalendarOptions): { days: It
         let txt: string | null = null;
         if (i === 0 && depMin !== null && sEnd <= depMin - margin) txt = `Tiempo libre en ${origen} antes de ir al aeropuerto.`;
         else if (i === 0 && depMin !== null && sStart < depMin) txt = `Traslado al aeropuerto: tu vuelo a ${destino} sale a las ${fromMin(depMin)} (hora de ${origen}).`;
-        else if (sEnd <= arrAbs!) txt = `En vuelo hacia ${destino}${sEnd + 360 > arrAbs! || s.key === "noche" ? ` (llegas el ${fmtDia(arrival!.fecha)} a las ${arrival!.hora}, hora local)` : ""}.`;
+        else if (sEnd <= arrAbs!) txt = `En vuelo hacia ${destino}${sEnd + 360 > arrAbs! || s.key === "noche" ? ` (llegas el ${fmtDia(arrival!.fecha)} ${aLas} ${arrival!.hora}, hora local)` : ""}.`;
         else if (readyAbs! > sEnd - 60) { txt = llegaTxt; arrivalSaid = true; }
         else if (!arrivalSaid && sStart >= arrAbs! - 360) {
           // Primera franja útil: se dice la llegada y sigue lo que planeó el modelo (si no era otra llegada).

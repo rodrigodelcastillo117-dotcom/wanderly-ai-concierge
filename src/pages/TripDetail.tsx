@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tripDayDate } from "@/lib/tripDayDate";
 import { calendarDays } from "@/lib/itineraryCalendar";
+import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
 import { expansionLine, type RegionExpansion } from "../../supabase/functions/_shared/regions.ts";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
@@ -75,7 +76,7 @@ import { BroughtTripSummary } from "@/components/BroughtTripSummary";
 import { shortTripName } from "@/lib/tripName";
 // Claridad (feedback de Álvaro, 28-oct-2026): resumen en 30 segundos, una línea por día, ayuda por pestaña y recorrido.
 import { daySummaryLine, tripGlance, tripPlaceNames, type GlanceCost } from "@/lib/tripGlance";
-import { TRIP_SECTION_LABEL, tripSectionHelp, tripTourSteps } from "@/lib/tripSectionHelp";
+import { itineraryBuyLink, TRIP_SECTION_LABEL, tripSectionHelp, tripTourSteps } from "@/lib/tripSectionHelp";
 import { TripGlance } from "@/components/trip/TripGlance";
 import { SectionIntro, TripPageTour } from "@/components/trip/TripPageTour";
 
@@ -192,7 +193,7 @@ const TripDetail = () => {
         titulo: trip.destino,
         tipo: "destination_ai",
         descripcion: trip.pais_destino,
-        imagen_url: trip.cover_image_url,
+        imagen_url: destinationCoverUrl(trip.cover_image_url),
         match_score: trip.match_score,
         guardado: true,
         metadata: { from_trip_id: trip.id },
@@ -508,6 +509,7 @@ const TripDetail = () => {
     }
     : { kind: "sin_cotizacion" };
   const glance = tripGlance(trip, glanceCost);
+  const heroCover = destinationCoverUrl(trip.cover_image_url);
   const placeNames = tripPlaceNames(trip);
   const tourSteps = tripTourSteps({ ...helpCtx, sections: sections.map((x) => x.id) });
   const showSection = (id: TripSection) => {
@@ -527,8 +529,9 @@ const TripDetail = () => {
       {/* Portada más baja en móvil (antes ocupaba la pantalla completa y el total quedaba dos
           pantallas abajo). */}
       <div className="relative h-[36vh] min-h-[300px] max-h-[420px] md:h-[44vh] md:min-h-[360px] md:max-h-[520px] overflow-hidden">
-        {trip.cover_image_url ? (
-          <img src={trip.cover_image_url} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+        {/* La portada es el destino (R4 viajes P2-2): una foto de Google de un lugar no se usa como portada. */}
+        {heroCover ? (
+          <img src={heroCover} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           // Sin video (p. ej. buscar-video con tope por minuto): la foto de Pexels del destino, nunca la de
           // Santorini (R3 viajes P2-1: Lima mostraba Santorini). La leyenda la pone IllustrativeCaption.
@@ -538,10 +541,7 @@ const TripDetail = () => {
         )}
         <div className="absolute inset-0 bg-gradient-overlay" />
         {/* El video/foto de stock muestra el destino, no un lugar del viaje: se marca. */}
-        {!trip.cover_image_url && <IllustrativeCaption className="bottom-3 right-3" />}
-        {trip.cover_image_url && /googleusercontent\.com/.test(trip.cover_image_url) && (
-          <span className="absolute bottom-3 right-3 z-[2] text-[9px] text-white/70 drop-shadow pointer-events-none">Foto: Google</span>
-        )}
+        {!heroCover && <IllustrativeCaption className="bottom-3 right-3" />}
 
 
         <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">
@@ -753,6 +753,7 @@ const TripDetail = () => {
               selectionDesglose={pageSelDesglose}
               validityLabel={validity.label}
               validityExpired={validity.expired}
+              priceAge={validity.age}
               fxNote={quote ? `Tipo de cambio de la cotización: 1 USD = ${Number(quote.fx_rate).toFixed(2)} MXN · ${fxSourceName(quote.fx_source, !!quote.fx_is_fallback)} (${formatInstant(quote.fx_at)})` : null}
               onRequote={() => navigate(`/dashboard/viajes/${id}/editar`)}
               trust={trustForTotal}
@@ -792,7 +793,8 @@ const TripDetail = () => {
         </motion.section>
 
         {/* Qué sigue: guardado, cuánto falta y UNA acción principal. */}
-        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing} />
+        <TripNextStep trip={tripForNextStep} quote={quote} isOwner={isOwner} missing={totalSummary.missing}
+          hideStaleNotice={hasQuotedTotal && !requote && validity.expired} />
 
         {/* Por tierra no hay vuelo que vigilar (caso E2E 28-oct-2026, Valle de Bravo). */}
         {/* Con la cotización con error («Por recotizar») no se ofrece vigilar un precio que no sirve (R3 P2-4). */}
@@ -905,7 +907,7 @@ const TripDetail = () => {
               <h2 className="font-display text-2xl sm:text-3xl break-words">{isMulti ? "Tu itinerario por ciudad" : "Tu itinerario"}</h2>
             </div>
             <button type="button" onClick={() => showSection("comprar")} className="text-xs text-primary underline-offset-2 hover:underline sm:ml-auto text-left">
-              {arrivalByLand(trip) ? "Cómo llegar, hotel y reservas: elígelos en Comprar →" : "Vuelo, hoteles y reservas: elígelos en Comprar →"}
+              {itineraryBuyLink(helpCtx)}
             </button>
           </div>
 

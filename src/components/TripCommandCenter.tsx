@@ -16,6 +16,7 @@ import { shortTripName } from "@/lib/tripName";
 import { savedTripMissing } from "@/lib/tripMissing";
 import { MARKS_COLUMNS, type TripPurchaseMarkRow } from "@/lib/purchaseMarks";
 import type { PurchaseMarkRow } from "@/lib/purchasePlan";
+import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
 
 type TripSummary = {
   id: string;
@@ -140,7 +141,7 @@ export function TripCommandCenter({ trip, today }: Props) {
           del viaje si existe; si no, una ilustrativa del destino (marcada). */}
       <SmartImage
         alt=""
-        imageUrl={trip.cover_image_url ?? null}
+        imageUrl={destinationCoverUrl(trip.cover_image_url)}
         stockQuery={destinationQuery(trip.destino, trip.pais_destino)}
         size="hero"
         eager

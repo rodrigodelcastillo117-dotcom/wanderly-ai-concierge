@@ -20,7 +20,7 @@ import { RealTripTotal, tripTotals } from "@/components/RealTripTotal";
 import { BookingStateBadge } from "@/components/BookingStateBadge";
 import { TripPurchasePlan } from "@/components/booking/TripPurchasePlan";
 import { quoteTrust } from "@/lib/quoteTrust";
-import { computeTripDesglose } from "@/lib/quote";
+import { computeTripDesglose, quoteValidity } from "@/lib/quote";
 import { buildBuyFlow } from "@/lib/buyFlow";
 import { tripTotalSummary } from "@/lib/tripTotal";
 import { splitTripTotal } from "@/lib/totalSplit";
@@ -101,7 +101,9 @@ describe("P1-3 · Comprar: sin «Total con tu selección» si no hay nada elegid
     expect(row.textContent).toContain(`$${total.toLocaleString("es-MX")} MXN`);
     const sp = splitTripTotal({ trip, sel: { selVuelo: -1, selTours: new Set() }, desglose, items });
     if (sp.real > 0 && sp.estimado > 0) {
-      expect(screen.getByTestId("comprar-listo-reparto")).toHaveTextContent(`De eso, $${sp.real.toLocaleString("es-MX")} MXN con precio en vivo y $${sp.estimado.toLocaleString("es-MX")} MXN estimado.`);
+      // R4 P2-7: con la cotización vencida dice «con precio consultado hace …», no «en vivo».
+      const age = quoteValidity(trip, null).age;
+      expect(screen.getByTestId("comprar-listo-reparto")).toHaveTextContent(`De eso, $${sp.real.toLocaleString("es-MX")} MXN ${age ? `con precio consultado ${age}` : "con precio en vivo"} y $${sp.estimado.toLocaleString("es-MX")} MXN estimado.`);
     }
     expect(screen.queryByText(/Total con precios reales/)).toBeNull();
   });

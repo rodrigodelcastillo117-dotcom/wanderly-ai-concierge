@@ -8,8 +8,7 @@ import { useFxTable } from "@/hooks/useFxTable";
 import { computeGoal } from "@/lib/savingsGoal";
 import { estimateTripCost, regionOf, REGIONS, type Region } from "@/lib/tripEstimate";
 import { localISODate, parseLocalDate } from "@/lib/localDate";
-import { shortTripName } from "@/lib/tripName";
-import { duplicateTripMarks, markedTripName } from "@/lib/tripList";
+import { tripChipLabels } from "@/lib/tripList";
 
 export type Trip = {
   id: string;
@@ -279,12 +278,13 @@ export const TripSavingsCalculator = () => {
 
   // Viajes iguales (mismo nombre y fechas) con (2), (3)… como en Mis viajes (R3 viajes P2-14: tres chips
   // «Madrid · 10 mar 2027» idénticos).
-  const dups = useMemo(() => duplicateTripMarks(trips as any), [trips]);
+  // R4 viajes P2-5: si dos viajes iguales salen el mismo día, el chip muestra el rango de fechas.
+  const chipLabels = useMemo(() => tripChipLabels(trips as any), [trips]);
   const pct = Math.round(goal.avance * 100);
   const maxBar = Math.max(1, goal.costo);
 
   return (
-    <section aria-label="Ahorro para tu viaje" className="grid lg:grid-cols-[1.1fr_1fr] gap-3 md:gap-6 items-start">
+    <section aria-label="Ahorro para tu viaje" className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3 md:gap-6 items-start">
       {/* ── Tu meta ─────────────────────────────────────── */}
       <div className="glass-card rounded-2xl p-5 md:p-7">
         {trips.length > 0 && (
@@ -294,7 +294,7 @@ export const TripSavingsCalculator = () => {
               {trips.map((t) => (
                 <button key={t.id} type="button" onClick={() => linkTrip(plan.tripId === t.id ? null : t)} aria-pressed={plan.tripId === t.id}
                   className={`snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs transition ${plan.tripId === t.id ? "bg-gradient-gold text-primary-foreground border-transparent" : "border-primary/25 text-foreground/85 hover:border-primary/50"}`}>
-                  <Plane className="w-3 h-3" aria-hidden="true" /> {markedTripName(shortTripName(t), dups.n.get(t.id))} · {shortDate(t.fecha_salida)}
+                  <Plane className="w-3 h-3" aria-hidden="true" /> {chipLabels.get(t.id)}
                 </button>
               ))}
               <button type="button" onClick={() => linkTrip(null)} aria-pressed={!plan.tripId}
