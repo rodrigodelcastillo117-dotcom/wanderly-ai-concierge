@@ -59,6 +59,7 @@ import { type AiResRow, aiReservationsForPrompt, isDomesticTrip, withoutAiReserv
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
 import { withTimeout } from "./tools.ts";
+import { summarizeExpenses } from "./expenses.ts";
 
 declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
@@ -94,6 +95,8 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   get_travel_advisory: 9000,
   // Reloj de IATOS (sin red): responde al instante.
   get_local_time: 1000,
+  // Gastos registrados (una lectura de la base con la sesión del usuario).
+  get_trip_expenses: 3000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -567,7 +570,8 @@ Deno.serve(async (req) => {
       return compactItem({ ...base, vuelos: vuelos.length ? vuelos : undefined, hoteles: hoteles.length ? hoteles : undefined });
     });
 
-    const tripGaps = trip ? computeTripGaps(trip, confirmedBookings, todayISO) : [];
+    // Viaje nacional: sin "plan de datos internacional" en lo que falta (ola 9.5).
+    const tripGaps = trip ? computeTripGaps(trip, confirmedBookings, todayISO, { domestic: isDomesticTrip(trip, profile?.ciudad_origen ?? null) }) : [];
     const requestIntel = trip ? buildRequestIntelligence(trip, lastUserMsg, confirmedBookings) : null;
     const viajeEnContexto = trip ? compactTripForPrompt(trip, {
       todayISO, tz: today.tz ?? null, estado_reservas: tripBookings?.estado_reservas, vuelos: tripBookings?.vuelos, hospedaje: tripBookings?.hospedaje,
@@ -784,6 +788,20 @@ function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string;
         fetchImpl: fetch, apiKey, baseUrl, store: dbCacheStore(), gate: liveSearchGateFor(c.userId), fx: (cur) => getRateToMxnInfo(cur),
         timeoutMs: 4000, background: bg, now: Date.now,
       });
+    }
+    // Ola 9.5: "¿cuánto llevo gastado?" con los gastos registrados (RLS: solo los suyos).
+    if (name === "get_trip_expenses") {
+      const tripId = typeof rawArgs?.trip_id === "string" && UUID.test(rawArgs.trip_id) ? rawArgs.trip_id : null;
+      let q = c.supabase.from("expenses").select("amount, currency, category, description, expense_date, trip_id").eq("user_id", c.userId);
+      if (tripId) q = q.eq("trip_id", tripId);
+      const { data, error } = await q.order("expense_date", { ascending: false }).limit(500);
+      if (error) return { error: "gastos_no_disponibles" };
+      let tripLabel: string | null = null;
+      if (tripId) {
+        const { data: t } = await c.supabase.from("trips").select("destino").eq("id", tripId).maybeSingle();
+        tripLabel = typeof t?.destino === "string" ? t.destino : null;
+      }
+      return summarizeExpenses(data ?? [], { tripLabel });
     }
     if (name === "get_travel_advisory") {
       return runAdvisoryTool(args, { fetchImpl: fetch, store: dbCacheStore(), timeoutMs: 5000 });

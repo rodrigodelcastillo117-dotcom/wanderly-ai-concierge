@@ -79,12 +79,13 @@ describe("Concierge estilo WhatsApp", () => {
     expect(within(ctx).getByRole("button", { name: "Lo que Iato recuerda" })).toBeInTheDocument();
   });
 
-  it("chat vacío: los atajos van en el hilo, de arriba hacia abajo (lista vertical, todos completos)", async () => {
+  // Ola 9.5: en dos columnas (con el viaje en curso hay 9 atajos: plan de hoy, clima y gastos se suman).
+  it("chat vacío: los atajos van en el hilo, en dos columnas y todos completos", async () => {
     renderPage();
     const list = await screen.findByRole("list", { name: "Atajos" });
-    expect(list.className).toMatch(/flex-col/);
+    expect(list.className).toMatch(/grid grid-cols-2/);
     const labels = within(list).getAllByRole("button").map((b) => b.textContent);
-    expect(labels).toEqual(["¿Mi vuelo va a tiempo?", "Cena cerca", "Pedir transporte", "Emergencia local", "Equipaje Invisible", "Mi viaje a Roma"]);
+    expect(labels).toEqual(["¿Mi vuelo va a tiempo?", "Mi plan de hoy", "¿Qué clima hará?", "¿Cuánto llevo gastado?", "Cena cerca", "Pedir transporte", "Emergencia local", "Equipaje Invisible", "Mi viaje a Roma"]);
     for (const b of within(list).getAllByRole("button")) expect(b.className).toMatch(/w-full/);
     // Sin conversación no hay botón "Atajos" (ya están a la vista).
     expect(screen.queryByRole("button", { name: "Atajos" })).toBeNull();
@@ -130,11 +131,35 @@ describe("Concierge estilo WhatsApp", () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     const list = screen.getByRole("list", { name: "Atajos" });
-    expect(within(list).getAllByRole("button")).toHaveLength(6);
+    expect(within(list).getAllByRole("button")).toHaveLength(9);
     fireEvent.click(screen.getByRole("button", { name: "Cerrar atajos" }));
     expect(screen.queryByRole("list", { name: "Atajos" })).toBeNull();
     // El hilo se desplaza solo al último mensaje.
     expect(Element.prototype.scrollTo).toHaveBeenCalled();
+  });
+
+  it("ola 9.5: el paso 'Revisando tu viaje…' se ve mientras Iato piensa y se quita en cuanto llega el texto", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    stream.mockImplementation(async (_req: any, h: any) => {
+      h.onMeta({ _trip_id: VIAJE.id });
+      h.onStatus({ id: "think", text: "Revisando tu viaje a Roma…", state: "running" });
+      await gate;
+      h.onStatus({ id: "think", text: "Revisando tu viaje a Roma", state: "done" });
+      h.onDelta("Para Roma te falta el seguro de viaje.");
+      h.onFinal({ text: "Para Roma te falta el seguro de viaje.", cards: [], actions: [], _trip_id: VIAJE.id, _trip_reason: "in_progress" });
+    });
+    renderPage();
+    const box = await screen.findByLabelText("Mensaje para Iato");
+    fireEvent.change(box, { target: { value: "¿Qué me falta para mi viaje a Roma?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar mensaje" }));
+    const steps = await screen.findByTestId("iato-steps");
+    expect(steps).toHaveTextContent("Revisando tu viaje a Roma…");
+    release();
+    await screen.findByText("Para Roma te falta el seguro de viaje.");
+    const last = screen.getAllByTestId("bubble-iato").at(-1)!;
+    expect(last.textContent).not.toMatch(/Revisando tu viaje/);
+    expect(within(last).queryByTestId("iato-steps")).toBeNull();
   });
 
   it("la caja de escribir queda fija abajo con micrófono y enviar", async () => {

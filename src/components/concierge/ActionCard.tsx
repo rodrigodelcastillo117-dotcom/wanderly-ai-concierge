@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarPlus, Check, Loader2, Siren, Sparkles, X } from "lucide-react";
+import { CalendarPlus, Check, Loader2, Siren, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { localISODate } from "@/lib/localDate";
 import { readPriveSession } from "@/lib/priveSession";
@@ -121,15 +121,16 @@ export function ActionCard({ action, tripId, onOpenEmergency }: { action: Propos
             <div className="mt-1.5"><ReservationStateBadge status={reqStatus} type={action.type === "prive_request" ? "prive_request" : null} /></div>
           )}
           {state !== "done" && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-1 mt-2">
               <button type="button" onClick={confirm} disabled={state === "running"}
                 className="inline-flex items-center gap-1.5 rounded-full bg-gradient-gold text-primary-foreground px-3.5 min-h-[36px] text-xs font-medium disabled:opacity-60">
                 {state === "running" ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Check className="w-4 h-4" aria-hidden="true" />}
                 {state === "error" ? "Reintentar" : action.confirm_label || "Confirmar"}
               </button>
+              {/* Ola 9.5: "Cancelar" como botón de texto, en la misma fila que el principal (antes bajaba de renglón). */}
               <button type="button" onClick={() => setState("cancelled")} disabled={state === "running"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 min-h-[36px] text-xs text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" aria-hidden="true" /> Cancelar
+                className="inline-flex items-center rounded-full px-2.5 min-h-[36px] text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+                Cancelar
               </button>
             </div>
           )}

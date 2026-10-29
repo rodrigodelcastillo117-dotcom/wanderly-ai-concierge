@@ -8,7 +8,7 @@ import { pickFlight, pickHotel, tripFlights, tripHotels } from "../../supabase/f
 import { tripLabel } from "@/lib/activeTrip";
 import { isAirLeg } from "../../supabase/functions/concierge-chat/context";
 
-export type ChipIcon = "dining" | "transport" | "emergency" | "flight" | "luggage" | "trip";
+export type ChipIcon = "dining" | "transport" | "emergency" | "flight" | "luggage" | "trip" | "plan" | "weather" | "expenses";
 
 export interface Chip {
   id: string;
@@ -53,6 +53,25 @@ export function buildChips(trip: ChipTrip | null, todayISO: string, opts: { away
     : { id: "flight", icon: "flight", label: "¿Mi vuelo va a tiempo?", intent: "flight_status",
       text: flight?.code ? `¿Mi vuelo ${flight.code} va a tiempo? Dame estado, terminal y puerta.` : "¿Mi vuelo va a tiempo? Dame estado, terminal y puerta." });
 
+  // Ola 9.5 (29-oct-2026): los atajos de lo que más se pregunta con un viaje cerca: el plan del día, el
+  // clima (MET Norway, hasta 9 días) y cuánto llevas gastado. Cada uno manda una pregunta concreta.
+  const dest = trip?.destino ? String(trip.destino).split(/→|,/)[0].trim() : "";
+  const start = String(trip?.fecha_salida ?? "").slice(0, 10);
+  const end = String(trip?.fecha_regreso ?? trip?.fecha_salida ?? "").slice(0, 10);
+  const inTrip = !!dest && !!start && start <= todayISO && todayISO <= end;
+  const soonTrip = !!dest && !!start && start > todayISO && start <= addDays(todayISO, 9);
+  if (inTrip) {
+    chips.push({ id: "day_plan", icon: "plan", label: "Mi plan de hoy", intent: "day_plan", text: `¿Qué tengo hoy en mi itinerario de ${dest}? Dame el plan del día en corto.` });
+  } else if (soonTrip) {
+    chips.push({ id: "day_plan", icon: "plan", label: `Plan del ${dayName(start)}`, intent: "day_plan", text: `Ármame el plan del ${dayName(start)} ${Number(start.slice(8, 10))} en ${dest}.` });
+  }
+  if (inTrip || soonTrip) {
+    chips.push({ id: "weather", icon: "weather", label: "¿Qué clima hará?", intent: "weather", text: `¿Qué clima hará en mi viaje a ${dest}?` });
+  }
+  if (dest && (inTrip || soonTrip || (end && end < todayISO && end >= addDays(todayISO, -30)))) {
+    chips.push({ id: "expenses", icon: "expenses", label: "¿Cuánto llevo gastado?", intent: "expense_query", text: `¿Cuánto llevo gastado en mi viaje a ${dest}?` });
+  }
+
   chips.push(hotel
     ? { id: "dining", icon: "dining", label: "Cena cerca", intent: "dining_near_hotel", text: `¿Dónde ceno hoy cerca de mi hotel ${hotel.name}? Dame 3 opciones abiertas con cómo llegar.` }
     : { id: "dining", icon: "dining", label: "Cena cerca", intent: "dining_near_hotel", text: "¿Dónde ceno hoy cerca de donde estoy? Dame 3 opciones abiertas con cómo llegar." });
@@ -73,9 +92,15 @@ export function buildChips(trip: ChipTrip | null, todayISO: string, opts: { away
   return chips;
 }
 
-/** Saludo honesto con el viaje activo (antes: "listo para anticiparme a cualquier capricho"). */
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const dayName = (iso: string) => DIAS[new Date(`${iso}T12:00:00Z`).getUTCDay()] ?? "día";
+
+/**
+ * Saludo honesto con el viaje activo (antes: "listo para anticiparme a cualquier capricho"). Ola 9.5: más
+ * corto (eran 4 renglones en el celular) y sin "revisar tu vuelo" en un viaje por tierra.
+ */
 export function welcomeText(trip: ChipTrip | null): string {
-  const base = "Puedo revisar tu vuelo, buscar dónde comer o cómo llegar, agregar cosas a tu itinerario, registrar gastos o pedirle algo a nuestro equipo. Nada se reserva ni se guarda sin que lo confirmes.";
-  if (!trip?.destino) return `Hola, soy Iato. ${base}`;
-  return `Hola, soy Iato. Tengo a la mano tu viaje a ${tripLabel(trip as any)}. ${base}`;
+  const base = "Nada se reserva ni se guarda sin que lo confirmes.";
+  if (!trip?.destino) return `Hola, soy Iato. Pregúntame dónde comer, cómo llegar, el clima o lo que necesites de tu próximo viaje. ${base}`;
+  return `Hola, soy Iato. Tengo a la mano tu viaje a ${tripLabel(trip as any)}: pregúntame lo que necesites. ${base}`;
 }

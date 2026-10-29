@@ -142,11 +142,12 @@ describe("UX10-03 · Concierge en pantallas bajas", () => {
   // hilo vacío o en un panel que abre "Atajos"; el compositor sigue con UN renglón de herramientas
   // (Atajos + Modo exigente) sobre la caja, así no crece en pantallas bajas. Las capturas a 390×667
   // (scripts/concierge/ui_evidence.mjs) verifican que el compositor queda sobre la barra inferior.
-  it("los atajos van en lista vertical (sin fila cortada) y el compositor no crece bajo la barra", () => {
+  // Ola 9.5: en dos columnas (con 8–9 atajos la lista de una columna llenaba la pantalla); sin fila cortada.
+  it("los atajos van en una cuadrícula de dos columnas (sin fila cortada) y el compositor no crece bajo la barra", () => {
     const src = read("src/pages/Concierge.tsx");
     expect(src).not.toMatch(/overflow-x-auto/);
-    expect(src).toMatch(/<ul className="flex flex-col gap-1" aria-label=\{title\}>/);
-    expect(src).toMatch(/className="flex w-full items-center gap-2\.5 px-3 min-h-\[40px\] rounded-xl/);
+    expect(src).toMatch(/<ul className="grid grid-cols-2 gap-1" aria-label=\{title\}>/);
+    expect(src).toMatch(/className="flex h-full w-full items-center gap-2 px-2\.5 min-h-\[40px\] rounded-xl/);
     // Sin conversación: en el hilo; con conversación: panel que abre "Atajos" (sobre el compositor).
     expect(src).toMatch(/\{chatEmpty && \(/);
     expect(src).toMatch(/aria-controls="concierge-shortcuts-panel"/);

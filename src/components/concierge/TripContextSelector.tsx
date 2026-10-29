@@ -78,15 +78,17 @@ export function TripContextSelector({ trips, todayLocal, pinnedId, resolved, onC
   const hint = following ? FOLLOW_TEXT : resolved.trip && phaseHint ? phaseHint : reasonHint;
   const value = following ? followId! : pinnedId && options.some((t) => t.id === pinnedId) ? pinnedId : "";
   return (
-    // En el celular el texto de quién eligió el viaje va debajo, para que el nombre del viaje quepa (N4-P2-9).
-    <label className={`flex min-w-0 flex-wrap sm:flex-nowrap items-center gap-x-1 gap-y-0.5 ${className}`} data-testid="trip-context">
+    // Un solo renglón también en el celular (ola 9.5: el encabezado ocupaba 4 renglones): el viaje tiene el
+    // ancho que necesita y quién lo eligió va al lado, en letra chica, recortado si no cabe (texto completo
+    // en el title). N4-P2-9: el nombre corto del viaje ("Oaxaca · 15–18 ene") ya no se corta.
+    <label className={`flex min-w-0 flex-nowrap items-center gap-x-1 ${className}`} data-testid="trip-context">
       <Plane className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
       <span className="sr-only">Viaje en contexto:</span>
       <select
         aria-label="Viaje en contexto"
         value={value}
         onChange={(e) => onChange(e.target.value || null)}
-        className="min-w-0 flex-1 sm:flex-none w-full max-w-[16rem] sm:max-w-[18rem] truncate rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
+        className="min-w-0 shrink sm:flex-none max-w-[13.5rem] sm:max-w-[18rem] truncate rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[11px] text-foreground focus:border-primary focus:outline-none"
       >
         <option value="">
           {resolved.trip && !pinnedId ? `Automático · ${resolved.trip.destino ?? "viaje"}` : "Automático (Iato decide)"}
@@ -95,7 +97,7 @@ export function TripContextSelector({ trips, todayLocal, pinnedId, resolved, onC
           <option key={t.id} value={t.id}>{compactTripLabel(t)}</option>
         ))}
       </select>
-      {hint && <span className="basis-full sm:basis-auto pl-[18px] sm:pl-0 shrink-0 whitespace-nowrap text-[11px] text-muted-foreground" data-testid="trip-phase">{withIatoMark(hint)}</span>}
+      {hint && <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[10px] sm:text-[11px] text-muted-foreground" title={hint} data-testid="trip-phase">{withIatoMark(hint)}</span>}
     </label>
   );
 }

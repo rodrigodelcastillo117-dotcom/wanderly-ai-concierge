@@ -99,6 +99,12 @@ const TRIP_ACTION = /\b(gaste|gasto|pague|registra|anota|apunta)\b.{0,60}(\$|\d|
 /** Pedir transporte ahora ("Pedir transporte", "un Uber"): es de donde está, no del viaje futuro. */
 const TRANSPORT_NOW = /\b(transporte|taxi|uber|didi|cabify|traslado|llevame|pedir (un )?(auto|carro|coche))\b/;
 
+/**
+ * Emergencia de ahora ("me robaron la cartera", "me siento mal", "un accidente"): pasa donde está el
+ * usuario. Ola 9.5: un robo en CDMX con el viaje a Valle de Bravo fijado salía "sobre Valle de Bravo".
+ */
+const EMERGENCY_NOW = /\b(me robaron|nos robaron|me asaltaron|asalto|robo|me siento mal|accidente|emergencia|urgencia|auxilio|perdi mi pasaporte)\b/;
+
 /** El mensaje nombra un vuelo (AM 2, IB6402) que no está en el viaje seleccionado. */
 export function flightNotInTrip(message: string, trip: TripLike | null | undefined): boolean {
   const m = String(message ?? "").toUpperCase().match(/\b([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{1,4})\b/);
@@ -153,6 +159,7 @@ export function resolveTurnPlace<T extends TripLike>(i: {
   const mentionsHotel = /\bhotel\b/.test(normalizeText(message));
   const foreignFlight = flightNotInTrip(message, selectedTrip);
   const transportNow = TRANSPORT_NOW.test(normalizeText(message)) && !mentionsHotel && !/\baeropuerto\b/.test(normalizeText(message));
+  const emergencyNow = EMERGENCY_NOW.test(normalizeText(message)) && !mentionsHotel;
   if (requested && !needsSpecificTrip(message)) {
     scope = "requested"; label = requested; searchCity = requested;
   } else if (foreignFlight) {
@@ -162,7 +169,7 @@ export function resolveTurnPlace<T extends TripLike>(i: {
     // "Registra un gasto … en mi viaje a Valle de Bravo": es del viaje, no "cerca de ti" (auditoría 10
     // #17, ronda 2: el gasto quedó etiquetado "cerca de ti, Ciudad de México").
     scope = "trip"; label = tripDisplayName(selectedTrip); searchCity = label;
-  } else if (nearMe || ((placeSearch || transportNow) && !mentionsHotel && (futureTrip || i.position === "away"))) {
+  } else if (nearMe || ((placeSearch || transportNow || emergencyNow) && !mentionsHotel && (futureTrip || i.position === "away"))) {
     // "Cerca" = donde está ahora. Un viaje que no ha empezado (o del que está fuera) no es "aquí".
     scope = "here"; label = hereLabel; searchCity = physical?.place ?? null;
   } else if (selectedTrip) {

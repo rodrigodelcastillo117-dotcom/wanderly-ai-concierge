@@ -1,0 +1,265 @@
+{
+ "a_plan_1": {
+  "text": "Para **sábado 31 de octubre en Valle de Bravo**, el plan del itinerario es:\n\n- **Mañana:** Cascada de Avandaro y Stupa de la Paz, con calma, fotos y una caminata ligera.\n- **11:00:** Paseo en lancha desde Valle de Bravo (agregado en tu itinerario).\n- **Comida:** Soleado Cocina del mundo o Bocatto Gourmet (tu itinerario los propone; aún no verifiqué horarios ni reservación).\n- **Tarde:** Templo de Santa María Ahuacatlán (El Cristo Negro).\n- **17:00:** Mirador La Peña para ver la presa (agregado en tu itinerario).\n- **Noche:** cena temprana antes de salir, o regreso a CDMX.\n\nEl pronóstico marca chubascos para el sábado, así que conviene llevar impermeable y dejar la caminata a la cascada para la primera hora. Si quieres que revise horarios de Soleado, Bocatto o el paseo en lancha, lo busco.",
+  "cards": [],
+  "actions": [],
+  "tools": [],
+  "place_label": "Valle de Bravo",
+  "place_scope": "requested"
+ },
+ "a_plan_2": {
+  "text": "Según MET Norway, consultado hoy 29 oct 2026, 06:20 (hora CDMX), el sábado 31 de octubre en Valle de Bravo se esperan **chubascos**, con máxima de 25 °C, mínima de 12 °C y lluvia de apenas 0.1 mm, viento máximo de 13 km/h. El viernes 30 también tiene chubascos (0.7 mm) y el domingo 1 de noviembre despeja.\n\nComo la lluvia es ligera, el plan se puede mantener: lleva impermeable y deja la caminata a la Cascada de Avandaro para la primera hora de la mañana.",
+  "cards": [],
+  "actions": [],
+  "tools": [
+   "get_weather"
+  ],
+  "place_label": "Valle de Bravo",
+  "place_scope": "trip"
+ },
+ "b_cena_1": {
+  "text": "Cerca de tu ubicación en el Centro Histórico, Google Maps (consulta de ahora) muestra tres opciones abiertas para cenar:\n\n- **Terraza Umbral**, rating 4.7, acepta reservación. Te conviene reservar desde su sitio.\n- **Café La Pagoda**, rating 4.4, no toma reservaciones: llegas directo.\n- **Restaurante Patio Bellas Artes**, rating 4.1, acepta reservación y cierra a las 23:00 hoy.\n\nSi quieres, reviso otra zona o un tipo de cocina específico.",
+  "cards": [
+   {
+    "type": "restaurant",
+    "title": "Terraza Umbral",
+    "subtitle": "Centro Histórico · Cena",
+    "meta": "Abierto ahora · Acepta reservación",
+    "rating": 4.7,
+    "links": [
+     {
+      "kind": "website",
+      "label": "Reservar en su sitio",
+      "url": "https://www.hotelumbral.com/"
+     },
+     {
+      "kind": "booking",
+      "label": "Buscar en OpenTable",
+      "url": "https://www.opentable.com/s?term=Terraza+Umbral+Ciudad+de+M%C3%A9xico&covers=2&dateTime=2026-10-29T20%3A00"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+525512032600"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=8446720525470004217&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     },
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=19.4311689%2C-99.13567619999999&destination_place_id=ChIJD8SBZqX_0YUR-fOjtZDHOHU&travelmode=driving"
+     }
+    ],
+    "photo_ref": "places/ChIJD8SBZqX_0YUR-fOjtZDHOHU/photos/AV-0GLfFnctEFSnn2-bOJLEscCyuVN_3bkMC_QP2_piU-81rOH23Kae5Z9aQBka8Qtra9WumDwUXghDsMX9vFKjTfVYV_SxwxSPkZ_RN3VXOnqSpWllkMbEkLyw_FwML5NgY4vePIktovrqcMAMvrS9RwOBAlcVrbdtGL1jvZQ5bylg5trXbRKgey7UKy_NwWRTbgTJUUvDu_4ucDe-g7K5rLYQiBx3XzLD0h2bhY68mVQqgwS5wySUVlMZOp5nTJ-aYktR2YXIoPJB8HqyCz6dA1wcBBUDoYEokA66gsfgOlCH_brMhCpreQE8Cx-Qi72I4dnRcxcbzx8yoQmAbdGe3nBykNrnQki8gHPgSgHmV7M3x-PYWZf8ILWF-OiPj9U0n_TZRAmhwb7nKSKnrPM4ViBSPvGu5Olj30BODPb4Kv-O8",
+    "place_id": "ChIJD8SBZqX_0YUR-fOjtZDHOHU",
+    "lat": 19.4311689,
+    "lng": -99.13567619999999
+   },
+   {
+    "type": "restaurant",
+    "title": "Café La Pagoda",
+    "subtitle": "Centro Histórico · Cocina mexicana",
+    "meta": "Abierto ahora · No toma reservaciones (llega directo)",
+    "rating": 4.4,
+    "booking_note": "No toma reservaciones (llega directo)",
+    "links": [
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=8732271460098025018&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     },
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=19.4347688%2C-99.13954489999999&destination_place_id=ChIJVYVBbCv50YUROqZsnaBCL3k&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=19.4347688&dropoff%5Blongitude%5D=-99.13954489999999&dropoff%5Bnickname%5D=Caf%C3%A9+La+Pagoda&dropoff%5Bformatted_address%5D=Av.+5+de+Mayo+10-F%2C+Centro+Hist%C3%B3rico+de+la+Cdad.+de+M%C3%A9xico%2C+Centro%2C+Cuauht%C3%A9moc%2C+06000+Ciudad+de+M%C3%A9xico%2C+CDMX%2C+M%C3%A9xico"
+     }
+    ],
+    "photo_ref": "places/ChIJVYVBbCv50YUROqZsnaBCL3k/photos/AV-0GLfToFZ72xNqiP022mjlpOtMffl7fqRwAI1pxUmEgRj8OZBL2MLF6PvH2oH7cPSnzIlDhUi0eaihXBqUFZ4boR63sRTIWYfOS3WkwwpxiLZ_Xse5AK-nU0LjcXzWKKvo6JYB8NLO74GqL0gbwx9zF7Ee9gdIsV3iBSUqADAbD_JQ1DxhB5Wa1eCcfsxK_pv7CAJ4adkl40Onr2a7fUsKUZGSTp_KTynvyf70RDpeqzg8JHsSfZAQnpP3avNR0gA7fmEyi0Rag_5AiLUu0Ij962f2Vo1VHipMtVxJgw-SVXQZEbT3qUlca9UodphHre-92aR1546PbwZPc6h0Bhx6vO35RX56YRPqQBXnr8qEOik-Hak7qgh2w2FvScpOAom95PzAUIeILMD2-KB8DST2KJRaHmOE",
+    "place_id": "ChIJVYVBbCv50YUROqZsnaBCL3k",
+    "lat": 19.4347688,
+    "lng": -99.13954489999999
+   },
+   {
+    "type": "restaurant",
+    "title": "Restaurante Patio Bellas Artes",
+    "subtitle": "Centro Histórico · Cena",
+    "meta": "Abierto hasta 23:00 · Acepta reservación",
+    "rating": 4.1,
+    "links": [
+     {
+      "kind": "website",
+      "label": "Reservar en su sitio",
+      "url": "https://www.hotelbellasartes.com/"
+     },
+     {
+      "kind": "booking",
+      "label": "Buscar en OpenTable",
+      "url": "https://www.opentable.com/s?term=Restaurante+Patio+Bellas+Artes+Ciudad+de+M%C3%A9xico&covers=2&dateTime=2026-10-29T20%3A00"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+525554886600"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=728838241403512934&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA"
+     },
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=19.434718%2C-99.1393731&destination_place_id=ChIJJVeZSAD50YURZqiT3YRaHQo&travelmode=driving"
+     }
+    ],
+    "photo_ref": "places/ChIJJVeZSAD50YURZqiT3YRaHQo/photos/AV-0GLcU6ONeyh_UNdmFsx0u6GhhwvYUSwlSVeulsNGXLTI9xZ1sZ-bU3zgG8hxKqWkfnWq-EzCd07KJrlvjhwHnLA5sbOeMn0A3jAqBf-CnXvXg_VmGG6-GUdoaPCL6wks10mSkwAcD7agkF4BLfP0ybAUFpKU4whpVaLwkvbG5mFjbabqgSopKqMuN1rYbBeGUZeAHWC5um144xuiaUkAPqKwhF32YpV5zoja0bmEjAer0suunJQRZ88-7b1iSrxn-mV2xLzcAB_0XALa1kc7G7See1D_VEUnFzqR3AFlXBwYtXSfYHbzkAyQyq_UHRLEstLwlsN24k5Rbi4XmjSC3BduDlu36xibrDTn7rs2W3RQ_fo_Zyak5RJkyHbmNohakL3vXrON-VsezncRGT8aN8tSiE8CjJH561IPuF2pVGiqpwA",
+    "place_id": "ChIJJVeZSAD50YURZqiT3YRaHQo",
+    "lat": 19.434718,
+    "lng": -99.1393731
+   }
+  ],
+  "actions": [],
+  "tools": [
+   "search_places"
+  ],
+  "place_label": "Ciudad de México",
+  "place_scope": "here"
+ },
+ "c_falta_1": {
+  "text": "Para Valle de Bravo (30 oct – 1 nov) te faltan estas cosas:\n\n- **Reservar el hospedaje.** Está cotizado, no reservado. Tienes El Ensueño Valle de Bravo a 1,100 MXN por noche (precio guardado del 27 oct, 23:37, de Google Hotels).\n- **Elegir el transporte.** Ninguna opción está seleccionada: autobús o auto propio (cotización guardada de 842.50 MXN por persona, estimada).\n- **Confirmar los tours y la lancha.** Están cotizados, sin reservar.\n- **Seguro de viaje.** Es lo más urgente, porque el viaje sale mañana. Lo contratas desde la sección Seguros de IATOS.\n- **eSIM.** Sirve para llegar conectado, aunque es menos urgente.",
+  "cards": [
+   {
+    "type": "alert",
+    "title": "Seguro de viaje pendiente",
+    "body": "Tu viaje a Valle de Bravo sale el 30 de octubre y aún no tiene seguro contratado. Puedes hacerlo desde la sección Seguros de IATOS."
+   }
+  ],
+  "actions": [],
+  "tools": [],
+  "place_label": "Valle de Bravo",
+  "place_scope": "trip"
+ },
+ "d_gasto_1": {
+  "text": "No tengo un registro de gastos de este viaje en los datos que veo ahora, así que no puedo darte un total gastado con certeza.\n\nLo que sí veo es el **total estimado del viaje: 16,953 MXN** (cotización guardada, no gasto real). Si registraste gastos antes, como el café de 150 MXN que aparece en tus notas, dime y los reviso.",
+  "cards": [],
+  "actions": [],
+  "tools": [],
+  "place_label": "Valle de Bravo",
+  "place_scope": "trip"
+ },
+ "e_chofer_1": {
+  "text": "Para el viernes 30 de octubre, de CDMX a Valle de Bravo (2 viajeros, unas 2.2 h por carretera), lo atiende una persona del equipo IATOS, sujeta a disponibilidad. Te respondemos en la app (Concierge › Mis solicitudes) y por correo. El precio lo cotiza el equipo; no tengo una cifra.\n\nSi ya sabes la hora de recogida y el punto exacto en CDMX, dímelo y lo incluyo en la solicitud.",
+  "cards": [],
+  "actions": [
+   {
+    "id": "12aa3e44-935e-43a5-a2a4-a2d43b8c641b",
+    "type": "fixer_request",
+    "params": {
+     "tipo": "transport",
+     "titulo": "Chofer privado en Valle de Bravo",
+     "detalle": "CDMX a Valle de Bravo, viernes 30 de octubre de 2026 por la mañana, 2 viajeros. Ida. Confirmar hora de recogida y punto de origen en CDMX.",
+     "fecha": "2026-10-30",
+     "personas": 2,
+     "lugar": "Ciudad de México → Valle de Bravo",
+     "trip_id": "b5feaa3f-1bd8-4839-8ba4-b40919c81b67"
+    },
+    "summary": "Pedírselo a nuestro equipo: Chofer privado en Valle de Bravo",
+    "confirm_label": "Pedírselo a una persona del equipo",
+    "runs": "server",
+    "note": "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo. Aún no está reservado."
+   }
+  ],
+  "tools": [],
+  "place_label": "Valle de Bravo",
+  "place_scope": "trip"
+ },
+ "f_robo_1": {
+  "text": "Busco el hospital más cercano a tu ubicación. Lo primero es tu seguridad. Si estás herida o necesitas atención, el **Hospital de Jesús** (20 de Noviembre 82, Centro Histórico, a 412 m, abierto ahora, tel. +52 55 5542 6501, según Google Maps).\n\nDespués, en orden:\n- **Bloquea tus tarjetas** desde la app de American Express o con el número al reverso de cada una.\n- **Denuncia ante el Ministerio Público** o en la agencia más cercana. La denuncia te servirá para reportar el robo y reponer documentos.\n- **Documentos:** si perdiste tu INE o pasaporte, empieza la reposición cuanto antes. Si perdiste el pasaporte, el trámite va con la SRE.\n\nTe dejo el botón para que una persona del equipo IATOS te acompañe con los pasos y la reposición. La solicitud la verás en Concierge › Mis solicitudes y por correo.",
+  "cards": [
+   {
+    "type": "alert",
+    "title": "Robo de cartera en CDMX",
+    "body": "Bloquea tus tarjetas, denuncia ante el Ministerio Público y ve al Hospital de Jesús si lo necesitas."
+   },
+   {
+    "type": "place",
+    "title": "Hospital de Jesús",
+    "subtitle": "20 de Noviembre 82, Centro Histórico",
+    "meta": "Abierto ahora · a 412 m",
+    "body": "Tel. +52 55 5542 6501. Según Google Maps.",
+    "links": [
+     {
+      "kind": "directions",
+      "label": "Cómo llegar",
+      "url": "https://www.google.com/maps/dir/?api=1&destination=19.428919099999998%2C-99.13362049999999&destination_place_id=ChIJ_8Nhwe8BzoURPtuVNDQyjoY&travelmode=driving"
+     },
+     {
+      "kind": "ride",
+      "label": "Pedir Uber",
+      "url": "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff%5Blatitude%5D=19.428919099999998&dropoff%5Blongitude%5D=-99.13362049999999&dropoff%5Bnickname%5D=Hospital+de+Jes%C3%BAs&dropoff%5Bformatted_address%5D=20+de+Noviembre+82%2C+Centro+Hist%C3%B3rico+de+la+Cdad.+de+M%C3%A9xico%2C+Centro%2C+Cuauht%C3%A9moc%2C+06090+Ciudad+de+M%C3%A9xico%2C+CDMX%2C+M%C3%A9xico"
+     },
+     {
+      "kind": "call",
+      "label": "Llamar",
+      "url": "tel:+525555426501"
+     },
+     {
+      "kind": "website",
+      "label": "Sitio oficial",
+      "url": "https://www.hospitaldejesus.com.mx/"
+     },
+     {
+      "kind": "maps",
+      "label": "Ver en Google Maps",
+      "url": "https://maps.google.com/?cid=9695742247577180990&g_mp=Cilnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaE5lYXJieRACGAQgAA"
+     }
+    ],
+    "place_id": "ChIJ_8Nhwe8BzoURPtuVNDQyjoY",
+    "lat": 19.428919099999998,
+    "lng": -99.13362049999999,
+    "cta_action": "https://maps.google.com/?cid=9695742247577180990&g_mp=Cilnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaE5lYXJieRACGAQgAA",
+    "cta_label": "Ver en Google Maps",
+    "fuente": "google_maps"
+   }
+  ],
+  "actions": [
+   {
+    "id": "a08af527-dd1e-41c0-9586-dc49c489f9f5",
+    "type": "fixer_request",
+    "params": {
+     "tipo": "other",
+     "titulo": "Robo de cartera en CDMX: apoyo con bloqueo y reposición de documentos",
+     "detalle": "Me robaron la cartera en la calle en Ciudad de México. Necesito apoyo con bloqueo de tarjetas, denuncia y reposición de documentos antes del viaje a Valle de Bravo del 30 de octubre.",
+     "lugar": "Ciudad de México",
+     "trip_id": "b5feaa3f-1bd8-4839-8ba4-b40919c81b67"
+    },
+    "summary": "Pedírselo a nuestro equipo: Robo de cartera en CDMX: apoyo con bloqueo y reposición de documentos",
+    "confirm_label": "Pedírselo a una persona del equipo",
+    "runs": "server",
+    "note": "La atiende una persona del equipo IATOS; verás su respuesta en la app y por correo."
+   },
+   {
+    "id": "6ab947bc-f542-4e02-9196-4ff4e4befc6d",
+    "type": "open_emergency",
+    "params": {},
+    "summary": "Ver números de emergencia y el hospital más cercano",
+    "confirm_label": "Abrir emergencia",
+    "runs": "client"
+   }
+  ],
+  "tools": [
+   "search_nearby"
+  ],
+  "place_label": "Valle de Bravo",
+  "place_scope": "trip"
+ },
+ "_fuente": "Respuestas reales de producción (traveliatos.life, main 7d5b2c4), 29-oct-2026 06:20–06:23 hora CDMX, cuenta demo, auditoria10/r95-chat/out/*.sse.txt"
+}

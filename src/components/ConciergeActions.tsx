@@ -1,3 +1,4 @@
+import { emergencyCallButtons } from "@/lib/emergencyCalls";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MapPin, Phone, Star, ExternalLink, Loader2, Car, Utensils, Siren, AlertCircle, Navigation, Clock } from "lucide-react";
@@ -277,10 +278,15 @@ export const ConciergeActions = ({
                     {emergency && (
                       <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3">
                         <div className="text-[10px] uppercase tracking-[0.2em] text-destructive font-bold mb-2">Llamada directa · {countryCode}</div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <a href={`tel:${emergency.medical}`} className="rounded-lg bg-destructive text-destructive-foreground py-2 text-center text-sm font-bold">🚑 {emergency.medical}</a>
-                          <a href={`tel:${emergency.police}`} className="rounded-lg bg-destructive text-destructive-foreground py-2 text-center text-sm font-bold">🚓 {emergency.police}</a>
-                          <a href={`tel:${emergency.fire}`} className="rounded-lg bg-destructive text-destructive-foreground py-2 text-center text-sm font-bold">🚒 {emergency.fire}</a>
+                        {/* Ola 9.5: un botón por número, con su nombre en palabras (antes 3 botones "911" iguales). */}
+                        <div className={`grid gap-2 ${emergencyCallButtons(emergency).length === 1 ? "grid-cols-1" : "grid-cols-2"}`} data-testid="emergency-calls">
+                          {emergencyCallButtons(emergency).map((b) => (
+                            <a key={b.number} href={`tel:${b.number}`} aria-label={`Llamar al ${b.number}: ${b.label}`}
+                              className="flex items-center justify-center gap-2 rounded-lg bg-destructive text-destructive-foreground px-2 py-2 text-center text-sm font-bold min-h-[44px]">
+                              <Phone className="w-4 h-4 shrink-0" aria-hidden="true" />
+                              <span>Llamar al {b.number}<span className="block text-[10px] font-medium opacity-90">{b.label}</span></span>
+                            </a>
+                          ))}
                         </div>
                       </div>
                     )}

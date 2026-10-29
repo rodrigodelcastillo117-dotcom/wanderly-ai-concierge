@@ -170,13 +170,15 @@ describe("N4-P2-9 · el selector de viaje no se corta", () => {
     expect(compactTripLabel(TRIPS[2])).toBe("Budapest · 29 dic–3 ene 27");
     expect(compactTripLabel(TRIPS[1]).length).toBeLessThan("Oaxaca (15 ene al 18 ene)".length);
   });
-  it("en el celular el texto de quién eligió el viaje baja de renglón (el nombre del viaje tiene el ancho)", () => {
+  // Ola 9.5: ya no baja de renglón (el encabezado ocupaba 4); va al lado, recortado, y el nombre corto
+  // del viaje sigue completo.
+  it("en el celular el texto de quién eligió el viaje va al lado y se recorta (el nombre del viaje tiene el ancho)", () => {
     render(<TripContextSelector trips={TRIPS} todayLocal="2026-10-29" pinnedId="vb" followId="oax"
       resolved={{ trip: TRIPS[0], reason: "pinned", candidates: [TRIPS[0]] } as any} onChange={() => {}} />);
     const sel = screen.getByRole("combobox", { name: "Viaje en contexto" }) as HTMLSelectElement;
     expect(sel.selectedOptions[0].textContent).toBe("Oaxaca · 15–18 ene");
-    expect(screen.getByTestId("trip-phase").className).toMatch(/basis-full sm:basis-auto/);
-    expect(screen.getByTestId("trip-context").className).toMatch(/flex-wrap/);
+    expect(screen.getByTestId("trip-phase").className).toMatch(/min-w-0 flex-1 truncate/);
+    expect(screen.getByTestId("trip-context").className).toMatch(/flex-nowrap/);
   });
 });
 

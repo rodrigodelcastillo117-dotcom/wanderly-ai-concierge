@@ -29,6 +29,17 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const isIso = (v: unknown): v is string => typeof v === "string" && ISO.test(v);
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
+/**
+ * Cielo del DÍA para Iato con la lluvia acumulada (ola 9.5): "chubascos" con 0.1 mm en todo el día se leía
+ * como un día lluvioso ("se esperan chubascos… lluvia de apenas 0.1 mm"). Con menos de 1 mm es "chubascos
+ * aislados"; la pantalla Clima no usa esta función.
+ */
+export function dayskyLabel(code: number, precipMm: number | null | undefined): string {
+  const label = skyLabel(code);
+  if (typeof precipMm === "number" && precipMm < 1 && (label === "chubascos" || label === "lluvia" || label === "lluvia ligera")) return "chubascos aislados";
+  return label;
+}
+
 /** Cielo en palabras a partir del código tipo WMO de metSymbolToCode. */
 export function skyLabel(code: number): string {
   if (code >= 95) return "tormenta";
@@ -89,7 +100,7 @@ export async function runWeather(args: Record<string, unknown>, d: WeatherDeps):
   const all = dailyFromMet(forecast, lng);
   const lastForecastDay = all.length ? all[all.length - 1].date : null;
   const days = all.filter((x) => x.date >= from && x.date <= to).map((x) => ({
-    fecha: x.date, dia: longDay(x.date), max_c: x.tmax, min_c: x.tmin, cielo: skyLabel(x.code), lluvia_mm: x.precipMm, viento_max_kmh: x.windKmh,
+    fecha: x.date, dia: longDay(x.date), max_c: x.tmax, min_c: x.tmin, cielo: dayskyLabel(x.code, x.precipMm), lluvia_mm: x.precipMm, viento_max_kmh: x.windKmh,
   }));
   const have = new Set(days.map((x) => x.fecha));
   const pending: string[] = [];

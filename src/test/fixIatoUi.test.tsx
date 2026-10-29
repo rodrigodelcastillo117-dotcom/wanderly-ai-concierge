@@ -169,11 +169,14 @@ describe("#12: la hoja de emergencia queda encima de la barra de abajo", () => {
 });
 
 describe("#20: encabezado del Concierge en el celular", () => {
-  it("título corto y ubicación/viaje en dos renglones", () => {
+  // Ola 9.5: el viaje, actualizar y memoria van en UN renglón y la ubicación en letra chica al final
+  // (antes ubicación y viaje en dos renglones más la pista en un tercero).
+  it("título corto; viaje en un renglón y la ubicación aparte, recortada (sin cortar el viaje)", () => {
     expect(readFileSync("src/components/concierge/ConciergeHeading.tsx", "utf8")).toMatch(/sm:hidden" data-testid="concierge-title-short">Iato te escucha/);
     const src = readFileSync("src/pages/Concierge.tsx", "utf8");
-    expect(src).toMatch(/flex flex-wrap sm:flex-nowrap items-center[^"]*" data-testid="concierge-context"/);
-    expect(src).toMatch(/flex min-w-0 basis-full sm:basis-auto/);
+    expect(src).toMatch(/flex flex-nowrap items-center[^"]*" data-testid="concierge-context"/);
+    expect(src.match(/<LocationLine /g)).toHaveLength(1);
+    expect(src).toMatch(/<span className="truncate">\{label\}<\/span>/);
   });
 });
 
