@@ -53,6 +53,7 @@ import { runEventSearch } from "./events.ts";
 import { ticketmasterFor } from "../_shared/ticketmasterRuntime.ts";
 import { runViatorSearch, viatorConfig } from "../_shared/viator.ts";
 import { executeAction } from "./actionExec.ts";
+import { withLocalStamp } from "../_shared/localTime.ts";
 import { type AiResRow, aiReservationsForPrompt, isDomesticTrip } from "./honesty.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
@@ -609,7 +610,7 @@ Deno.serve(async (req) => {
     });
 
     // Eventos "aquí" (turnPlace): la ubicación física con permiso; si pidió otra ciudad, esa ciudad.
-    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null });
+    const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null, tz: today.tz ?? null });
 
     const runTurn = async () => {
       const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
@@ -731,7 +732,13 @@ function sseOnce(events: ConciergeStreamEvent[]): Response {
 
 // ═══ Herramientas reales ═══
 
-function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null }) {
+function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null }) {
+  // Toda herramienta con hora de consulta la entrega también ya escrita en la zona del usuario (N2).
+  const run = makeRawExecTool(c);
+  return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => withLocalStamp(await run(name, rawArgs), c.tz);
+}
+
+function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null }) {
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => {
     const args = toolArgs(name, rawArgs ?? {}, { todayISO: c.todayISO, coords: c.coords });
     if (name === "search_prive") {
@@ -766,7 +773,7 @@ function makeExecTool(c: { supabase: any; authHeader: string; userId: string; pr
     if (name === "get_weather") {
       // Misma fuente que la pantalla Clima (MET Norway + NASA POWER); coordenadas de la tabla o de geocode.
       return runWeather(args, {
-        fetchImpl: fetch, timeoutMs: 4000,
+        fetchImpl: fetch, timeoutMs: 4000, userTz: c.tz ?? null,
         geocode: async (city) => {
           const r = await callFn("geocode", { address: city, language: "es" }, c.authHeader, 3000).catch(() => null);
           const x = Array.isArray(r?.json?.results) ? r!.json.results[0] : null;

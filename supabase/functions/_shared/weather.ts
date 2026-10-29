@@ -8,6 +8,7 @@
 // MET Norway desde un servidor exige identificarse con User-Agent (https://api.met.no/doc/TermsOfService)
 // y máximo 4 decimales; NASA POWER no pide llave. Cada respuesta lleva su fuente y la hora de consulta.
 import { cityAirports } from "./airports.ts";
+import { formatLocalStamp, longDay } from "./localTime.ts";
 import {
   approxOffsetHours, dailyFromMet, MES_LARGO, MET_ATTRIBUTION, type MetForecast, parsePowerClimatology, POWER_ATTRIBUTION, round4,
 } from "./weatherCore.ts";
@@ -20,6 +21,8 @@ export type WeatherDeps = {
   geocode?: (city: string) => Promise<{ lat: number; lng: number } | null>;
   now?: () => number;
   timeoutMs?: number;
+  /** Zona horaria del usuario (IANA): la hora de consulta se entrega ya escrita en ella (N2). */
+  userTz?: string | null;
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -86,7 +89,7 @@ export async function runWeather(args: Record<string, unknown>, d: WeatherDeps):
   const all = dailyFromMet(forecast, lng);
   const lastForecastDay = all.length ? all[all.length - 1].date : null;
   const days = all.filter((x) => x.date >= from && x.date <= to).map((x) => ({
-    fecha: x.date, max_c: x.tmax, min_c: x.tmin, cielo: skyLabel(x.code), lluvia_mm: x.precipMm, viento_max_kmh: x.windKmh,
+    fecha: x.date, dia: longDay(x.date), max_c: x.tmax, min_c: x.tmin, cielo: skyLabel(x.code), lluvia_mm: x.precipMm, viento_max_kmh: x.windKmh,
   }));
   const have = new Set(days.map((x) => x.fecha));
   const pending: string[] = [];
@@ -128,9 +131,12 @@ export async function runWeather(args: Record<string, unknown>, d: WeatherDeps):
   }
   return {
     ok: true, source: "met_norway", ciudad: city || null, lat: round4(lat), lng: round4(lng), coordenadas: coordSource,
-    rango: { desde: from, hasta: to }, consultado_at: consultadoAt, pronostico_actualizado: forecast?.updatedAt ?? null,
+    rango: { desde: from, hasta: to }, consultado_at: consultadoAt,
+    // Hora de consulta ya en la zona del usuario (o del destino si no se sabe la suya): el modelo la copia.
+    consultado_local: formatLocalStamp(consultadoAt, d.userTz) ?? formatLocalStamp(consultadoAt, "UTC"),
+    pronostico_actualizado: forecast?.updatedAt ?? null,
     pronostico: days, fuera_de_pronostico: fuera, ...(tipico.length ? { tipico } : {}),
-    fuentes, nota: notas.filter(Boolean).join(" ") || "Pronóstico de MET Norway: cita la fuente y la hora de consulta.",
+    fuentes, nota: [...notas.filter(Boolean), "Para la hora de consulta usa consultado_local tal cual (no conviertas consultado_at, que está en UTC) y para cada día usa su campo dia (el día de la semana ya está calculado)."].join(" ") || "Pronóstico de MET Norway: cita la fuente y la hora de consulta.",
   };
 }
 
