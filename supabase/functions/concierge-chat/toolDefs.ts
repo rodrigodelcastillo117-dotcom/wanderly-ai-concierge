@@ -28,6 +28,7 @@ export interface ToolDef {
 
 import { SEARCH_PRIVE_TOOL } from "./prive.ts";
 import { ADVISORY_TOOL_DEF } from "../_shared/advisoryTool.ts";
+import { RECLAMOS_TOOL_DEFS } from "../_shared/derechos/herramientas.ts";
 
 export const TOOL_DEFS: ToolDef[] = [
   {
@@ -241,6 +242,9 @@ export const TOOL_DEFS: ToolDef[] = [
     description: SEARCH_PRIVE_TOOL.function.description,
     input_schema: SEARCH_PRIVE_TOOL.function.parameters as unknown as ToolDef["input_schema"],
   },
+  // Derechos y reclamaciones del Operador IATOS (_shared/derechos/herramientas.ts). Solo registro: la lógica
+  // y las descripciones viven allá; el ejecutor está en index.ts (makeRawExecTool → runReclamosTool).
+  ...(RECLAMOS_TOOL_DEFS as unknown as ToolDef[]),
 ];
 
 export const TOOL_NAMES = TOOL_DEFS.map((t) => t.name);

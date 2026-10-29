@@ -256,3 +256,15 @@ verify_jwt = false
 # Reservas IA (pg_cron): recordatorio único y vencimientos; autenticación de cron interna
 [functions.ai-reservations-cron]
 verify_jwt = false
+
+# Reclamos (derechos del pasajero): el JWT se valida dentro de la función (falla cerrada); false solo por CORS.
+[functions.reclamos]
+verify_jwt = false
+
+# Reclamos: webhook de Resend Receiving (reclamos+/casos+); exige firma Svix (RECLAMOS_INBOUND_SECRET), falla cerrada
+[functions.reclamos-inbound]
+verify_jwt = false
+
+# Reclamos (pg_cron): recordatorio único y paso a "escalable"; autenticación de cron interna
+[functions.reclamos-cron]
+verify_jwt = false
