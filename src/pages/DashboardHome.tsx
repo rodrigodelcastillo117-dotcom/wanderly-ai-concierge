@@ -41,6 +41,7 @@ import { EXAMPLE_PROMPTS } from "@/lib/planDefaults";
 import { DashboardWrappedPromo } from "@/components/wrapped/WrappedPromo";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { afterCritical, beginCritical } from "@/lib/idleGate";
+import { shortTripName } from "@/lib/tripName";
 
 
 
@@ -563,7 +564,7 @@ const DashboardHome = () => {
                         captionPosition="bottom-left"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-display text-sm md:text-base truncate">{t.destino}{t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
+                        <p className="font-display text-sm md:text-base truncate">{shortTripName(t)}{t.pais_destino && shortTripName(t) !== t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
                         <p className="text-[11px] text-muted-foreground tracking-wide">
                           {formatLocalDate(t.fecha_salida, { day: "numeric", month: "short", year: "numeric" })}
                         </p>

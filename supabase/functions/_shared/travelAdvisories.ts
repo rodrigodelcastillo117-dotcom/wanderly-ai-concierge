@@ -16,6 +16,7 @@
 //   - Caché compartida (public.serp_cache vía CacheStore): fuentes 6 h por país; traducción 7 días por
 //     país + versión de las fuentes (si GOV.UK o State Dept actualizan, la traducción se rehace).
 import { countryIso } from "./booking/channels.ts";
+import { SRE_GUIA_URL } from "./sre.ts";
 import { cityAirports } from "./airports.ts";
 import { type CacheRow, type CacheStore, cacheKey, freshnessOf } from "./serpCache.ts";
 
@@ -31,7 +32,7 @@ export const GOVUK_API = "https://www.gov.uk/api/content/foreign-travel-advice";
 export const GOVUK_WEB = "https://www.gov.uk/foreign-travel-advice";
 export const STATE_API = "https://cadataapi.state.gov/api/TravelAdvisories";
 /** No se encontró un patrón estable de ficha por país (el sitio no fue accesible al construir esto). */
-export const SRE_URL = "https://guiadelviajero.sre.gob.mx/";
+export const SRE_URL = SRE_GUIA_URL;
 
 export const SRE_LINK = {
   fuente: "sre" as const,

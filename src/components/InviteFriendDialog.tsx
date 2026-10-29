@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { UserPlus, Check, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -102,10 +102,11 @@ export const InviteFriendDialog = ({ tripId, isOwner }: Props) => {
       <DialogContent className="max-w-md max-w-[92vw] bg-surface border-border">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Invitar al viaje</DialogTitle>
+          {/* Descripción accesible del diálogo (antes: advertencia de Radix en consola). */}
+          <DialogDescription className="text-sm text-muted-foreground">
+            Tus amigos invitados podrán ver y editar todo el viaje contigo.
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">
-          Tus amigos invitados podrán ver y editar todo el viaje contigo.
-        </p>
 
         {loading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Cargando amigos…</p>

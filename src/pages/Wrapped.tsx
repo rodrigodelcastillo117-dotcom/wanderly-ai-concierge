@@ -5,7 +5,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-r
 import { FileUp, Loader2, Plus, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { localISODate } from "@/lib/localDate";
+import { formatLocalDate, localISODate } from "@/lib/localDate";
 import { buildWrappedCards } from "@/lib/wrapped";
 import { loadWrapped, type WrappedClient, type WrappedLoad } from "@/lib/wrappedApi";
 import { defaultWrappedYear } from "@/lib/wrappedPromo";
@@ -96,16 +96,24 @@ export default function Wrapped() {
     );
   }
 
-  const { stats, years } = state.data;
+  const { stats, years, upcoming } = state.data;
   if (!cards.length) {
     const others = years.filter((y) => y !== year);
+    const pending = upcoming?.count ?? 0;
     return (
       <Shell onClose={close}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary">IATOS Wrapped</p>
         <h1 className="mt-3 font-display text-4xl italic leading-tight">Tu {year} en viajes aún está por escribirse</h1>
-        <p className="mt-4 text-sm leading-relaxed text-[#F5EBDD]/70">
-          Todavía no hay viajes con fechas en {year}. Cuando viajes —o subas un viaje que ya hiciste— aquí verás tus países, kilómetros y mejores momentos.
+        <p className="mt-4 text-sm leading-relaxed text-[#F5EBDD]/70" data-testid="wrapped-vacio">
+          {pending > 0
+            ? `${pending === 1 ? "Tu viaje" : `Tus ${pending} viajes`} de ${year} todavía no ${pending === 1 ? "empieza" : "empiezan"}${upcoming?.first ? ` (${pending === 1 ? "sale" : "el primero sale"} el ${formatLocalDate(upcoming.first, { day: "numeric", month: "long" })})` : ""}. Tu resumen cuenta los viajes que ya empezaron: aquí verás tus países, kilómetros y mejores momentos en cuanto salgas.`
+            : `Todavía no tienes viajes que hayan empezado en ${year}. Cuando viajes —o subas un viaje que ya hiciste— aquí verás tus países, kilómetros y mejores momentos.`}
         </p>
+        {wantsVideo && (
+          <p className="mt-3 text-sm leading-relaxed text-[#F5EBDD]/70" data-testid="wrapped-video-espera">
+            Tu video se arma con las fotos de los viajes que ya empezaron este año. Tus fotos siguen guardadas en Recuerdos.
+          </p>
+        )}
         <div className="mt-7 flex flex-col gap-2">
           <Link to="/dashboard/planear" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C9A961] to-[#E8D5A0] px-6 text-sm font-bold text-[#0A0A0A]">
             <Plus className="h-4 w-4" aria-hidden="true" /> Planear un viaje
@@ -113,6 +121,11 @@ export default function Wrapped() {
           <Link to="/dashboard/viajes/importar" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-primary/40 px-6 text-sm font-semibold text-primary">
             <FileUp className="h-4 w-4" aria-hidden="true" /> Subir un viaje que ya hice
           </Link>
+          {wantsVideo && (
+            <Link to="/dashboard/recuerdos" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/15 px-6 text-sm font-semibold">
+              Volver a Recuerdos
+            </Link>
+          )}
         </div>
         {others.length > 0 && (
           <nav aria-label="Otros años" className="mt-8">

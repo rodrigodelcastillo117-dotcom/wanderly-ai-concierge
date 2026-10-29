@@ -18,6 +18,7 @@ import { RecuerdosCalendar } from "@/components/recuerdos/RecuerdosCalendar";
 import { RecuerdosViewer } from "@/components/recuerdos/RecuerdosViewer";
 import { AlbumDetail, AlbumGrid } from "@/components/recuerdos/RecuerdosAlbums";
 import { useSignedUrls } from "@/components/recuerdos/useSignedUrls";
+import { tripOptionLabel } from "@/lib/tripName";
 
 export const RECUERDOS_TABS = [
   { id: "calendario", label: "Calendario", icon: CalendarDays },
@@ -177,7 +178,7 @@ export default function Recuerdos({ client: injected }: { client?: RecuerdosClie
                     className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm sm:w-64 sm:flex-none">
                     <option value="todos">Todos</option>
                     <option value="sin-viaje">Sin viaje</option>
-                    {data.trips.map((t) => <option key={t.id} value={t.id}>{t.destino || "Viaje"}</option>)}
+                    {data.trips.map((t) => <option key={t.id} value={t.id}>{tripOptionLabel(t)}</option>)}
                   </select>
                 </div>
               )}

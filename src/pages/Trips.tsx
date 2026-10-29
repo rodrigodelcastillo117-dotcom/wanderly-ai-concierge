@@ -33,6 +33,7 @@ import { formatTripDateRange, localISODate } from "@/lib/localDate";
 import { formatPaid, PAID_LABEL } from "@/lib/tripImport";
 import { isBroughtTrip } from "@/lib/broughtTrip";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
+import { shortTripName } from "@/lib/tripName";
 
 // "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
@@ -42,6 +43,8 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
   const isShared = !!t.shared;
   const shownTotal = displayedTripTotal(t, t._quote ?? null);
+  // Nombre corto: si el destino guardado es la frase completa, lo que se entendió de ella.
+  const name = shortTripName(t);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -78,7 +81,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <button
-              aria-label={isShared ? `Salir del viaje a ${t.destino}` : `Eliminar viaje a ${t.destino}`}
+              aria-label={isShared ? `Salir del viaje a ${name}` : `Eliminar viaje a ${name}`}
               disabled={deleting}
               className="p-2 rounded-full bg-background/60 backdrop-blur hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition"
             >
@@ -90,8 +93,8 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
               <AlertDialogTitle>{isShared ? "¿Salir de este viaje?" : "¿Eliminar este viaje?"}</AlertDialogTitle>
               <AlertDialogDescription>
                 {isShared
-                  ? `Dejarás de ver "${t.destino}". El viaje no se borra: el dueño y los demás colaboradores lo conservan.`
-                  : `Esta acción no se puede deshacer. Se borrará "${t.destino}" con su diario, packing y gastos divididos.`}
+                  ? `Dejarás de ver "${name}". El viaje no se borra: el dueño y los demás colaboradores lo conservan.`
+                  : `Esta acción no se puede deshacer. Se borrará "${name}" con su diario, packing y gastos divididos.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -108,9 +111,9 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
         {/* Portada real del viaje (foto de Google guardada al cotizar); si no hay, una foto
             ilustrativa del destino marcada como tal. Se pide solo cuando la tarjeta se ve. */}
         <SmartImage
-          alt={t.destino}
+          alt={name}
           imageUrl={t.cover_image_url ?? null}
-          stockQuery={destinationQuery(t.destino, t.pais_destino)}
+          stockQuery={destinationQuery(name, t.pais_destino)}
           icon={MapPin}
           className="h-44 w-full"
           imgClassName="group-hover:scale-105"
@@ -120,7 +123,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
         </SmartImage>
         <div className="p-5">
           <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 pr-8">{tripCountryLabel(t)}</p>
-          <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition">{t.destino}</h3>
+          <h3 className="font-display text-2xl mb-2 group-hover:text-primary transition break-words">{name}</h3>
           {/* "listo" no distingue cotizado de reservado: se deriva de las reservas confirmadas. */}
           <div className="mb-3 flex items-center gap-2 flex-wrap">
             {t.fuente === "documento"

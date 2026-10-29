@@ -14,6 +14,7 @@ import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import DestinationVideo from "@/components/DestinationVideo";
 import { localISODate } from "@/lib/localDate";
+import { formatLocalDate } from "@/lib/localDate";
 
 const Ferries = () => {
   // ?trip=<id>: muestra a qué viaje se agrega y cada clic queda en bookings con ese trip_id (E-22).
@@ -207,7 +208,7 @@ const Ferries = () => {
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            {boatCity && !boatUrl ? "No reconocemos el país de ese destino: escribe una ciudad del catálogo (p. ej. Cancún, Ibiza, Mykonos)." : `Llega con: destino, fecha (${date || "elige una"}) y ${passengers} ${passengers === 1 ? "persona" : "personas"}.`}
+            {boatCity && !boatUrl ? "No reconocemos el país de ese destino: escribe una ciudad del catálogo (p. ej. Cancún, Ibiza, Mykonos)." : `Llega con: destino, fecha (${date ? formatLocalDate(date, { day: "numeric", month: "short", year: "numeric" }) : "elige una"}) y ${passengers} ${passengers === 1 ? "persona" : "personas"}.`}
           </p>
         </div>
       </div>

@@ -148,8 +148,9 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
 
       {open && (
         // En móvil el panel va fijo con margen a ambos lados: anclado a la campana (right-0, 340 px)
-        // se salía ~54 px por la izquierda a 390 px y cortaba el título.
-        <div className="fixed inset-x-3 top-[calc(max(env(safe-area-inset-top),0.5rem)+3rem)] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[340px] sm:max-w-[92vw] rounded-2xl border border-white/[0.06] bg-black/90 backdrop-blur-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.85)] overflow-hidden z-50">
+        // se salía ~54 px por la izquierda a 390 px y cortaba el título. Fondo negro sólido: con
+        // bg-black/90 + desenfoque dentro del encabezado (que ya desenfoca) se veía el contenido de atrás.
+        <div className="fixed inset-x-3 top-[calc(max(env(safe-area-inset-top),0.5rem)+3rem)] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[340px] sm:max-w-[92vw] rounded-2xl border border-white/[0.08] bg-black shadow-[0_20px_60px_-12px_rgba(0,0,0,0.85)] overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
             <p className="text-sm font-medium">Notificaciones</p>
             {unread > 0 && (

@@ -10,6 +10,8 @@ import { PlacePhoto } from "@/components/PlacePhoto";
 import { bestPlaceTypeLabel, placeFamily, priceLevelLabel } from "@/lib/placeLabels";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
 import { formatDateOnly } from "@/lib/dateUtils";
+import { distanceKm, distanceLabel } from "@/lib/takeMeThere";
+import { toastFunctionError } from "@/lib/functionErrors";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { Button } from "@/components/ui/button";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
@@ -17,6 +19,7 @@ import { ActiveTripPicker } from "@/components/ActiveTripPicker";
 import { TakeMeThereButton } from "@/components/concierge/TakeMeThereButton";
 import { LazyRestaurantBooking, OfficialTicketButtons } from "@/components/booking/RestaurantBookingButtons";
 import { matchOfficialTicket, ticketSummary } from "../../supabase/functions/_shared/officialTickets.ts";
+import { shortTripName } from "@/lib/tripName";
 
 declare global { interface Window { google: any; initMap?: () => void; } }
 
@@ -187,11 +190,14 @@ const Cercanos = () => {
       const { data, error } = await supabase.functions.invoke("nearby-places", {
         body: { lat: userLoc.lat, lng: userLoc.lng, radius: 2000, type: activeType, maxResults: 20 },
       });
-      if (error) throw error;
+      if (error) {
+        await toastFunctionError(error, "No pudimos cargar lugares cercanos. Intenta de nuevo en un momento.");
+        return;
+      }
       const raw = (data?.results ?? []) as NearbyPlace[];
       setRawPlaces(raw.filter((p) => typeof p.lat === "number" && typeof p.lng === "number"));
-    } catch (e: any) {
-      toast.error(e?.message ?? "No pudimos cargar lugares cercanos");
+    } catch {
+      toast.error("No pudimos cargar lugares cercanos. Intenta de nuevo en un momento.");
     } finally {
       setLoading(false);
     }
@@ -316,7 +322,7 @@ const Cercanos = () => {
           {activeTrip ? (
             <div className="text-right">
               <p className="text-xs text-primary tracking-[0.2em] uppercase">Viaje activo</p>
-              <p className="text-sm">{activeTrip.destino} · {formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
+              <p className="text-sm">{shortTripName(activeTrip)} · {formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
             </div>
           ) : active.resolved.reason === "ambiguous" ? (
             <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
@@ -362,7 +368,7 @@ const Cercanos = () => {
         {/* Lista de lugares: funciona aunque el mapa no cargue (el aviso del mapa lo promete) y
             con teclado/lector de pantalla, que no pueden usar los pines. */}
         {places.length > 0 && (
-          <ul className="mt-6 grid sm:grid-cols-2 gap-3" aria-label="Lugares cercanos">
+          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Lugares cercanos">
             {places.map((p) => {
               const price = priceLevelLabel(p.price_level);
               return (
@@ -385,6 +391,7 @@ const Cercanos = () => {
                       {price && <span>{price}</span>}
                       {p.open_now === true && <span className="text-emerald-400">Abierto ahora</span>}
                       {p.open_now === false && <span className="text-red-400">Cerrado</span>}
+                      {userLoc && <span data-testid="nearby-distance">{distanceLabel(distanceKm(userLoc, { lat: p.lat, lng: p.lng }))}</span>}
                     </p>
                     </span>
                   </button>
@@ -402,12 +409,15 @@ const Cercanos = () => {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setSelected(null); setShowRoute(false); }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:right-8 md:bottom-8 md:max-w-md max-h-[85vh] overflow-y-auto"
+              // Encima de la barra inferior (z-40) y con el área segura abajo: antes «Cómo llegar» y
+              // «Marcar como visitado» quedaban debajo de la barra y al tocarlos se abría «Viajes».
+              className="fixed inset-x-0 bottom-0 z-50 md:inset-x-auto md:right-8 md:bottom-8 md:max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain"
+              data-testid="nearby-sheet"
             >
               <div className="glass-card rounded-t-3xl md:rounded-3xl border border-primary/30 premium-shadow overflow-hidden">
                 <div className="relative">
@@ -419,7 +429,7 @@ const Cercanos = () => {
                     </div>
                   )}
                 </div>
-                <div className="p-6">
+                <div className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="min-w-0">
                       <p className="text-xs text-primary tracking-[0.2em] uppercase mb-1">
@@ -451,6 +461,7 @@ const Cercanos = () => {
                     {priceLevelLabel(selected.price_level) && <span>{priceLevelLabel(selected.price_level)}</span>}
                     {selected.open_now === true && <span className="text-emerald-400">Abierto ahora</span>}
                     {selected.open_now === false && <span className="text-red-400">Cerrado</span>}
+                    {userLoc && <span>{distanceLabel(distanceKm(userLoc, { lat: selected.lat, lng: selected.lng }))}</span>}
                   </div>
 
                   {selected.address && <p className="text-sm text-muted-foreground mb-4">{selected.address}</p>}

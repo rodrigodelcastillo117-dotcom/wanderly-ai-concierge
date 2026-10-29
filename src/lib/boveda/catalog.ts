@@ -401,6 +401,20 @@ export function curatedBenefits(programId: string | null | undefined, tierId: st
 
 export const NO_BENEFITS_COPY = "Agrega tus beneficios o consulta la fuente";
 
+export type BenefitsStatus = "verificados" | "propios" | "sin_verificar" | "ninguno";
+
+/**
+ * Estado honesto de los beneficios de una membresía, tarjeta o seguro (null para documentos):
+ * verificados (catálogo con fuente), propios (los escribió la persona), sin_verificar (sugeridos por IA)
+ * o ninguno. La tarjeta de cartera muestra "Sin beneficios verificados" en los dos últimos casos.
+ */
+export function benefitsStatus(item: { section: string; program_id: string | null; tier_id: string | null; benefits: readonly string[]; benefits_unverified?: boolean }): BenefitsStatus | null {
+  if (item.section === "documento") return null;
+  if (curatedBenefits(item.program_id, item.tier_id)) return "verificados";
+  if (item.benefits.length) return item.benefits_unverified ? "sin_verificar" : "propios";
+  return "ninguno";
+}
+
 /** Categoría del catálogo para un tipo de la bóveda (null = no hay catálogo, p. ej. documentos). */
 export function catalogCategoryForKind(kind: string): CatalogCategory | null {
   switch (kind) {

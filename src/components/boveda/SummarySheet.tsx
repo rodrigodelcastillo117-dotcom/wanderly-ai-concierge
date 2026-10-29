@@ -7,7 +7,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { buildSummaryPrompt } from "@/lib/boveda/aiSummary";
 import { fmtDate, upcomingTrips, type TripLite } from "@/lib/boveda/alerts";
 import { summarizeWithIato } from "@/lib/boveda/api";
+import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import type { VaultItem } from "@/lib/boveda/types";
+import { shortTripName } from "@/lib/tripName";
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void; items: VaultItem[]; trips: TripLite[] };
 
@@ -48,7 +50,7 @@ export function SummarySheet({ open, onOpenChange, items, trips }: Props) {
           <select id="vs-trip" value={tripId} onChange={(e) => { setTripId(e.target.value); setText(null); }}
             className="w-full h-11 rounded-xl bg-input border border-border px-3 text-sm">
             <option value="">Viajar en general</option>
-            {upcoming.map((t) => <option key={t.id} value={t.id}>{t.destino}{t.fecha_salida ? ` · ${fmtDate(t.fecha_salida)}` : ""}</option>)}
+            {upcoming.map((t) => <option key={t.id} value={t.id}>{shortTripName(t)}{t.fecha_salida ? ` · ${fmtDate(t.fecha_salida)}` : ""}</option>)}
           </select>
 
           <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-[12px] text-muted-foreground flex gap-2">
@@ -62,8 +64,9 @@ export function SummarySheet({ open, onOpenChange, items, trips }: Props) {
           {lines.length === 0 && <p className="text-xs text-muted-foreground">Agrega primero una membresía, tarjeta o seguro.</p>}
 
           {text && (
-            <article className="rounded-2xl border border-border/60 bg-surface/70 p-4 text-sm leading-relaxed whitespace-pre-wrap" aria-live="polite" data-testid="vault-summary">
-              {text}
+            // El modelo responde con Markdown: se muestra con formato (antes se veían «**Aeropuerto**» y «* …»).
+            <article className="rounded-2xl border border-border/60 bg-surface/70 p-4 text-sm leading-relaxed space-y-2" aria-live="polite" data-testid="vault-summary">
+              <SafeMarkdown text={text} />
             </article>
           )}
         </div>

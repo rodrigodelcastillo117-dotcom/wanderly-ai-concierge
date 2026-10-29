@@ -9,6 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { dateSourceLabel, dayLabel, sourceLabel, type RecuerdoItem, type RecuerdoTrip } from "@/lib/recuerdos/model";
+import { tripOptionLabel } from "@/lib/tripName";
 
 export function RecuerdosViewer({ items, index, onIndex, onClose, urlOf, trips, onFavorite, onMove, onDelete }: {
   items: RecuerdoItem[];
@@ -134,7 +135,7 @@ export function RecuerdosViewer({ items, index, onIndex, onClose, urlOf, trips, 
               <select id="recuerdo-move" value={it.tripId ?? ""} onChange={(e) => onMove(it, e.target.value || null)}
                 className="h-11 max-w-[11rem] rounded-full border border-white/20 bg-black px-3 text-sm text-[#F5EBDD]">
                 <option value="">Sin viaje</option>
-                {trips.map((t) => <option key={t.id} value={t.id}>{t.destino || "Viaje"}</option>)}
+                {trips.map((t) => <option key={t.id} value={t.id}>{tripOptionLabel(t)}</option>)}
               </select>
               <button type="button" className={`${ctrl} text-red-300`} onClick={() => setConfirm(true)}>
                 <Trash2 className="h-4 w-4" aria-hidden="true" /> Borrar

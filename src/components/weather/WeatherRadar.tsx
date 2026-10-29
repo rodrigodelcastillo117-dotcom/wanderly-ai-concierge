@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, Wind } from "lucide-react";
 import {
-  ATTRIBUTION, RADAR_ZOOM, baseTileUrl, bordersTileUrl, fetchNowcast, findLatestFrame, frameTimes, precipTileUrl, tileGrid,
+  ATTRIBUTION, RADAR_ZOOM, baseTileUrl, bordersTileUrl, fetchLatestFrame, fetchNowcast, findLatestFrame, frameTimes, precipTileUrl, tileGrid,
   windFromLabel, windVector, type Nowcast,
 } from "@/lib/weatherRadar";
 
@@ -45,7 +45,11 @@ export default function WeatherRadar({ city, lat, lng }: Props) {
   useEffect(() => {
     let alive = true;
     const { x, y } = grid.centerTile;
-    void findLatestFrame((t) => probeImage(precipTileUrl(t, RADAR_ZOOM, x, y))).then((latest) => {
+    // Primero lo que GIBS dice que ya publicó; solo si no responde, se prueba desde hace 6 h (IMERG llega
+    // con ~6 h de retraso: probar desde hace 3 h pedía cuadros que aún no existen).
+    void fetchLatestFrame()
+      .then((known) => known ?? findLatestFrame((t) => probeImage(precipTileUrl(t, RADAR_ZOOM, x, y)), new Date(), { minLagHours: 6, steps: 12 }))
+      .then((latest) => {
       if (!alive) return;
       if (!latest) { setStatus("sin_datos"); return; }
       const f = frameTimes(latest, FRAMES);

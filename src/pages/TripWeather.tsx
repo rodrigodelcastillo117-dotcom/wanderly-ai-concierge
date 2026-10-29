@@ -179,7 +179,7 @@ const TripWeather = () => {
                                 <Droplets className="w-2.5 h-2.5" />{d.precip} mm
                               </span>
                               <span className="flex items-center gap-0.5" title="Viento máximo (km/h)">
-                                <Wind className="w-2.5 h-2.5" />{d.wind}
+                                <Wind className="w-2.5 h-2.5" aria-hidden="true" />{d.wind} km/h
                               </span>
                             </div>
                           </div>

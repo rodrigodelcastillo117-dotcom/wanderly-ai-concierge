@@ -99,6 +99,44 @@ export async function findLatestFrame(probe: (time: string) => Promise<boolean>,
   return i >= 0 ? candidates[i] : null;
 }
 
+/**
+ * Último cuadro que GIBS ya publicó, según su DescribeDomains (rangos de tiempo disponibles de la capa).
+ * Antes se "adivinaba" probando 16 medias horas desde hace 3 h, y como IMERG llega con ~6 h de retraso
+ * la mitad respondía 404 y el navegador lo marcaba en rojo (auditoría 10/10, P2-11). Así no se pide
+ * ningún cuadro que no exista. Verificado el 28-oct-2026: responde 200 con CORS *, p. ej.
+ * <Domain>2026-10-27/2026-10-28T16:30:00Z/PT30M</Domain>.
+ */
+export function domainsUrl(now: Date = new Date()): string {
+  const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
+  const from = new Date(now.getTime() - 2 * 86400_000), to = new Date(now.getTime() + 3600_000);
+  return `${GIBS_BASE}/1.0.0/${PRECIP_LAYER}/default/GoogleMapsCompatible_Level6/all/${iso(from)}--${iso(to)}.xml`;
+}
+
+/** Fin más reciente de los rangos de <Domain> ("inicio/fin/PT30M,…" o fechas sueltas), alineado a 30 min. */
+export function latestFromDomains(xml: string): string | null {
+  const m = /<Domain>([^<]+)<\/Domain>/.exec(String(xml ?? ""));
+  if (!m) return null;
+  let best = -Infinity;
+  for (const part of m[1].split(",")) {
+    const pieces = part.trim().split("/");
+    const end = pieces.length >= 2 ? pieces[1] : pieces[0];
+    const t = Date.parse(/T/.test(end) ? end : `${end}T00:00:00Z`);
+    if (Number.isFinite(t) && t > best) best = t;
+  }
+  return Number.isFinite(best) ? floorHalfHour(new Date(best)) : null;
+}
+
+/** Último cuadro publicado (DescribeDomains). null si no se pudo saber (entonces se prueba con cuidado). */
+export async function fetchLatestFrame(fetchImpl: typeof fetch = fetch, now: Date = new Date()): Promise<string | null> {
+  try {
+    const r = await fetchImpl(domainsUrl(now));
+    if (!r.ok) return null;
+    return latestFromDomains(await r.text());
+  } catch {
+    return null;
+  }
+}
+
 export type NowcastHour = { time: string; precipMm: number | null };
 export type Nowcast = { windMs: number | null; windFromDeg: number | null; hours: NowcastHour[] };
 

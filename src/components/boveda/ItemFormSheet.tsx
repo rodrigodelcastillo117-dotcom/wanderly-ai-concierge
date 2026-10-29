@@ -173,7 +173,7 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                   <ArrowLeft className="w-4 h-4" aria-hidden="true" />
                 </button>
               )}
-              <SheetTitle className="font-display text-xl">{editing ? "Editar" : kind ? KIND_LABEL[kind] : "Agregar a tu bóveda"}</SheetTitle>
+              <SheetTitle className="font-display text-xl">{editing ? "Editar" : kind ? KIND_LABEL[kind] : "Agregar a Documentos y tarjetas"}</SheetTitle>
             </div>
             <SheetDescription className="text-xs flex items-center gap-1.5">
               <Lock className="w-3 h-3" aria-hidden="true" /> Privado: solo tú lo ves. No se comparte con la IA.
@@ -188,7 +188,10 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
                   <select id="vf-program" className={inputCls} value={form.program_id}
                     onChange={(e) => {
                       const p = getProgram(e.target.value);
-                      setForm((f) => ({ ...f, program_id: e.target.value, tier_id: "", tier: "", title: p ? p.name : f.title }));
+                      // Programa con un solo nivel (The Platinum Card: "Titular"): se elige solo. Antes quedaba
+                      // sin nivel y la tarjeta se guardaba sin sus beneficios verificados (auditoría 10/10, P2-5).
+                      const only = p && p.tiers.length === 1 ? p.tiers[0] : null;
+                      setForm((f) => ({ ...f, program_id: e.target.value, tier_id: only?.id ?? "", tier: only?.name ?? "", title: p ? p.name : f.title }));
                     }}>
                     <option value="">Otro (escríbelo)</option>
                     {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -317,7 +320,7 @@ export function ItemFormSheet({ open, editing, initialKind = null, defaultSectio
 
               <div className="sticky bottom-0 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-1 bg-gradient-to-t from-background via-background to-transparent">
                 <Button type="submit" disabled={saving || preparing} className="w-full h-12 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 font-semibold">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : editing ? "Guardar cambios" : "Guardar en mi bóveda"}
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : editing ? "Guardar cambios" : "Guardar"}
                 </Button>
               </div>
             </form>

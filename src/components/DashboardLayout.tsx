@@ -53,6 +53,8 @@ const links = [
   { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
   { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
+  // En el celular está en «Más»; en escritorio faltaba (auditoría 10/10, P2-2).
+  { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
   // Documentos, membresías, tarjetas y seguros (antes "Beneficios").
   { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
@@ -312,7 +314,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </main>
 
       {/* Barra inferior móvil: 5 elementos, etiquetas de 12px, áreas táctiles ≥44px */}
-      <nav aria-label="Navegación principal" className="lg:hidden fixed bottom-0 inset-x-0 z-50 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+      <nav aria-label="Navegación principal" className="lg:hidden fixed bottom-0 inset-x-0 z-40 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
         <div className="relative mx-2 rounded-[28px] border border-white/[0.06] bg-black/80 backdrop-blur-2xl shadow-[0_18px_60px_-12px_rgba(0,0,0,0.85)]">
           <div className="grid grid-cols-5 items-stretch px-1 py-1.5 gap-0.5">
             {[mobilePrimaryNav[0], mobilePrimaryNav[1]].map((n) => (

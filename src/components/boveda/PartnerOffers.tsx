@@ -27,7 +27,7 @@ export function PartnerOffers() {
         <span><span className="text-muted-foreground">Ofertas de socios</span> <span className="text-[11px] text-muted-foreground/80">· públicas, no exclusivas de IATOS</span></span>
         <ChevronDown className="w-4 h-4 text-muted-foreground transition group-open:rotate-180" aria-hidden="true" />
       </summary>
-      <div className="px-2 pb-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-1">
+      <div className="px-2 pb-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
         {OFFERS.map((o) => (
           <button key={o.name} type="button"
             onClick={() => ("category" in o

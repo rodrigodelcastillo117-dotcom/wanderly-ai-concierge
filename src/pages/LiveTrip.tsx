@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { BackButton } from "@/components/BackButton";
 import { formatLocalDate } from "@/lib/localDate";
+import { liveDay, startsInLabel } from "@/lib/liveDay";
+import { shortTripName } from "@/lib/tripName";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { useActiveTrip } from "@/hooks/useActiveTrip";
@@ -55,25 +57,11 @@ const LiveTrip = () => {
     })();
   }, [id, user]);
 
-  const { dayIndex, totalDays, todayDate, isFuture, isPast, todayPlan } = useMemo(() => {
-    if (!trip) return { dayIndex: 0, totalDays: 0, todayDate: new Date(), isFuture: false, isPast: false, todayPlan: null as any };
-    const start = trip.fecha_salida ? new Date(trip.fecha_salida + "T00:00:00") : new Date();
-    const end = trip.fecha_regreso ? new Date(trip.fecha_regreso + "T00:00:00") : start;
-    const today = new Date(); today.setHours(0,0,0,0);
-    const total = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-    const diff = Math.round((today.getTime() - start.getTime()) / 86400000);
-    const idx = Math.min(Math.max(diff, 0), total - 1);
-    const itin = trip.itinerario_json;
-    const days = Array.isArray(itin) ? itin : Array.isArray(itin?.days) ? itin.days : [];
-    return {
-      dayIndex: idx,
-      totalDays: total,
-      todayDate: today,
-      isFuture: today < start,
-      isPast: today > end,
-      todayPlan: days[idx] ?? null,
-    };
-  }, [trip]);
+  // Momento del viaje y plan del día (src/lib/liveDay.ts): antes de empezar no hay "Día 1" ni "Hoy".
+  const live = useMemo(() => liveDay(trip), [trip]);
+  const isFuture = live.phase === "antes";
+  const isPast = live.phase === "terminado";
+  const todayDate = new Date();
 
   if (loading) {
     return (
@@ -92,7 +80,7 @@ const LiveTrip = () => {
   }
 
   const emergency = getEmergency(trip.pais_destino);
-  const acts: any[] = todayPlan?.actividades ?? todayPlan?.plan ?? [];
+  const name = shortTripName(trip);
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
@@ -107,7 +95,7 @@ const LiveTrip = () => {
       {/* Hero cinematic */}
       <div className="relative h-[42vh] min-h-[320px] w-full overflow-hidden">
         <DestinationVideo
-          query={`${trip.destino} cinematic travel aerial luxury`}
+          query={`${name} cinematic travel aerial luxury`}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-background" />
@@ -121,10 +109,15 @@ const LiveTrip = () => {
               <Sparkles className="w-3 h-3" /> Modo Viaje en Vivo
             </motion.div>
             <h1 className="text-3xl md:text-5xl font-serif text-white drop-shadow-lg leading-tight">
-              {trip.destino}
+              {name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-white/85 text-sm">
-              <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Día {dayIndex + 1} de {totalDays}</span>
+              <span className="inline-flex items-center gap-1.5" data-testid="live-day">
+                <Calendar className="w-3.5 h-3.5" />
+                {live.phase === "en_curso" && live.dayNumber ? `Día ${live.dayNumber} de ${live.totalDays}`
+                  : live.phase === "antes" ? `${startsInLabel(live.daysUntil ?? 0)} · ${live.totalDays} ${live.totalDays === 1 ? "día" : "días"}`
+                  : `Terminó · ${live.totalDays} ${live.totalDays === 1 ? "día" : "días"}`}
+              </span>
               <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {trip.pais_destino ?? "—"}</span>
               {!active.loading && (isActiveTrip ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs">Tu viaje activo</span>
@@ -173,48 +166,49 @@ const LiveTrip = () => {
         </div>
 
 
-        {/* Hoy en tu viaje */}
-        <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 md:p-7">
+        {/* Hoy en tu viaje (en curso) o el primer día como adelanto (antes de empezar). Al terminar no hay "hoy". */}
+        {!isPast && (
+        <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 md:p-7" data-testid="live-today">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">Hoy</div>
-              <h2 className="text-2xl md:text-3xl font-serif mt-1">Tu día en {trip.destino.split(",")[0]}</h2>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">{isFuture ? "Tu primer día" : "Hoy"}</div>
+              <h2 className="text-2xl md:text-3xl font-serif mt-1">
+                {isFuture ? `Así empieza tu viaje a ${name.split(",")[0]}` : `Tu día en ${name.split(",")[0]}`}
+              </h2>
             </div>
             <div className="text-right text-xs text-foreground/60 hidden sm:block">
-              {todayDate.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" })}
+              {isFuture
+                ? formatLocalDate(trip.fecha_salida, { weekday: "long", day: "numeric", month: "long" })
+                : todayDate.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" })}
             </div>
           </div>
 
-          {todayPlan ? (
+          {live.hasPlan ? (
             <div className="space-y-3">
-              {todayPlan.titulo && (
-                <div className="text-foreground/80 italic">{todayPlan.titulo}</div>
+              {live.title && (
+                <div className="text-foreground/80 italic">{live.title}</div>
               )}
-              {acts.length > 0 ? (
+              {live.slots.length > 0 ? (
                 <ul className="space-y-2.5">
-                  {acts.map((a: any, i: number) => {
-                    const text = typeof a === "string" ? a : (a.actividad ?? a.titulo ?? a.descripcion ?? JSON.stringify(a));
-                    const hora = typeof a === "object" ? (a.hora ?? a.horario ?? null) : null;
-                    return (
-                      <li key={i} className="flex gap-3 p-3 rounded-xl bg-black/30 border border-white/[0.04]">
-                        <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                          {i + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {hora && <div className="text-[11px] text-primary/80 font-semibold mb-0.5">{hora}</div>}
-                          <div className="text-sm text-foreground/90">{text}</div>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {live.slots.map((a, i) => (
+                    <li key={i} className="flex gap-3 p-3 rounded-xl bg-black/30 border border-white/[0.04]">
+                      <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {(a.label || a.hora) && <div className="text-[11px] text-primary/80 font-semibold mb-0.5">{[a.label, a.hora].filter(Boolean).join(" · ")}</div>}
+                        <div className="text-sm text-foreground/90">{a.text}</div>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               ) : (
-                <div className="text-sm text-foreground/60">Tu día está libre. Aprovecha para explorar.</div>
+                <div className="text-sm text-foreground/60">Este día no tiene actividades en tu itinerario. Pídele ideas al Concierge.</div>
               )}
             </div>
           ) : (
             <div className="text-sm text-foreground/60">
-              No hay un plan detallado para hoy. Pídele uno al Concierge.
+              {isFuture ? "Tu itinerario todavía no tiene el plan del primer día. Pídele uno al Concierge." : "No hay un plan detallado para hoy. Pídele uno al Concierge."}
             </div>
           )}
 
@@ -227,6 +221,7 @@ const LiveTrip = () => {
             </Button>
           </div>
         </section>
+        )}
 
         {/* Accesos rápidos a info del viaje */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

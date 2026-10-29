@@ -1,12 +1,13 @@
 import { ExternalLink, Sparkles } from "lucide-react";
 import { provenanceOf } from "@/lib/provenance";
+import { SRE_GUIA_URL } from "../../supabase/functions/_shared/sre.ts";
 
 // Datos generados por IA (E-27): visa, seguridad y costos del comparador venían directo del
 // modelo y se mostraban como hechos. Todo lo que sale de la IA lleva la misma etiqueta de
 // procedencia que los precios ("Estimado por IA") y, para trámites, el enlace a la fuente oficial.
 
 /** Guía del Viajero de la SRE: requisitos de visa y alertas por país para mexicanos. */
-export const SRE_GUIA_VIAJERO_URL = "https://guiadelviajero.sre.gob.mx/";
+export const SRE_GUIA_VIAJERO_URL = SRE_GUIA_URL;
 
 const AI = provenanceOf({ source: "ia" });
 

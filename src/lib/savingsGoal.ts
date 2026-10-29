@@ -39,6 +39,7 @@ export type GoalResult = {
   /** Meses en que se reparte el ahorro (mínimo 1: si sale este mes, hay que tenerlo ya). */
   mesesAhorro: number;
   mensual: number;
+  /** Lo mismo que `mensual`, por semana (mensual × 12 / 52). */
   semanal: number;
   /** Avance de 0 a 1 (ahorrado / costo). */
   avance: number;
@@ -65,9 +66,9 @@ export function computeGoal({ costMxn, savedMxn, dateISO, now = new Date() }: Go
   const meses = monthsUntil(fecha, now);
   const mesesAhorro = Math.max(1, meses);
   const mensual = faltante / mesesAhorro;
-  const dias = Math.max(1, Math.round((fecha.getTime() - hoy.getTime()) / 86_400_000));
-  const semanas = Math.max(1, Math.floor(dias / 7));
-  const semanal = faltante / semanas;
+  // Mismo plan que el mensual, contado por semana (un mes = 52/12 semanas). Antes se dividía el faltante
+  // entre las semanas hasta la salida y no cuadraba con "X al mes durante N meses" (auditoría 10/10, P2-9).
+  const semanal = (mensual * 12) / 52;
 
   const calendario: GoalResult["calendario"] = [];
   for (let i = 1; i <= Math.min(mesesAhorro, 24); i++) {

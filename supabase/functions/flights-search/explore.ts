@@ -26,7 +26,7 @@ export const EXPLORE_MAX_RESULTS = 40;
 export const EXPLORE_NOTA_PRECIO =
   "Precio de referencia por persona, ida y vuelta en clase turista, según Google (Explorar). Se vuelve a consultar antes de comprar.";
 export const EXPLORE_SIN_CACHE = (origen: string) =>
-  `Aún no hay precios guardados desde ${origen}. Pulsa "Explorar destinos" para consultarlos.`;
+  `Aún no hay precios guardados desde ${origen}. Pulsa "Buscar precios" para consultarlos.`;
 
 export type ExploreEnv = {
   serpKey?: string | null;

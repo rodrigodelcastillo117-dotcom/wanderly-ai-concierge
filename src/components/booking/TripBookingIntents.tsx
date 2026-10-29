@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { bridge } from "@/lib/bookingBridgeApi";
 import { intentStatusText } from "@/lib/booking";
@@ -85,7 +85,7 @@ export function TripBookingIntents({ tripId }: { tripId: string }) {
       </ul>
       <Dialog open={!!proof} onOpenChange={(v) => !v && setProof(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Registrar mi reserva</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Registrar mi reserva</DialogTitle><DialogDescription>Anota la reserva que ya hiciste con el proveedor para tenerla en tu viaje.</DialogDescription></DialogHeader>
           {proof && <ProofForm intentId={proof} tripId={tripId} onDone={() => { setProof(null); void load(); }} />}
         </DialogContent>
       </Dialog>

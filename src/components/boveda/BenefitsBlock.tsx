@@ -54,7 +54,7 @@ export function BenefitsBlock({ item, onAdd }: { item: Pick<VaultItem, "program_
           {item.benefits_unverified && (
             <p className="mb-1.5 text-[11px] text-amber-300 flex items-start gap-1.5">
               <TriangleAlert className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden="true" />
-              Sugeridos por IA en tu bóveda anterior, sin verificar: confírmalos con tu banco o programa.
+              Sugeridos por IA en la versión anterior de Documentos y tarjetas, sin verificar: confírmalos con tu banco o programa.
             </p>
           )}
           <ul className="space-y-1.5">

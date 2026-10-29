@@ -64,6 +64,19 @@ export function formatInstant(
   return Number.isFinite(d.getTime()) ? d.toLocaleDateString(locale, options) : "—";
 }
 
+/**
+ * Fecha de una reserva (bookings.start_at). La app guarda ahí fechas de calendario ("2027-03-10") en una
+ * columna con zona, que quedan como medianoche UTC ("2027-03-10T00:00:00+00:00"); con formatInstant en
+ * México se veían un día antes (9/3/2027, auditoría 10/10 P1-8). Medianoche UTC exacta = fecha de
+ * calendario; cualquier otra hora es un instante real y se pasa a la hora local.
+ */
+export function formatBookingDate(value?: string | null, options: Intl.DateTimeFormatOptions = {}, locale = "es-MX"): string {
+  const v = String(value ?? "").trim();
+  if (!v) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v) || /^\d{4}-\d{2}-\d{2}[T ]00:00(:00(\.0+)?)?(Z|[+-]00(:?00)?)$/.test(v)) return formatLocalDate(v.slice(0, 10), options, locale);
+  return formatInstant(v, options, locale);
+}
+
 /** Días de calendario entre dos fechas (fin - inicio). 0 si falta alguna. */
 export function diffLocalDays(start?: string | null, end?: string | null): number {
   const s = parseLocalDate(start);

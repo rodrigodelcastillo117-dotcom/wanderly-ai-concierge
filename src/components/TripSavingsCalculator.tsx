@@ -8,6 +8,7 @@ import { useFxTable } from "@/hooks/useFxTable";
 import { computeGoal } from "@/lib/savingsGoal";
 import { estimateTripCost, regionOf, REGIONS, type Region } from "@/lib/tripEstimate";
 import { localISODate, parseLocalDate } from "@/lib/localDate";
+import { shortTripName } from "@/lib/tripName";
 
 export type Trip = {
   id: string;
@@ -288,7 +289,7 @@ export const TripSavingsCalculator = () => {
               {trips.map((t) => (
                 <button key={t.id} type="button" onClick={() => linkTrip(plan.tripId === t.id ? null : t)} aria-pressed={plan.tripId === t.id}
                   className={`snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs transition ${plan.tripId === t.id ? "bg-gradient-gold text-primary-foreground border-transparent" : "border-primary/25 text-foreground/85 hover:border-primary/50"}`}>
-                  <Plane className="w-3 h-3" aria-hidden="true" /> {t.destino} · {shortDate(t.fecha_salida)}
+                  <Plane className="w-3 h-3" aria-hidden="true" /> {shortTripName(t)} · {shortDate(t.fecha_salida)}
                 </button>
               ))}
               <button type="button" onClick={() => linkTrip(null)} aria-pressed={!plan.tripId}

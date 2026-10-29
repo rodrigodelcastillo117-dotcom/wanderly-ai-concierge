@@ -148,7 +148,7 @@ const Benefits = () => {
       } catch { failed++; }
     }
     if (failed) toast.error(`Guardado, pero ${failed} archivo${failed === 1 ? "" : "s"} no se pudo subir.`);
-    else toast.success(id ? "Cambios guardados" : "Guardado en tu bóveda");
+    else toast.success(id ? "Cambios guardados" : "Guardado en Documentos y tarjetas");
     setFormOpen(false);
     setEditing(null);
     if (saved.section !== tab) setTab(saved.section);
@@ -187,7 +187,7 @@ const Benefits = () => {
       setDetailId(null);
       setItems((l) => l.filter((x) => x.id !== detail.id));
       setFiles((l) => l.filter((x) => x.item_id !== detail.id));
-      toast.success("Borrado de tu bóveda");
+      toast.success("Borrado de Documentos y tarjetas");
     } catch { toast.error("No pudimos borrarlo. Intenta de nuevo."); }
   };
 
@@ -227,7 +227,7 @@ const Benefits = () => {
 
         <AlertsPanel alerts={alerts} onOpenItem={(id) => setDetailId(id)} />
 
-        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-surface/80 border border-border/60 p-1" role="tablist" aria-label="Secciones de tu bóveda">
+        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-surface/80 border border-border/60 p-1" role="tablist" aria-label="Secciones de Documentos y tarjetas">
           {VAULT_SECTIONS.map((s) => (
             <button key={s} type="button" role="tab" aria-selected={tab === s} onClick={() => setTab(s)}
               className={`h-10 rounded-xl text-[12px] sm:text-[13px] font-medium transition flex items-center justify-center gap-1 ${tab === s ? "bg-primary text-primary-foreground shadow-[0_6px_18px_-8px_hsl(41_47%_59%/.7)]" : "text-muted-foreground hover:text-foreground"}`}>
@@ -241,7 +241,7 @@ const Benefits = () => {
           <div className="flex gap-2">
             <label className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar" aria-label="Buscar en tu bóveda" type="search"
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar" aria-label="Buscar en tus documentos y tarjetas" type="search"
                 className="w-full h-10 rounded-xl bg-surface border border-border/60 pl-9 pr-3 text-sm focus:outline-none focus:border-primary/60" />
             </label>
             <label className="relative">
@@ -261,7 +261,7 @@ const Benefits = () => {
             {[0, 1, 2].map((i) => <div key={i} className={`relative h-[212px] rounded-[22px] bg-surface border border-border/40 animate-pulse ${i ? STACK_OVERLAP : ""}`} />)}
           </div>
         ) : unavailable ? (
-          <p className="text-sm text-muted-foreground rounded-2xl border border-border/60 p-4">Tu bóveda todavía no está disponible en este ambiente.</p>
+          <p className="text-sm text-muted-foreground rounded-2xl border border-border/60 p-4">Documentos y tarjetas todavía no está disponible en este ambiente.</p>
         ) : visible.length === 0 ? (
           query ? (
             <p className="text-sm text-muted-foreground py-6 text-center">Nada coincide con «{query}» en {SECTION_LABEL[tab].toLowerCase()}.</p>
@@ -294,10 +294,10 @@ const Benefits = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
           <p className="flex items-start gap-1.5"><Lock className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
-            Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA.</p>
+            Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA: para resúmenes y promociones, Iato solo usa el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</p>
           {items.length > 0 && (
             <button type="button" onClick={exportJson} className="inline-flex items-center gap-1 hover:text-foreground self-start sm:self-auto">
-              <Download className="w-3 h-3" aria-hidden="true" /> Descargar mi bóveda (JSON)
+              <Download className="w-3 h-3" aria-hidden="true" /> Descargar mis documentos y tarjetas (JSON)
             </button>
           )}
         </div>

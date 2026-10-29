@@ -22,7 +22,7 @@ const BenefitsVault = () => {
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Link to="/dashboard/beneficios" aria-label="Abrir mi bóveda"
+    <Link to="/dashboard/beneficios" aria-label="Abrir Documentos y tarjetas"
       className="group block rounded-2xl gold-border glass-card p-5 hover:border-primary/60 transition">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">

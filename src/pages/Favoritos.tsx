@@ -3,6 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Heart, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { favoriteHref, favoriteKindLabel } from "@/lib/favorites";
 import { logInsight } from "@/lib/insights";
 import { motion } from "framer-motion";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -16,6 +18,7 @@ type Reco = {
   tipo: string | null;
   imagen_url: string | null;
   match_score: number | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 const Favoritos = () => {
@@ -54,7 +57,7 @@ const Favoritos = () => {
           <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">
             <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2">Curaduría personal</p>
             <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Favoritos</h1>
-            <p className="text-xs md:text-sm text-white/70 mt-1.5">Tus destinos y experiencias guardadas — el AI aprende de cada uno.</p>
+            <p className="text-xs md:text-sm text-white/70 mt-1.5">Tus destinos y lugares guardados. Iato los toma en cuenta para recomendarte.</p>
           </div>
         </section>
 
@@ -65,15 +68,11 @@ const Favoritos = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
-            {items.map((it, i) => (
-              <motion.div
-                key={it.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="relative glass-card rounded-2xl overflow-hidden group"
-              >
-                <div className="relative aspect-[4/5]">
+            {items.map((it, i) => {
+              const href = favoriteHref(it);
+              const label = favoriteKindLabel(it.tipo);
+              const body = (
+                <>
                   {/* La imagen guardada; si no hay, una ilustrativa del destino. Las de Pexels van marcadas. */}
                   <SmartImage
                     alt={it.titulo ?? ""}
@@ -86,23 +85,41 @@ const Favoritos = () => {
                     captionClassName={it.match_score ? "top-12 left-3" : "top-3 left-3"}
                   />
                   <div className="absolute inset-0 bg-gradient-overlay" />
-                  <button onClick={() => unsave(it)} aria-label="Quitar de favoritos"
-                    className="absolute top-3 right-3 p-2 rounded-full bg-background/70 backdrop-blur hover:bg-destructive/80 transition">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                  {it.match_score && (
+                  {it.match_score ? (
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
-                      {it.match_score}% match
+                      {it.match_score}% afín a ti
                     </div>
-                  )}
+                  ) : null}
                   <div className="absolute bottom-4 left-4 right-4">
-                    {it.tipo && <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{it.tipo}</p>}
-                    <h3 className="font-display text-2xl">{it.titulo}</h3>
+                    {label && <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{label}</p>}
+                    <h3 className="font-display text-xl md:text-2xl break-words">{it.titulo}</h3>
                     {it.descripcion && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{it.descripcion}</p>}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </>
+              );
+              return (
+                <motion.div
+                  key={it.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="relative glass-card rounded-2xl overflow-hidden group"
+                >
+                  {/* La tarjeta abre el destino (planear un viaje ahí) o el lugar en Google Maps. */}
+                  {href?.internal ? (
+                    <Link to={href.url} className="relative block aspect-[4/5]" aria-label={href.label} data-testid="favorito-abrir">{body}</Link>
+                  ) : href ? (
+                    <a href={href.url} target="_blank" rel="noopener noreferrer" className="relative block aspect-[4/5]" aria-label={href.label} data-testid="favorito-abrir">{body}</a>
+                  ) : (
+                    <div className="relative aspect-[4/5]">{body}</div>
+                  )}
+                  <button onClick={() => unsave(it)} aria-label={it.titulo ? `Quitar ${it.titulo} de favoritos` : "Quitar de favoritos"}
+                    className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/70 backdrop-blur hover:bg-destructive/80 transition">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

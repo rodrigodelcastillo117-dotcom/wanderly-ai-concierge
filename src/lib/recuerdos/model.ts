@@ -40,7 +40,7 @@ export type RecuerdoItem = {
   durationS?: number | null;
 };
 
-export type RecuerdoTrip = { id: string; destino: string | null; fecha_salida: string | null; fecha_regreso: string | null; mine?: boolean };
+export type RecuerdoTrip = { id: string; destino: string | null; pais_destino?: string | null; fecha_salida: string | null; fecha_regreso: string | null; mine?: boolean };
 
 // ───────────────────────── fechas ─────────────────────────
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;

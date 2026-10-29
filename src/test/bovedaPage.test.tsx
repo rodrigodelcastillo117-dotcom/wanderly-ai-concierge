@@ -112,7 +112,7 @@ describe("Bóveda · página", () => {
   it("pestañas Documentos · Membresías · Tarjetas · Seguros con conteos", async () => {
     renderPage();
     await screen.findByRole("button", { name: "Abrir Pasaporte mexicano" });
-    const tabs = screen.getByRole("tablist", { name: "Secciones de tu bóveda" });
+    const tabs = screen.getByRole("tablist", { name: "Secciones de Documentos y tarjetas" });
     expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Documentos1", "Membresías", "Tarjetas1", "Seguros"]);
     fireEvent.click(within(tabs).getByRole("tab", { name: /Tarjetas/ }));
     const card = await screen.findByRole("button", { name: "Abrir The Platinum Card" });

@@ -77,6 +77,8 @@ export type FriendProfileData = {
 export type FriendProfileResult =
   | { status: "ok"; data: FriendProfileData }
   | { status: "privado" }
+  /** El perfil no existe (enlace roto o id inventado): antes se decía "es privado". */
+  | { status: "no_existe" }
   | { status: "eres_tu" }
   | { status: "error" };
 

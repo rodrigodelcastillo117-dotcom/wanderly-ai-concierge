@@ -78,6 +78,20 @@ function PrivateProfile() {
   );
 }
 
+function MissingProfile() {
+  return (
+    <div className="px-4 md:px-10 py-16 md:py-24 max-w-xl mx-auto text-center animate-fade-up" data-testid="friend-missing">
+      <h1 className="font-display text-3xl md:text-4xl mb-3">Este perfil no existe</h1>
+      <p className="text-muted-foreground text-sm md:text-base mb-8">
+        Puede que el enlace esté incompleto o que la cuenta ya no exista. Tus amigos están en Social.
+      </p>
+      <Button asChild className="bg-gradient-gold text-primary-foreground gold-glow">
+        <Link to="/dashboard/social">Volver a Social</Link>
+      </Button>
+    </div>
+  );
+}
+
 function ProfileSkeleton() {
   return (
     <div className="animate-pulse" data-testid="friend-loading" aria-busy="true">
@@ -139,7 +153,7 @@ export default function FriendProfile() {
     setResult(null);
     setTrips(null);
     setActivity(null);
-    if (!UUID.test(id)) { setResult({ status: "privado" }); return; }
+    if (!UUID.test(id)) { setResult({ status: "no_existe" }); return; }
     (async () => {
       const [{ data, error }, { data: mine }, t, a] = await Promise.all([
         supabase.rpc("amigo_perfil", { p_amigo: id }),
@@ -148,7 +162,15 @@ export default function FriendProfile() {
         loadFriendActivity(supabase as never, id),
       ]);
       if (!alive) return;
-      const r = error ? ({ status: "error" } as const) : parseFriendProfile(data);
+      let r: FriendProfileResult = error ? { status: "error" } : parseFriendProfile(data);
+      // "Privado" también lo dice el servidor cuando el perfil no existe: se pregunta aparte (amigo_existe,
+      // migración 20261029030000) para no decir "es privado" de una cuenta que no existe.
+      if (r.status === "privado") {
+        const { data: exists, error: exErr } = await (supabase as unknown as { rpc: (fn: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> })
+          .rpc("amigo_existe", { p_id: id });
+        if (!alive) return;
+        if (!exErr && exists === false) r = { status: "no_existe" };
+      }
       setResult(r);
       if (r.status === "ok") setSaludos(r.data.saludos);
       setTrips(t.status === "ok" ? t.viajes : []);
@@ -227,7 +249,7 @@ export default function FriendProfile() {
             <p className="text-muted-foreground text-sm mb-6">Revisa tu conexión e intenta de nuevo.</p>
             <Button onClick={() => window.location.reload()} variant="outline" className="border-primary/30 text-primary">Reintentar</Button>
           </div>
-        ) : <PrivateProfile />}
+        ) : result.status === "no_existe" ? <MissingProfile /> : <PrivateProfile />}
       </DashboardLayout>
     );
   }

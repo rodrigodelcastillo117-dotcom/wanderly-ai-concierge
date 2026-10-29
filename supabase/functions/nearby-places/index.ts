@@ -2,6 +2,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { matchesCategory } from "./category.ts";
 
 type Body = {
   lat: number;
@@ -89,7 +90,13 @@ Deno.serve(async (req) => {
     }
 
     // Un lugar cerrado definitivamente no se recomienda (auditoría de lugares reales, 23-oct-2026).
-    const results = (data.places ?? []).filter((p: any) => p?.businessStatus !== "CLOSED_PERMANENTLY").map((p: any) => ({
+    // Solo lo que es de la categoría pedida (por primaryType): includedTypes también trae lugares que
+    // solo tienen la categoría como tipo secundario (un cine o un hotel con "cafe"). Ver ./category.ts.
+    const category = body.types?.length ? null : (body.type ?? "restaurant");
+    const results = (data.places ?? [])
+      .filter((p: any) => p?.businessStatus !== "CLOSED_PERMANENTLY")
+      .filter((p: any) => !category || matchesCategory(category, p?.primaryType ?? null, p?.types ?? []))
+      .map((p: any) => ({
       placeId: p.id,
       name: p.displayName?.text ?? null,
       address: p.formattedAddress ?? null,

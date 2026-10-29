@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, ShieldCheck } from "lucide-react";
+import { SRE_GUIA_URL } from "../../../supabase/functions/_shared/sre.ts";
 import {
   type AdvisoryFail, type AdvisoryOk, type AdvisoryResult, type AvisoFuente, type PaisResuelto, fechaFuente, fetchAdvisory, severity, tripCountries,
 } from "@/lib/travelAdvisory";
@@ -17,7 +18,7 @@ export function BeforeYouTravelCard({ trip, destinations = [], active }: {
 }) {
   const countries = tripCountries(trip, destinations);
   if (!countries.length) return null;
-  const sre = { url: "https://guiadelviajero.sre.gob.mx/" };
+  const sre = { url: SRE_GUIA_URL };
   return (
     <section data-testid="antes-de-viajar" className="glass-card rounded-2xl p-4 sm:p-5 space-y-4" aria-labelledby="antes-de-viajar-titulo">
       <div className="flex items-center gap-2">

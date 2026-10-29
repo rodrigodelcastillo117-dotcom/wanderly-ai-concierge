@@ -61,7 +61,7 @@ describe("campos con nombre accesible", () => {
     ["src/components/ConciergeActions.tsx", ['aria-label="¿A dónde vas?"']],
     ["src/components/MembersOnlyPanel.tsx", ['aria-label="Buscar ciudad o lugar"']],
     ["src/components/EditWithAIDialog.tsx", ['aria-label="Cambios que quieres en tu viaje"']],
-    ["src/pages/Benefits.tsx", ['aria-label="Buscar en tu bóveda"', 'aria-label="Ordenar"']],
+    ["src/pages/Benefits.tsx", ['aria-label="Buscar en tus documentos y tarjetas"', 'aria-label="Ordenar"']],
     ["src/components/boveda/FileTiles.tsx", ['aria-label="Tomar foto del documento"', 'aria-label="Subir foto o PDF"']],
     ["src/pages/TripDetail.tsx", ['aria-label="Número de viajeros"', 'aria-label="Noches en este hospedaje"']],
   ])("%s", (file, attrs) => {

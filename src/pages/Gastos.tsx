@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Receipt, Upload, PieChart, PiggyBank, Users } from "lucide-react";
+import { Plus, Trash2, Receipt, Upload, PieChart, PiggyBank, Users, Pencil, FileImage } from "lucide-react";
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,7 +21,8 @@ import { useFxTable } from "@/hooks/useFxTable";
 import { safeFileName, uploadProblem } from "@/lib/uploadRules";
 import { ACTIVE_TRIP_COLUMNS, useActiveTrip } from "@/hooks/useActiveTrip";
 import { isTripEnded, tripLabel } from "@/lib/activeTrip";
-import { loadMySharedParts } from "@/lib/tripExpensesApi";
+import { expenseReceiptUrl, loadMySharedParts } from "@/lib/tripExpensesApi";
+import { shortTripName } from "@/lib/tripName";
 
 // El Resumen usa recharts (~100 kB comprimidos): se carga solo al abrir esa pestaña.
 const SmartSpendPanel = lazyWithRetry(() => import("@/components/SmartSpendPanel"));
@@ -74,6 +75,8 @@ export const Gastos = () => {
   const items = useMemo(() => [...ownItems, ...sharedParts].sort((a, b) => String(b.expense_date).localeCompare(String(a.expense_date))), [ownItems, sharedParts]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Gasto que se está editando (null = uno nuevo). Antes un gasto no se podía corregir.
+  const [editing, setEditing] = useState<Expense | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = tabFrom(searchParams.get("tab"));
   const setTab = (next: GastosTab) => {
@@ -100,7 +103,7 @@ export const Gastos = () => {
   const active = useActiveTrip<any>({ columns: `${ACTIVE_TRIP_COLUMNS}, total_estimado, moneda` });
   const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
   const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
-  const tripName = (id?: string | null) => active.trips.find((t) => t.id === id)?.destino ?? null;
+  const tripName = (id?: string | null) => { const t = active.trips.find((x) => x.id === id); return t ? shortTripName(t) : null; };
   // Moneda local del destino del viaje elegido: se sugiere arriba en el selector.
   const formTrip = active.trips.find((t) => t.id === formTripId) ?? null;
   const suggestedCurrency = destinationCurrency(formTrip);
@@ -135,7 +138,7 @@ export const Gastos = () => {
     }
     setSaving(true);
     try {
-      let receipt_url: string | null = null;
+      let receipt_url: string | null = editing?.receipt_url ?? null;
       if (form.file) {
         // El servidor también lo rechaza (límites del bucket); aquí se avisa con un mensaje claro.
         const problem = uploadProblem("recibos", form.file);
@@ -145,8 +148,7 @@ export const Gastos = () => {
         if (upErr) throw upErr;
         receipt_url = path;
       }
-      const { error } = await supabase.from("expenses").insert({
-        user_id: user.id,
+      const row = {
         amount: Number(form.amount),
         currency: form.currency,
         category: form.category,
@@ -154,18 +156,40 @@ export const Gastos = () => {
         expense_date: form.expense_date,
         receipt_url,
         trip_id: formTripId || null,
-      });
+      };
+      const { error } = editing
+        ? await supabase.from("expenses").update(row).eq("id", editing.id)
+        : await supabase.from("expenses").insert({ user_id: user.id, ...row });
       if (error) throw error;
-      await logInsight("planned", "expense", form.category, { amount: form.amount });
-      toast.success("Gasto registrado");
+      if (!editing) await logInsight("planned", "expense", form.category, { amount: form.amount });
+      toast.success(editing ? "Gasto actualizado" : "Gasto registrado");
       setOpen(false);
-      setForm({ ...form, amount: "", description: "", file: null });
+      setEditing(null);
+      setForm({ ...form, amount: "", description: "", file: null, trip_id: undefined });
       load();
     } catch (e: any) {
       toast.error(e.message ?? "No se pudo guardar");
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (x: Expense) => {
+    setEditing(x);
+    setForm({
+      amount: String(x.amount), currency: x.currency, category: canonicalCategory(x.category), description: x.description ?? "",
+      expense_date: String(x.expense_date).slice(0, 10), file: null, trip_id: x.trip_id ?? "",
+    });
+    setOpen(true);
+  };
+  const cancelForm = () => { setOpen(false); setEditing(null); setForm((f) => ({ ...f, amount: "", description: "", file: null, trip_id: undefined })); };
+
+  // El recibo se guarda en el bucket privado "recibos": se abre con un enlace firmado de 5 minutos
+  // (como «Ver ticket» en Gastos compartidos). Antes se guardaba y no había forma de verlo.
+  const viewReceipt = async (path: string) => {
+    const url = await expenseReceiptUrl(supabase, path);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    else toast.error("No se pudo abrir el recibo. Intenta de nuevo.");
   };
 
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -204,7 +228,7 @@ export const Gastos = () => {
             <p className="text-sm md:text-base text-muted-foreground">Lo que gastas, en qué se te va y cuánto ahorrar para tu próximo viaje.</p>
           </div>
           {tab === "gastos" && (
-            <Button onClick={() => setOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button onClick={() => { setEditing(null); setOpen(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4" /> Nuevo gasto
             </Button>
           )}
@@ -289,7 +313,7 @@ export const Gastos = () => {
                   {suggestedCurrency && suggestedCurrency !== formCur && (
                     <button type="button" onClick={() => setForm({ ...form, currency: suggestedCurrency })}
                       className="mt-1 text-[11px] text-primary underline-offset-2 hover:underline">
-                      Usar {suggestedCurrency} ({currencyName(suggestedCurrency)}), la moneda de {formTrip?.destino}
+                      Usar {suggestedCurrency} ({currencyName(suggestedCurrency)}), la moneda de {formTrip ? shortTripName(formTrip) : ""}
                     </button>
                   )}
                 </div>
@@ -325,15 +349,15 @@ export const Gastos = () => {
                   <Input id="gasto-descripcion" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Cena en Le Jules Verne" />
                 </div>
                 <div className="sm:col-span-2">
-                  <label htmlFor="gasto-recibo" className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" aria-hidden="true" /> Recibo (opcional)</label>
+                  <label htmlFor="gasto-recibo" className="text-xs text-muted-foreground mb-1 flex items-center gap-2"><Upload className="w-3 h-3" aria-hidden="true" /> {editing?.receipt_url ? "Cambiar recibo (opcional)" : "Recibo (opcional)"}</label>
                   <Input id="gasto-recibo" type="file" accept="image/*,application/pdf" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] ?? null })} />
                 </div>
               </div>
               <div className="flex gap-2 mt-5">
                 <Button onClick={handleSave} disabled={saving || !form.amount}>
-                  {saving ? "Guardando…" : "Guardar"}
+                  {saving ? "Guardando…" : editing ? "Guardar cambios" : "Guardar"}
                 </Button>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button variant="ghost" onClick={cancelForm}>Cancelar</Button>
               </div>
             </motion.div>
           )}
@@ -356,9 +380,9 @@ export const Gastos = () => {
               </div>
             )
           ) : items.map((x) => (
-            <div key={x.id} className="glass-card rounded-xl p-4 flex items-center gap-4">
+            <div key={x.id} className="glass-card rounded-xl p-3 sm:p-4 flex items-center gap-1.5 sm:gap-4">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1 min-w-0">
                   <span className="text-xs px-2 py-0.5 rounded-full border border-primary/30 text-primary">{canonicalCategory(x.category)}</span>
                   {/* Fecha local: new Date("2026-10-01") es UTC y en México se mostraba el 30 sep. */}
                   <span className="text-xs text-muted-foreground">{formatDateOnly(x.expense_date)}</span>
@@ -369,9 +393,26 @@ export const Gastos = () => {
                   <p className="text-[11px] text-muted-foreground">Tu parte de {formatMoney(x.shared.total, x.currency)} compartido · {x.shared.paidByMe ? "pagaste tú" : `pagó ${x.shared.payerName}`}</p>
                 )}
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className="font-display text-lg">{formatMoney(Number(x.amount), x.currency)}</p>
+                {/* Equivalente en pesos con el mismo tipo de cambio del total (fuente y fecha arriba). */}
+                {fx && String(x.currency).toUpperCase() !== "MXN" && (() => {
+                  const v = convert(Number(x.amount), String(x.currency).toUpperCase(), "MXN", fx);
+                  return v != null ? <p className="text-[11px] text-muted-foreground" data-testid="gasto-mxn">≈ {formatMoney(Math.round(v), "MXN", 0)}</p> : null;
+                })()}
               </div>
+              {!x.shared && x.receipt_url && (
+                <button type="button" onClick={() => void viewReceipt(x.receipt_url!)} aria-label={`Ver recibo de ${x.description ?? canonicalCategory(x.category)}`}
+                  className="text-muted-foreground hover:text-primary p-2">
+                  <FileImage className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
+              {!x.shared && (
+                <button type="button" onClick={() => startEdit(x)} aria-label={`Editar gasto ${x.description ?? canonicalCategory(x.category)}`}
+                  className="text-muted-foreground hover:text-primary p-2">
+                  <Pencil className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
               {x.shared ? (
                 <Link to={`/dashboard/viajes/${x.trip_id}/split?tab=compartidos`} aria-label={`Ver gasto compartido ${x.description ?? ""}`.trim()} className="text-muted-foreground hover:text-primary p-2">
                   <Users className="w-4 h-4" aria-hidden="true" />

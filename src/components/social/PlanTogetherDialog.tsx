@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { localISODate } from "@/lib/localDate";
 import { planWithFriendHref, prettyPlace, shortMonthYear, SOCIAL_ERRORS } from "@/lib/social";
+import { shortTripName } from "@/lib/tripName";
 
 type MyTrip = { id: string; destino: string; pais_destino: string | null; fecha_salida: string | null; fecha_regreso: string | null };
 
@@ -113,7 +114,7 @@ export function PlanTogetherDialog({ open, onOpenChange, friendId, friendName, s
                   <li key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-background/40 border border-white/[0.06]">
                     <MapPin className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{t.destino}</p>
+                      <p className="text-sm font-medium truncate">{shortTripName(t)}</p>
                       <p className="text-[11px] text-muted-foreground">{shortMonthYear(t.fecha_salida) ?? "Sin fechas"}</p>
                     </div>
                     {sent ? (

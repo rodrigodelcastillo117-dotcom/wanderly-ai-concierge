@@ -10,6 +10,7 @@
 //    cualquier dominio, pero deben pasar las reglas de seguridad y no imitar una marca conocida.
 
 import { asciiHost, registrableDomain as pslRegistrableDomain } from "./psl.ts";
+import { CRUISE_DOMAINS } from "./cruiseDomains.ts";
 
 /** Dominios oficiales de Ticketmaster por país (Discovery API v2 devuelve el del mercado del evento). */
 export const TM_DOMAINS = [
@@ -52,15 +53,9 @@ export type ProviderInfo = {
   noBrand?: true;
 };
 
-/** Navieras con sitio oficial (dominio registrable, nombre). */
-export const CRUISE_DOMAINS: Array<[string, string]> = [
-  ["msccruises.com", "MSC Cruceros"], ["royalcaribbean.com", "Royal Caribbean"], ["celebritycruises.com", "Celebrity Cruises"],
-  ["ncl.com", "Norwegian Cruise Line"], ["silversea.com", "Silversea"], ["seabourn.com", "Seabourn"], ["rssc.com", "Regent Seven Seas"],
-  ["oceaniacruises.com", "Oceania Cruises"], ["vikingcruises.com", "Viking"], ["explorajourneys.com", "Explora Journeys"],
-  ["aroya.com", "AROYA Cruises"], ["costacruises.com", "Costa Cruceros"], ["princess.com", "Princess Cruises"],
-  ["hollandamerica.com", "Holland America Line"], ["cunard.com", "Cunard"], ["ponant.com", "PONANT"], ["crystalcruises.com", "Crystal"],
-  ["celestyal.com", "Celestyal"], ["disneycruise.disney.go.com", "Disney Cruise Line"], ["carnival.com", "Carnival"],
-];
+// Navieras con sitio oficial: en ./cruiseDomains.ts (módulo chico que también usa la app, sin cargar
+// esta lista completa ni la lista de sufijos públicos en el paquete del navegador).
+export { CRUISE_DOMAINS } from "./cruiseDomains.ts";
 
 const P = (domain: string, provider: string, label: string, kind: ProviderInfo["kind"], why: string, extra: { paths?: RegExp; redirector?: ProviderInfo["redirector"]; hosts?: string[]; serverOnly?: boolean; noBrand?: true } = {}): ProviderInfo =>
   ({ domain, provider, label, kind, why, ...extra });
