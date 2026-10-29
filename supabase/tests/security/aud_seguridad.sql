@@ -120,7 +120,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- Opiniones (20261029060000_opiniones): admin_opinion_mark exige auth.uid() en public.admins (42501 si no),
   -- solo cambia filas type 'opinion' (leída/resuelta) y deja historial con quién. Pruebas en
   -- supabase/tests/opiniones (U5, M2–M9).
-  ('admin_opinion_mark')),
+  ('admin_opinion_mark'),
+  -- Reclamos (20261029090000_reclamos): admin_claims_list / admin_claim_view exigen auth.uid() en public.admins
+  -- (_ops_require_admin, 42501 si no); solo leen (lista y detalle sin token de respuesta; reenvíos solo los
+  -- ligados a ese reclamo). Pruebas en supabase/tests/reclamos (O1–O2).
+  ('admin_claims_list'), ('admin_claim_view')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
