@@ -131,7 +131,7 @@ const TripCard = ({ t, userId, onDeleted, bookings = [] }: { t: any; userId: str
               ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><FileUp className="w-3 h-3" aria-hidden="true" /> De tus documentos</span>
               : isBroughtTrip(t)
                 ? <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] rounded-full border border-primary/40 text-primary px-2 py-0.5"><Hotel className="w-3 h-3" aria-hidden="true" /> Lo trajiste tú</span>
-                : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact />}
+                : <BookingStateBadge summary={deriveTripBookingState(t, bookings)} compact requote={!!invalidQuoteReason(t)} />}
           </div>
           <div className="flex items-end justify-between gap-3 text-sm text-muted-foreground">
             <span className="min-w-0">

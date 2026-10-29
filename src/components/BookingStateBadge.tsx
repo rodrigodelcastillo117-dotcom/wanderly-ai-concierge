@@ -1,4 +1,5 @@
 import { BadgeCheck, FileText, Receipt } from "lucide-react";
+import { REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { ITEM_STATE_LABEL, type ItemKind, type ItemState, type TripBookingSummary } from "@/lib/bookingState";
 
 const KIND_LABEL: Record<ItemKind, string> = {
@@ -35,12 +36,18 @@ export const badgeEstimatedKinds = (s: { sinPrecioReal?: string[] | null; estima
  * `estimated`: tipos cuyo precio en el total es estimado (vuelo sin tarifa real…). No se llaman
  * "Cotizado" a secas: "Estimado · no reservado" y, en el resumen, "incluye estimados".
  */
-export function BookingStateBadge({ summary, compact = false, estimated = [], byLand = false }: { summary: TripBookingSummary; compact?: boolean; estimated?: ItemKind[]; byLand?: boolean }) {
+export function BookingStateBadge({ summary, compact = false, estimated = [], byLand = false, requote = false }: { summary: TripBookingSummary; compact?: boolean; estimated?: ItemKind[]; byLand?: boolean; requote?: boolean }) {
   const Icon = summary.estado === "reservado" ? BadgeCheck : Receipt;
-  const label = summary.estado === "cotizado" && estimated.length ? "Cotizado · incluye estimados · sin reservar" : summary.label;
+  // Cotización con error (invalidQuoteReason, Budapest «$7»): nada se llama «Cotizado» (R2: el total decía
+  // «Por recotizar» y arriba «Vuelo: Cotizado · Hospedaje: Cotizado»; Mis viajes, «Cotizado · sin reservar»).
+  const label = requote && summary.estado === "cotizado" ? `${REQUOTE_LABEL} · sin reservar`
+    : summary.estado === "cotizado" && estimated.length ? "Cotizado · incluye estimados · sin reservar" : summary.label;
+  const itemLabel = (kind: ItemKind, st: ItemState) =>
+    st === "cotizado" && requote ? REQUOTE_LABEL
+      : st === "cotizado" && estimated.includes(kind) ? "Estimado · no reservado" : ITEM_STATE_LABEL[st];
   const badge = (
     <span data-testid="trip-booking-state" data-state={summary.estado}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-wide ${tone(summary.estado)}`}>
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-wide ${requote && summary.estado === "cotizado" ? "border-amber-500/40 bg-amber-500/10 text-amber-400" : tone(summary.estado)}`}>
       <Icon className="w-3 h-3" aria-hidden="true" /> {label}
     </span>
   );
@@ -52,7 +59,7 @@ export function BookingStateBadge({ summary, compact = false, estimated = [], by
       {tipos.map(([kind, st]) => (
         <span key={kind} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${tone(st)}`}>
           {st === "segun_tu_archivo" && <FileText className="w-3 h-3" aria-hidden="true" />}
-          {kind === "vuelo" && byLand ? "Cómo llegar" : KIND_LABEL[kind]}: {st === "cotizado" && estimated.includes(kind) ? "Estimado · no reservado" : ITEM_STATE_LABEL[st]}
+          {kind === "vuelo" && byLand ? "Cómo llegar" : KIND_LABEL[kind]}: {itemLabel(kind, st)}
         </span>
       ))}
     </div>
