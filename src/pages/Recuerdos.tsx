@@ -12,6 +12,7 @@ import { localISODate } from "@/lib/localDate";
 import { deleteRecuerdo, loadRecuerdos, moveToTrip, setAlbumShared, setFavorite, type RecuerdosClient, type RecuerdosLoad } from "@/lib/recuerdos/api";
 import {
   buildAlbums, filterByTrip, groupByDay, latestMonth, shiftMonth, sortItems, thumbOf, unifyItems, type RecuerdoItem, type RecuerdoRow,
+  videoAvailable,
 } from "@/lib/recuerdos/model";
 import { RecuerdosUploader, type UploadSummary } from "@/components/recuerdos/RecuerdosUploader";
 import { RecuerdosCalendar } from "@/components/recuerdos/RecuerdosCalendar";
@@ -128,6 +129,7 @@ export default function Recuerdos({ client: injected }: { client?: RecuerdosClie
   };
 
   const total = data?.items.length ?? 0;
+  const canVideo = !!data && videoAvailable(data.trips, today);
   const favorites = data?.items.filter((i) => i.favorite).length ?? 0;
   return (
     <DashboardLayout>
@@ -135,11 +137,18 @@ export default function Recuerdos({ client: injected }: { client?: RecuerdosClie
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4 md:mb-6">
           <div>
             <h1 className="mb-1 font-display text-3xl md:mb-2 md:text-5xl">Recuerdos</h1>
-            <p className="text-sm text-muted-foreground md:text-base">Tus fotos y videos por fecha y por viaje. Tu IATOS Wrapped hace tu video con ellas.</p>
+            <p className="text-sm text-muted-foreground md:text-base">
+              Tus fotos y videos por fecha y por viaje.{" "}
+              {canVideo ? "Tu IATOS Wrapped hace tu video con ellas." : "Cuando empiece tu primer viaje, tu IATOS Wrapped podrá armar un video con ellas."}
+            </p>
           </div>
-          <Link to="/wrapped?video=1" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/40 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
-            <Clapperboard className="h-4 w-4" aria-hidden="true" /> Hazme mi video
-          </Link>
+          {/* El video se arma (en tu dispositivo) con las fotos de viajes que ya empezaron. Sin ninguno, el botón
+              llevaba a «todavía no empiezan» y no podía hacer nada (R2): solo se ofrece cuando sí se puede. */}
+          {canVideo && (
+            <Link to="/wrapped?video=1" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/40 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
+              <Clapperboard className="h-4 w-4" aria-hidden="true" /> Hazme mi video
+            </Link>
+          )}
         </div>
 
         {!user ? null : error ? (

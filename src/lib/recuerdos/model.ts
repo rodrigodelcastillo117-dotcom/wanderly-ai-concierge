@@ -269,3 +269,11 @@ export function unifyItems(me: string, rows: { recuerdos: RecuerdoRow[]; moments
 
 /** Ruta que se pide para una miniatura (la miniatura si existe; si no, el archivo). */
 export const thumbOf = (it: RecuerdoItem) => it.thumbPath ?? (it.mediaType === "foto" ? it.path : null);
+
+/**
+ * ¿Se puede armar ya «Hazme mi video»? El video de IATOS Wrapped usa los viajes que ya empezaron; sin
+ * ninguno, el botón llevaba a «todavía no empiezan» sin poder hacer nada (R2 viajes, Recuerdos).
+ */
+export function videoAvailable(trips: Pick<RecuerdoTrip, "fecha_salida">[], today: string): boolean {
+  return trips.some((t) => !!t.fecha_salida && t.fecha_salida.slice(0, 10) <= today);
+}
