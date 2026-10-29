@@ -43,6 +43,7 @@ import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { tripDatesProblem } from "./dates.ts";
+import { storedTripDestino } from "../_shared/tripName.ts";
 import {
   applyShortTripRules, capShortTripEstimates, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
   realGroundOptions, refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
@@ -1167,7 +1168,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
 
     const cover = pickCover(tripadvisorLive ? tripadvisor.results : [], serpHotelsLive ? serpHotels.results : []);
     const tripFields = {
-      destino: body.destino,
+      // Si llegó la frase completa como destino, se guarda el lugar (la frase queda en consulta).
+      destino: storedTripDestino(body.destino, a.pais_destino ?? body.pais_destino),
       pais_destino: a.pais_destino ?? body.pais_destino,
       ciudad_origen: body.ciudad_origen,
       fecha_salida: body.fecha_salida,

@@ -72,6 +72,7 @@ import { isBroughtTrip } from "@/lib/broughtTrip";
 import { TripUnderstoodButton } from "@/components/trip/TripUnderstoodButton";
 import { CruiseLegsCard } from "@/components/trip/CruiseLegsCard";
 import { BroughtTripSummary } from "@/components/BroughtTripSummary";
+import { shortTripName } from "@/lib/tripName";
 
 
 const fmtMXN = (n: number) =>
@@ -553,7 +554,7 @@ const TripDetail = () => {
             </div>
           )}
           <p className="text-primary text-xs tracking-[0.2em] uppercase mb-2">{tripCountryLabel(trip)}</p>
-          <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-3 md:mb-4 break-words">{trip.destino}</h1>
+          <h1 className="font-display text-3xl min-[380px]:text-4xl sm:text-5xl md:text-7xl leading-tight mb-3 md:mb-4 break-words">{shortTripName(trip)}</h1>
           {isMulti && Array.isArray(itinObj.region_expansions) && itinObj.region_expansions.length > 0 && (
             <div className="mb-3 space-y-0.5" data-testid="region-expansions">
               {itinObj.region_expansions.map((e: RegionExpansion) => (

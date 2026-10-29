@@ -12,6 +12,7 @@ import { SmartImage } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
 import { destinationQuery } from "@/lib/categoryImagery";
+import { shortTripName } from "@/lib/tripName";
 
 type TripSummary = {
   id: string;
@@ -141,8 +142,8 @@ export function TripCommandCenter({ trip, today }: Props) {
             <p className="text-[11px] uppercase tracking-[0.25em] text-primary/90 font-semibold">Próximo viaje</p>
           )}
           <h2 id="command-center-title" className="font-display text-3xl md:text-5xl leading-[1.05] mt-2 break-words">
-            {trip.destino}
-            {trip.pais_destino ? <span className="text-muted-foreground text-xl md:text-2xl">, {trip.pais_destino}</span> : null}
+            {shortTripName(trip)}
+            {trip.pais_destino && shortTripName(trip) !== trip.pais_destino ? <span className="text-muted-foreground text-xl md:text-2xl">, {trip.pais_destino}</span> : null}
           </h2>
           <p className="font-display italic gold-text text-2xl md:text-3xl mt-3" aria-live="polite">{timing.label}</p>
 

@@ -117,7 +117,7 @@ describe("Bóveda · alertas de vigencia y requisitos", () => {
     const a = buildAlerts([passport("2027-04-01")], [trip({ destino: "París" })], TODAY);
     const pp = a.find((x) => x.id.startsWith("pp-6m"));
     expect(pp?.level).toBe("aviso");
-    expect(pp?.sourceUrl).toMatch(/sre\.gob\.mx/);
+    expect(pp?.sourceUrl).toBe("https://www.gob.mx/guiadeviaje");
     expect(buildAlerts([passport("2027-07-01")], [trip({ destino: "París" })], TODAY).some((x) => x.id.startsWith("pp-"))).toBe(false);
   });
 
@@ -160,7 +160,7 @@ describe("Bóveda · alertas de vigencia y requisitos", () => {
     const t = trip({ destino: "Marrakech" });
     const a = buildAlerts([passport("2030-01-01")], [t], TODAY).find((x) => x.id === `entry-${t.id}`);
     expect(a?.title).toMatch(/Verifica requisitos/);
-    expect(a?.sourceUrl).toBe("https://guiadelviajero.sre.gob.mx/");
+    expect(a?.sourceUrl).toBe("https://www.gob.mx/guiadeviaje");
   });
 
   it("pasaporte no mexicano: nunca aplica reglas de pasaporte mexicano", () => {

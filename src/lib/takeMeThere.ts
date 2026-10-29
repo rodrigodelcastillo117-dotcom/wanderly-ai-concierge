@@ -51,6 +51,13 @@ const GOOD_TRANSIT = [
   "santiago", "sao paulo", "medellin",
 ];
 const normPlace = (s: string) => ` ${String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim()} `;
+/** Distancia legible desde tu ubicación: "a 350 m", "a 1.2 km" (Cercanos no la mostraba). */
+export function distanceLabel(km: number): string {
+  if (!Number.isFinite(km) || km < 0) return "";
+  if (km < 1) return `a ${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
+  return `a ${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+
 export function hasGoodTransit(...places: Array<string | null | undefined>): boolean {
   return places.some((p) => !!p && GOOD_TRANSIT.some((c) => normPlace(p).includes(` ${c} `)));
 }

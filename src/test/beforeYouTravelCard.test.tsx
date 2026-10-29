@@ -53,7 +53,7 @@ describe("BeforeYouTravelCard", () => {
     render(<BeforeYouTravelCard trip={{ id: "t1", destino: "Bangkok", pais_destino: "Tailandia" }} active={false} />);
     const card = screen.getByTestId("antes-de-viajar");
     const links = within(card).getAllByRole("link");
-    expect(links[0]).toHaveAttribute("href", "https://guiadelviajero.sre.gob.mx/");
+    expect(links[0]).toHaveAttribute("href", "https://www.gob.mx/guiadeviaje");
     expect(links[0]).toHaveTextContent("Para mexicanos: consulta la Guía del Viajero de la SRE");
     expect(card).toHaveTextContent("No sustituye asesoría migratoria, legal o consular.");
     expect(card).toHaveTextContent("publican estos avisos para sus propios ciudadanos");
@@ -75,7 +75,7 @@ describe("BeforeYouTravelCard", () => {
     expect(original[0]).toBe("https://www.gov.uk/foreign-travel-advice/thailand");
     expect(original[1]).toMatch(/travel\.state\.gov/);
     // La SRE sigue siendo el primer enlace de la tarjeta.
-    expect(within(screen.getByTestId("antes-de-viajar")).getAllByRole("link")[0]).toHaveAttribute("href", "https://guiadelviajero.sre.gob.mx/");
+    expect(within(screen.getByTestId("antes-de-viajar")).getAllByRole("link")[0]).toHaveAttribute("href", "https://www.gob.mx/guiadeviaje");
   });
 
   it("si la traducción falló: texto original en inglés con aviso (nada inventado)", async () => {

@@ -5,6 +5,7 @@ import {
   RECUERDOS_BUCKET, unifyItems, type JournalRow, type MomentRow, type RecuerdoItem, type RecuerdoRow, type RecuerdoTrip, type TripSource,
 } from "@/lib/recuerdos/model";
 import type { PreparedRecuerdo } from "@/lib/recuerdos/prepare";
+import { shortTripName } from "@/lib/tripName";
 
 type Res = { data: unknown; error: unknown };
 type Query = PromiseLike<Res> & {
@@ -20,7 +21,7 @@ type Bucket = {
 export type RecuerdosClient = { from: (t: string) => Query; storage: { from: (b: string) => Bucket } };
 
 const rows = <T>(r: Res | null | undefined): T[] => (r && !r.error && Array.isArray(r.data) ? (r.data as T[]) : []);
-const TRIP_COLS = "id, destino, fecha_salida, fecha_regreso";
+const TRIP_COLS = "id, destino, pais_destino, fecha_salida, fecha_regreso";
 const REC_COLS = "id, user_id, trip_id, media_type, storage_path, thumb_path, taken_on, taken_at, created_at, favorite, date_source, trip_source, duration_s";
 
 export type RecuerdosLoad = { items: RecuerdoItem[]; trips: RecuerdoTrip[]; sharedTrips: Set<string> };
@@ -35,9 +36,11 @@ export async function loadRecuerdos(client: RecuerdosClient, userId: string): Pr
     client.from("recuerdos_album_shares").select("trip_id").eq("user_id", userId),
   ]);
   if (recR?.error) throw new Error("No pudimos cargar tus recuerdos.");
-  const own = rows<RecuerdoTrip>(ownR).map((t) => ({ ...t, mine: true }));
+  // Nombre corto (si el destino guardado es la frase completa que escribió la persona, auditoría 10/10).
+  const named = (t: RecuerdoTrip) => ({ ...t, destino: shortTripName(t) });
+  const own = rows<RecuerdoTrip>(ownR).map((t) => ({ ...named(t), mine: true }));
   const sharedIds = rows<{ trip_id: string }>(colR).map((c) => c.trip_id).filter((id) => !own.some((t) => t.id === id));
-  const shared = sharedIds.length ? rows<RecuerdoTrip>(await client.from("trips").select(TRIP_COLS).in("id", sharedIds)).map((t) => ({ ...t, mine: false })) : [];
+  const shared = sharedIds.length ? rows<RecuerdoTrip>(await client.from("trips").select(TRIP_COLS).in("id", sharedIds)).map((t) => ({ ...named(t), mine: false })) : [];
   return {
     items: unifyItems(userId, { recuerdos: rows<RecuerdoRow>(recR), moments: rows<MomentRow>(momR), journal: rows<JournalRow>(jouR) }),
     trips: [...own, ...shared].sort((a, b) => String(b.fecha_salida ?? "").localeCompare(String(a.fecha_salida ?? ""))),

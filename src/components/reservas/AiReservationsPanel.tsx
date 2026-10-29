@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FixerButton } from "@/components/FixerButton";
 import {
-  type AiReservation, cancelAiReservation, chooseAiAlternative, confirmAiReservation, formatLocalSlot, listAiReservations, reservationIcsBlob,
+  type AiReservation, cancelAiReservation, chooseAiAlternative, confirmAiReservation, formatLocalSlot, listAiReservations, reservationIcsBlob, recipientNote,
 } from "@/lib/aiReservations";
 
 const ACTIVE = ["draft", "awaiting_user_ok", "sent", "venue_replied", "needs_user", "confirmed"];
@@ -58,6 +58,7 @@ function ReservationCard({ r, onChange }: { r: AiReservation; onChange: (msg?: s
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Mail className="w-4 h-4" aria-hidden="true" /> Iato escribirá a {r.venue_email}{r.venue_email_is_test ? " (correo de prueba del piloto: no es del restaurante)" : ""} en tu nombre ({r.customer_name}). Aún no le hemos escrito.
           </p>
+          {recipientNote(r) && <p className="text-xs text-amber-300" data-testid="ai-res-piloto">{recipientNote(r)}</p>}
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={share} onCheckedChange={(v) => setShare(v === true)} /> Compartir mi teléfono y correo con el restaurante
           </label>

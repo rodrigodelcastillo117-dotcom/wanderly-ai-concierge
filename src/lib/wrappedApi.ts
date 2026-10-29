@@ -23,7 +23,18 @@ export type WrappedClient = {
   storage: Parameters<typeof signPhotoPaths>[0]["storage"];
 };
 
-export type WrappedLoad = { stats: WrappedStats; years: number[] };
+/**
+ * `upcoming`: viajes con fecha de salida en ese año que todavía no empiezan. Wrapped cuenta lo que ya
+ * viviste; sin esto la pantalla vacía decía "Todavía no hay viajes con fechas en 2026" aunque hubiera
+ * tres (auditoría 10/10, P1-11).
+ */
+export type WrappedLoad = { stats: WrappedStats; years: number[]; upcoming?: { count: number; first: string | null } };
+
+export function upcomingInYear(trips: Array<{ fecha_salida?: string | null }>, year: number, today: string): { count: number; first: string | null } {
+  const list = trips.map((t) => String(t.fecha_salida ?? "").slice(0, 10))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d.startsWith(`${year}-`) && d > today).sort();
+  return { count: list.length, first: list[0] ?? null };
+}
 
 const rows = <T>(r: Res | null | undefined): T[] => (r && !r.error && Array.isArray(r.data) ? (r.data as T[]) : []);
 const TRIP_COLS = "id, destino, pais_destino, ciudad_origen, fecha_salida, fecha_regreso, itinerario_json, num_viajeros, total_estimado, hospedaje_json";
@@ -74,7 +85,7 @@ export async function loadWrapped(
   const yearTrips = tripsInYear(allTrips, year, today);
   const avatarUrl = typeof profile?.avatar_url === "string" && /^https?:\/\//.test(profile.avatar_url) ? profile.avatar_url : null;
   const base: WrappedInput = { year, today, firstName: profile?.full_name ?? null, avatarUrl, homeCity: profile?.ciudad_origen ?? null, trips: allTrips };
-  if (!yearTrips.length) return { stats: computeWrapped(base), years };
+  if (!yearTrips.length) return { stats: computeWrapped(base), years, upcoming: upcomingInYear(allTrips, year, today) };
 
   const ids = yearTrips.map((t) => t.id);
   const from = `${year}-01-01`, to = `${year}-12-31`;

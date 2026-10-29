@@ -15,7 +15,7 @@ export function AlertsPanel({ alerts, onOpenItem }: { alerts: VaultAlert[]; onOp
   if (!alerts.length) return null;
   const shown = all ? alerts : alerts.slice(0, 1);
   return (
-    <section aria-label="Alertas de tu bóveda" className="space-y-1.5">
+    <section aria-label="Alertas de tus documentos y tarjetas" className="space-y-1.5">
       {shown.map((a) => {
         const Icon = ICON[a.level];
         return (

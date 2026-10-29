@@ -354,8 +354,8 @@ const Profile = () => {
             <p className="text-xs text-primary tracking-[0.25em] uppercase mb-2">Premium</p>
             <h2 className="font-display text-3xl md:text-4xl mb-2">Tus tarjetas y programas</h2>
             <p className="text-muted-foreground">
-              Guarda tus tarjetas, alianzas y programas de lealtad. IATOS AI los usará para encontrarte tarifas y
-              privilegios que otros no ven.
+              Guarda tus tarjetas, membresías y seguros. Cuando le pides a Iato un resumen o buscar promociones,
+              solo usa el nombre, el nivel y los beneficios de cada programa; tus documentos y números nunca se envían a la IA.
             </p>
           </div>
           <BenefitsVault />

@@ -1,6 +1,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
-import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { enforceRateLimit } from "../_shared/rate-limit.ts";
+import { videoRateLimited } from "./rateLimited.ts";
 import { cacheGet, cacheKey, cachePut, freshnessOf } from "../_shared/serpCache.ts";
 import { dbCacheStore, logUsage } from "../_shared/serpRuntime.ts";
 
@@ -16,7 +17,10 @@ Deno.serve(async (req) => {
   if (!__user) return unauthorizedResponse(corsHeaders);
 
   const __rl = await enforceRateLimit(req, "buscar-video", __user.id, { perMinute: 15, perHour: 150, ipPerMinute: 50 });
-  if (!__rl.allowed) return rateLimitResponse(__rl, corsHeaders);
+  // Un video de portada es decorativo: al pasar el límite se responde 200 "sin video" con cuándo volver a
+  // pedir (la tarjeta usa su imagen de respaldo). Un 429 dejaba un error rojo en la consola en cada
+  // pantalla (auditoría técnica 10/10, P1-1). El cliente respeta retry_after (src/lib/videoSearch.ts).
+  if (!__rl.allowed) return videoRateLimited(__rl.retryAfter, corsHeaders);
 
 
   try {

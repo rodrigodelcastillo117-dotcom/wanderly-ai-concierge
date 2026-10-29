@@ -22,6 +22,7 @@ import { OriginPicker } from "@/components/OriginPicker";
 import { TripBuildPreview } from "@/components/TripBuildPreview";
 import { VoiceInput } from "@/components/VoiceInput";
 import { claimIntent, completeIntent, intentFingerprint, releaseIntent } from "@/lib/autoIntent";
+import { looksLikeRawPrompt } from "@/lib/tripName";
 import { analysisSummaryOf, datePresets, EXAMPLE_PROMPTS, looksLikeSentence, monthOfText, suggestTripDates, suggestedDatesNotice, understandPlanText } from "@/lib/planDefaults";
 import { diffLocalDays, formatLocalDate } from "@/lib/localDate";
 // Varias ciudades escritas en el planeador ("paris roma y atenas 10 dias") → ruta multi-destino.
@@ -568,6 +569,10 @@ const PlanTrip = () => {
       navigate(`/dashboard/ruta?${qs.toString()}`);
       return;
     }
+
+    // Una frase completa ("Quiero conocer España 15 días…") no se manda como destino: se guardaba tal
+    // cual como nombre del viaje. Pasa por el intérprete ("Entendí…") como el resto de las frases.
+    if (looksLikeRawPrompt(destino)) { void interpretNow(); return; }
 
     return runAnalisis({
       destino,

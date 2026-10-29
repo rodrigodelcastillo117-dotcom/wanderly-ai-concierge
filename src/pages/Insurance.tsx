@@ -5,40 +5,26 @@ import { Button } from "@/components/ui/button";
 import { PrefillNote } from "@/components/booking/PrefillNote";
 import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 
-// Sin calificaciones numéricas ni códigos de descuento: no tenemos fuente verificada
-// para mostrarlos (antes: "4.7/5 Trustpilot", "15% OFF con código IATOS").
-// Las coberturas son de referencia; la póliza de cada aseguradora es la que vale.
+// Sin calificaciones numéricas, códigos de descuento ni afirmaciones de marketing: no tenemos fuente
+// verificada para mostrarlas (antes: "4.7/5 Trustpilot", "15% OFF con código IATOS" y, hasta la auditoría
+// 10/10, "COVID incluido", "hasta 10M USD", "Recomendado por Lonely Planet"…). Solo el nombre y el enlace
+// oficial; lo que hay que comparar va en una lista común, y la póliza de cada aseguradora es la que vale.
 const PARTNERS = [
-  {
-    name: "Heymondo",
-    tagline: "Cobertura médica hasta 10M USD · COVID incluido",
-    perks: ["Sin franquicia", "Asistencia en español (según tu póliza)", "App con asistencia médica por video"],
-    url: "https://www.heymondo.com/?agencia_id=23021",
-    color: "from-emerald-500/20 to-emerald-500/5",
-  },
-  {
-    name: "Chapka Assurances",
-    tagline: "El favorito de mochileros y nómadas digitales",
-    perks: ["Cap Working Holiday", "Cobertura mundial", "Equipaje hasta 2000€"],
-    url: "https://www.chapkadirect.es/",
-    color: "from-blue-500/20 to-blue-500/5",
-  },
-  {
-    name: "AXA Assistance",
-    tagline: "Marca global de confianza · ideal viajes premium",
-    perks: ["Multiviaje anual", "Cancelación por cualquier motivo", "Deportes de aventura"],
-    // axa-assistance.com redirige a la portada corporativa de AXA Partners (no vende seguros de viaje
-    // ahí, cierre 2 · A-AXA.jpg); este es su cotizador de seguro de viaje (D-AXA.jpg).
-    url: "https://www.axatravelinsurance.com/",
-    color: "from-amber-500/20 to-amber-500/5",
-  },
-  {
-    name: "World Nomads",
-    tagline: "El estándar para viajeros aventureros",
-    perks: ["200+ actividades cubiertas", "Extender en ruta", "Recomendado por Lonely Planet"],
-    url: "https://www.worldnomads.com/",
-    color: "from-rose-500/20 to-rose-500/5",
-  },
+  { name: "Heymondo", url: "https://www.heymondo.com/?agencia_id=23021", color: "from-emerald-500/20 to-emerald-500/5" },
+  { name: "Chapka Assurances", url: "https://www.chapkadirect.es/", color: "from-blue-500/20 to-blue-500/5" },
+  // axa-assistance.com redirige a la portada corporativa de AXA Partners (no vende seguros de viaje
+  // ahí, cierre 2 · A-AXA.jpg); este es su cotizador de seguro de viaje (D-AXA.jpg).
+  { name: "AXA Assistance", url: "https://www.axatravelinsurance.com/", color: "from-amber-500/20 to-amber-500/5" },
+  { name: "World Nomads", url: "https://www.worldnomads.com/", color: "from-rose-500/20 to-rose-500/5" },
+];
+
+/** Qué revisar en cualquier póliza antes de comprar (preguntas, no afirmaciones sobre una marca). */
+export const INSURANCE_CHECKLIST = [
+  "Monto de la cobertura médica y si incluye hospitalización y repatriación",
+  "Deducible (lo que pagas tú antes de que pague la aseguradora)",
+  "Equipaje perdido o demorado, y cancelación del viaje",
+  "Actividades o deportes que vas a hacer",
+  "Condiciones médicas preexistentes",
 ];
 
 const Insurance = () => {
@@ -57,25 +43,28 @@ const Insurance = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <section className="glass-card rounded-xl p-4" aria-labelledby="seguro-revisa">
+          <h2 id="seguro-revisa" className="text-sm font-medium mb-2">Antes de comprar, compara en cada póliza</h2>
+          <ul className="space-y-1.5">
+            {INSURANCE_CHECKLIST.map((c) => (
+              <li key={c} className="flex items-start gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {PARTNERS.map((p) => (
             <div key={p.name} className={`glass-card rounded-2xl p-5 bg-gradient-to-br ${p.color} border border-white/10`}>
-              <div className="mb-3">
+              <div className="mb-4">
                 <h3 className="font-display text-xl">{p.name}</h3>
-                <p className="text-xs text-muted-foreground">Coberturas de referencia · confírmalas en la póliza</p>
+                <p className="text-xs text-muted-foreground">Coberturas, precios y condiciones: en su sitio oficial y en la póliza.</p>
               </div>
-              <p className="text-sm mb-4">{p.tagline}</p>
-              <ul className="space-y-1.5 mb-4">
-                {p.perks.map((perk) => (
-                  <li key={perk} className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
-                    <span>{perk}</span>
-                  </li>
-                ))}
-              </ul>
               <Button onClick={() => tripTool.track({
                 category: "insurance", provider: p.name, title: `Seguro de viaje — ${p.name}`,
-                subtitle: p.tagline, bookingUrl: p.url,
+                subtitle: "Seguro de viaje", bookingUrl: p.url,
               })} className="w-full" size="sm">
                 Cotizar en {p.name} <ExternalLink className="w-3 h-3 ml-1" aria-hidden="true" />
               </Button>
@@ -85,8 +74,9 @@ const Insurance = () => {
         </div>
 
         <div className="glass-card rounded-xl p-4 text-xs text-muted-foreground">
-          <strong className="text-foreground">Tip de viajero:</strong> Contrata el seguro antes de salir del país.
-          La mayoría no cubre eventos preexistentes a la compra. Para visado Schengen necesitas cobertura mínima de €30,000.
+          <strong className="text-foreground">Tip de viajero:</strong> Contrata el seguro antes de salir del país y revisa qué pasa con
+          lo que ocurrió antes de comprarlo. Si tramitas una visa Schengen, se pide un seguro médico que cubra emergencias,
+          hospitalización y repatriación (<a className="text-primary underline underline-offset-2" href="https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/applying-schengen-visa_en" target="_blank" rel="noopener noreferrer">Comisión Europea</a>).
         </div>
       </div>
     </DashboardLayout>

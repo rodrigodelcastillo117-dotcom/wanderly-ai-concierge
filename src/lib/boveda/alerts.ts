@@ -4,6 +4,8 @@
 // de la SRE. Nada de esto sustituye la consulta oficial: los requisitos cambian.
 import { diffLocalDays, formatLocalDate, localISODate, parseLocalDate } from "@/lib/localDate";
 import type { VaultItem } from "./types";
+import { shortTripName } from "@/lib/tripName";
+import { SRE_GUIA_LABEL, SRE_GUIA_URL } from "../../../supabase/functions/_shared/sre.ts";
 
 export type TripLite = {
   id: string;
@@ -27,13 +29,13 @@ export type VaultAlert = {
   sourceLabel?: string;
 };
 
-export const SRE_GUIDE = { url: "https://guiadelviajero.sre.gob.mx/", label: "Guía del Viajero (SRE)" };
+export const SRE_GUIDE = { url: SRE_GUIA_URL, label: SRE_GUIA_LABEL };
 
 /** Países con regla curada para pasaporte mexicano + Schengen. */
 export const ENTRY_RULES_MX: Record<string, { level: AlertLevel; needs: "visa" | "eta_o_visa" | "eta" | null; title: string; detail: string; sourceUrl: string; sourceLabel: string }> = {
   US: {
     level: "critica", needs: "visa", title: "EUA pide visa con pasaporte mexicano",
-    detail: "No vemos una visa de EUA vigente para las fechas de tu viaje en tu bóveda. Si ya la tienes, agrégala.",
+    detail: "No vemos una visa de EUA vigente para las fechas de tu viaje en tus documentos. Si ya la tienes, agrégala.",
     sourceUrl: "https://travel.state.gov/content/travel/en/us-visas/tourism-visit/visitor.html", sourceLabel: "travel.state.gov",
   },
   CA: {
@@ -170,13 +172,14 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
   const nationality = passport?.country_code ?? null;
   const ppNone: TripLite[] = [], ppExp: TripLite[] = [], pp6m: TripLite[] = [];
 
-  for (const trip of upcomingTrips(trips, today).slice(0, 6)) {
+  // Primero se descartan los viajes nacionales y DESPUÉS se toman los 6 más próximos: antes se recortaba
+  // primero y, con seis viajes por México antes, el de Tokio nunca se revisaba (auditoría 10/10, P1-2).
+  const isDomestic = (t: TripLite) => countryOfTrip(t) === "MX" && (nationality === "MX" || nationality === null);
+  for (const trip of upcomingTrips(trips, today).filter((t) => !isDomestic(t)).slice(0, 6)) {
     const country = countryOfTrip(trip);
     const start = trip.fecha_salida as string;
     const end = tripEnd(trip) as string;
-    const domestic = country === "MX" && (nationality === "MX" || nationality === null);
-    if (domestic) continue;
-    const where = trip.destino;
+    const where = shortTripName(trip);
 
     // Pasaporte: se junta en UNA alerta por problema con todos los destinos afectados.
     if (!passport) ppNone.push(trip);
@@ -222,17 +225,27 @@ export function buildAlerts(items: VaultItem[], trips: TripLite[], today = local
     }
   }
 
-  const places = (ts: TripLite[]) => listJoin(ts.map((t) => t.destino));
+  const places = (ts: TripLite[]) => listJoin(ts.map((t) => shortTripName(t)));
   if (ppNone.length) {
     alerts.push({ id: `pp-none-${ppNone[0].id}`, level: "aviso", tripId: ppNone[0].id, title: `Agrega tu pasaporte para ${places(ppNone)}`,
       detail: "Así revisamos su vigencia contra las fechas de tus viajes." });
   }
   if (passport?.expires_on && ppExp.length) {
-    const end = tripEnd(ppExp[0]) as string;
-    alerts.push({ id: `pp-exp-${ppExp[0].id}`, level: "critica", tripId: ppExp[0].id, itemId: passport.id,
-      title: `Tu pasaporte vence antes de tu viaje a ${places(ppExp)}`,
-      detail: `Vence el ${fmt(passport.expires_on)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`,
-      sourceUrl: "https://www.gob.mx/sre", sourceLabel: "SRE" });
+    // Dos casos distintos: vence ya en camino ("vence el 15 feb y viajas del 10 al 20") o vence antes de
+    // salir. Cada uno con su alerta y sus destinos (antes todo decía "antes de tu viaje").
+    const exp = passport.expires_on;
+    const during = ppExp.filter((t) => exp >= (t.fecha_salida as string));
+    const before = ppExp.filter((t) => exp < (t.fecha_salida as string));
+    for (const [group, kind] of [[during, "durante"], [before, "antes"]] as const) {
+      if (!group.length) continue;
+      const end = tripEnd(group[0]) as string;
+      alerts.push({ id: `pp-exp-${kind}-${group[0].id}`, level: "critica", tripId: group[0].id, itemId: passport.id,
+        title: kind === "durante" ? `Tu pasaporte vence durante tu viaje a ${places(group)}` : `Tu pasaporte vence antes de tu viaje a ${places(group)}`,
+        detail: kind === "durante"
+          ? `Vence el ${fmt(exp)} y regresas el ${fmt(end)}. Renuévalo antes de viajar.`
+          : `Vence el ${fmt(exp)}, antes de que salgas el ${fmt(group[0].fecha_salida as string)}. Renuévalo antes de viajar.`,
+        sourceUrl: "https://www.gob.mx/sre", sourceLabel: "SRE" });
+    }
   }
   if (passport?.expires_on && pp6m.length) {
     alerts.push({ id: `pp-6m-${pp6m[0].id}`, level: "aviso", tripId: pp6m[0].id, itemId: passport.id,

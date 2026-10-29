@@ -126,9 +126,10 @@ describe("perfil de un amigo", () => {
     expect(screen.getByRole("link", { name: "Volver a Social" })).toHaveAttribute("href", "/dashboard/social");
   });
 
-  it("un id inválido es privado sin llamar al servidor", async () => {
+  // Auditoría técnica 10/10: un perfil inexistente decía "es privado"; ahora dice que no existe.
+  it("un id inválido no existe, sin llamar al servidor", async () => {
     renderProfile("no-es-un-id");
-    expect(await screen.findByText("Este perfil es privado")).toBeInTheDocument();
+    expect(await screen.findByText("Este perfil no existe")).toBeInTheDocument();
     expect(h.rpc).not.toHaveBeenCalled();
   });
 

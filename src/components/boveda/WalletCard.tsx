@@ -1,5 +1,6 @@
 import { Camera, Copy, Eye, EyeOff, FileText } from "lucide-react";
 import { cardLook, itemSubtitle } from "@/lib/boveda/cardStyle";
+import { benefitsStatus } from "@/lib/boveda/catalog";
 import { expiryStatus, fmtDate } from "@/lib/boveda/alerts";
 import { cardDisplay, groupNumber, maskNumber } from "@/lib/boveda/mask";
 import type { VaultItem } from "@/lib/boveda/types";
@@ -33,6 +34,9 @@ export function WalletCard({ item, revealed, filesCount, hasPdf, onOpen, onToggl
   const isCard = item.section === "tarjeta";
   const shown = item.number ? (isCard ? cardDisplay(item.number) : revealed ? groupNumber(item.number) : maskNumber(item.number)) : null;
   const btn = look.light ? "hover:bg-black/10 focus-visible:ring-black/40" : "hover:bg-white/10 focus-visible:ring-white/50";
+  const status = benefitsStatus(item);
+  // Una tarjeta "Platinum" sin beneficios con fuente no se presenta como si los tuviera.
+  const unverified = status === "ninguno" || status === "sin_verificar";
   const bottomLeft = item.holder_name || (item.section === "documento" || item.section === "seguro" ? item.issuer : null);
   return (
     <article
@@ -63,6 +67,11 @@ export function WalletCard({ item, revealed, filesCount, hasPdf, onOpen, onToggl
         <div className="min-w-0">
           <h3 className="font-display text-[19px] leading-[1.15] truncate" style={{ color: look.text }}>{item.title}</h3>
           {item.tier && <p className="text-[11px] font-medium tracking-wide truncate" style={{ color: look.accent }}>{item.tier}</p>}
+          {unverified && (
+            <p className="text-[10px] font-medium tracking-wide truncate" style={{ color: look.muted }} data-testid="wallet-sin-beneficios">
+              Sin beneficios verificados
+            </p>
+          )}
         </div>
         {item.number && !isCard && (
           <button type="button" aria-label={`Copiar número de ${item.title}`}

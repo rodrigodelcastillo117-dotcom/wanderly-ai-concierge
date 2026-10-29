@@ -12,6 +12,23 @@ export const RECEIPT_BUCKET = "trip-receipts";
 export const RECEIPT_MODEL = "google/gemini-flash-latest";
 /** Imágenes más grandes no se mandan completas (costo y tiempo); se intenta la versión reducida. */
 export const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
+export const RECEIPT_MAX_TOKENS = 4096;
+
+/**
+ * Texto de la respuesta del modelo: el endpoint compatible a veces manda `content` como lista de partes
+ * ([{ type: "text", text }]) en lugar de un texto; antes eso se leía como "sin total".
+ */
+export function receiptContent(choice: unknown): unknown {
+  const msg = (choice as { message?: { content?: unknown } } | null)?.message;
+  const c = msg?.content;
+  if (Array.isArray(c)) return c.map((p) => (typeof p === "string" ? p : typeof (p as { text?: unknown })?.text === "string" ? (p as { text: string }).text : "")).join("");
+  return c;
+}
+
+/** ¿La respuesta se cortó por tokens? (finish_reason "length" / "max_tokens"). */
+export function receiptTruncated(choice: unknown): boolean {
+  return /^(length|max_tokens)$/i.test(String((choice as { finish_reason?: unknown } | null)?.finish_reason ?? ""));
+}
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const PATH_RE = new RegExp(`^(${UUID})/(${UUID})/[A-Za-z0-9._-]{1,120}$`);
@@ -52,7 +69,10 @@ export function receiptBody(dataUrl: string, hints: { currency?: string | null; 
   ].filter(Boolean).join(" ");
   return {
     model: RECEIPT_MODEL,
-    max_tokens: 1500,
+    // El Flash vigente "piensa" antes de responder y esos tokens cuentan en max_tokens: con 1500 la
+    // respuesta llegaba cortada (JSON incompleto → 422 "No pudimos leer el ticket" con una foto legible,
+    // auditoría 10/10 P2-10). Con 4096 cabe el razonamiento y el JSON completo.
+    max_tokens: RECEIPT_MAX_TOKENS,
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [{

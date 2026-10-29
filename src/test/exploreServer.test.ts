@@ -44,7 +44,7 @@ describe("explore: gasto controlado", () => {
     expect(r.status).toBe(200);
     expect(r.body.sin_cache).toBe(true);
     expect(r.body.results).toEqual([]);
-    expect(String(r.body.motivo)).toContain("Explorar destinos");
+    expect(String(r.body.motivo)).toContain("Pulsa \"Buscar precios\"");
     expect(s.fetchImpl).not.toHaveBeenCalled();
     expect(gate).not.toHaveBeenCalled();
   });

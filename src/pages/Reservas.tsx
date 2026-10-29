@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { splitBookings } from "@/lib/bookingKinds";
-import { formatInstant } from "@/lib/localDate";
+import { dedupeVisits, splitBookings } from "@/lib/bookingKinds";
+import { formatBookingDate, formatInstant } from "@/lib/localDate";
 import { AiReservationsPanel } from "@/components/reservas/AiReservationsPanel";
 import { MyTeamRequests } from "@/components/concierge/MyTeamRequests";
 
@@ -100,9 +100,10 @@ const Reservas = () => {
     })();
   }, [user?.id]);
 
-  const { confirmed, visits } = splitBookings(items);
+  const { confirmed, visits: allVisits } = splitBookings(items);
+  const visits = dedupeVisits(allVisits);
 
-  const renderItem = (b: Booking, kind: "confirmed" | "visit", index = 0) => (
+  const renderItem = (b: Booking & { times?: number }, kind: "confirmed" | "visit", index = 0) => (
     <div key={b.id} className="glass-card rounded-2xl p-3 sm:p-4 border border-white/10">
       <div className="flex items-start justify-between gap-3">
         <BookingMedia b={b} index={index} />
@@ -114,7 +115,7 @@ const Reservas = () => {
               // "Ya lo reservé" en Comprar mi viaje: lo marcó el usuario, sin evidencia del proveedor.
               <span className="text-xs text-emerald-400">· Marcado por ti como reservado el {formatInstant(b.created_at)} (sin verificar)</span>
             ) : (
-              <span className="text-xs text-muted-foreground">· Visitado el {formatInstant(b.created_at)}</span>
+              <span className="text-xs text-muted-foreground">· {b.times && b.times > 1 ? `Abierto ${b.times} veces, la última el ${formatInstant(b.created_at)}` : `Visitado el ${formatInstant(b.created_at)}`}</span>
             ))}
             {kind === "confirmed" && b.confirmation_code && (
               <span className="text-xs text-primary">· Confirmación {b.confirmation_code}</span>
@@ -123,7 +124,7 @@ const Reservas = () => {
           <h3 className="font-display text-base truncate">{b.title}</h3>
           <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
             {b.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" aria-hidden="true" />{b.city}</span>}
-            {b.start_at && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true" />{formatInstant(b.start_at)}</span>}
+            {b.start_at && <span className="flex items-center gap-1" data-testid="reserva-fecha"><Calendar className="w-3 h-3" aria-hidden="true" />{formatBookingDate(b.start_at)}</span>}
           </div>
         </div>
         {b.booking_url && (

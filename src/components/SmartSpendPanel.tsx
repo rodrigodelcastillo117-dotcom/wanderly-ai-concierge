@@ -19,7 +19,8 @@ type Props = {
 const mxn = (n: number) => formatMoney(Math.round(n), "MXN", 0);
 /** Cifra grande con "MXN" chico al lado (en dos columnas de móvil no se parte en dos renglones). */
 const Big = ({ n }: { n: number }) => (
-  <>{`$${Math.round(n).toLocaleString("es-MX")}`}<span className="text-[0.45em] text-muted-foreground font-sans tracking-wide ml-1">MXN</span></>
+  // Espacio real (no separable) entre la cifra y "MXN": con solo margen, el texto se leía "$934MXN".
+  <>{`$${Math.round(n).toLocaleString("es-MX")}\u00A0`}<span className="text-[0.45em] text-muted-foreground font-sans tracking-wide">MXN</span></>
 );
 
 /**

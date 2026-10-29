@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { loadPhrases, savePhrases } from "@/lib/translatorStore";
 
 const ESSENTIALS = [
   "Hola", "Gracias", "Por favor", "¿Cuánto cuesta?", "¿Dónde está el baño?",
@@ -27,7 +28,10 @@ type Phrase = {
 const TripTranslator = () => {
   const { id } = useParams();
   const [trip, setTrip] = useState<any>(null);
-  const [phrases, setPhrases] = useState<Phrase[]>([]);
+  // Lo ya traducido se guarda en este dispositivo y se ve sin conexión (antes solo vivía en memoria).
+  const [phrases, setPhrases] = useState<Phrase[]>(() => loadPhrases(id));
+  const [saved, setSaved] = useState<boolean>(() => loadPhrases(id).length > 0);
+  useEffect(() => { const p = loadPhrases(id); setPhrases(p); setSaved(p.length > 0); }, [id]);
   const [loading, setLoading] = useState(false);
   const [customInput, setCustomInput] = useState("");
   const tipTrad = useTooltipShown("traductor");
@@ -55,6 +59,10 @@ const TripTranslator = () => {
 
   const generate = async (list: string[]) => {
     if (!trip || destinations.length === 0) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast.error("Sin conexión. Tus frases guardadas siguen aquí; para traducir nuevas necesitas internet.");
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-tool", {
@@ -68,13 +76,19 @@ const TripTranslator = () => {
             `Si un destino comparte idioma con el origen español, igual inclúyelo. Frases a traducir: ${list.join(" | ")}`
         }
       });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Error IA");
+      if (error || !data?.ok) throw new Error("ia");
       const arr: Phrase[] = Array.isArray(data.data) ? data.data : [];
-      if (arr.length === 0) toast.error("No se pudieron traducir las frases");
-      else setPhrases(prev => list.length === 1 ? [...arr, ...prev] : arr);
-    } catch (e: any) {
-      toast.error(e?.message || "Error al traducir");
+      if (arr.length === 0) toast.error("No pudimos traducir las frases. Intenta de nuevo.");
+      else {
+        setPhrases((prev) => {
+          // Las nuevas primero; lo traducido antes se conserva (y se guarda en el dispositivo).
+          const next = [...arr, ...prev.filter((p) => !arr.some((n) => n.es === p.es && n.destino === p.destino))];
+          setSaved(savePhrases(id, next));
+          return next;
+        });
+      }
+    } catch {
+      toast.error("No pudimos traducir ahora. Revisa tu conexión e intenta de nuevo.");
     }
     setLoading(false);
   };
@@ -146,7 +160,7 @@ const TripTranslator = () => {
 
   return (
     <DashboardLayout>
-      <FeatureTooltip id="traductor" icon="🌐" text="Traductor offline para tu destino. Iato sugiere frases clave del país." shouldShow={tipTrad.shouldShow} onDismiss={tipTrad.dismiss} />
+      <FeatureTooltip id="traductor" icon="🌐" text="Frases clave para tu destino. Las que traduces se guardan en este dispositivo para verlas sin conexión." shouldShow={tipTrad.shouldShow} onDismiss={tipTrad.dismiss} />
       <div className="p-6 md:p-10 max-w-3xl mx-auto">
         <div className="mb-6 flex items-center gap-3">
           <Languages className="w-7 h-7 text-primary" />
@@ -155,6 +169,12 @@ const TripTranslator = () => {
             <h1 className="font-display text-3xl">{destinations.join(" → ") || trip?.destino}</h1>
           </div>
         </div>
+
+        <p className="text-xs text-muted-foreground mb-4" data-testid="traductor-guardado">
+          {saved
+            ? `${phrases.length} ${phrases.length === 1 ? "frase guardada" : "frases guardadas"} en este dispositivo: las puedes ver sin conexión. Para traducir frases nuevas necesitas internet.`
+            : "Las frases que traduzcas se guardan en este dispositivo para verlas sin conexión. Para traducir necesitas internet."}
+        </p>
 
         <div className="flex gap-2 mb-4">
           <Button onClick={() => generate(ESSENTIALS)} disabled={loading} className="flex-1">

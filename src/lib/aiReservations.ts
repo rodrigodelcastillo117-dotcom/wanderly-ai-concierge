@@ -9,6 +9,8 @@ export type AiReservation = {
   venue_email: string | null;
   /** Piloto: el correo es el de prueba del dueño, no el del restaurante (se dice en pantalla). */
   venue_email_is_test?: boolean;
+  /** De dónde salió el correo. En el piloto es el correo de prueba del dueño (url "piloto://…"). */
+  venue_email_source?: { url?: string | null; quote?: string | null } | null;
   venue_address: string | null;
   venue_city: string | null;
   venue_place_id: string | null;
@@ -30,6 +32,16 @@ export type AiReservation = {
 };
 
 export type AiReservationPreview = { to: string; subject: string; text: string };
+
+/** ¿El correo es el de prueba del piloto (no el del restaurante)? Lo marca el servidor en venue_email_source. */
+export function isPilotTestEmail(r: Pick<AiReservation, "venue_email_source"> | null | undefined): boolean {
+  return /^piloto:\/\//.test(String(r?.venue_email_source?.url ?? ""));
+}
+
+/** "Iato escribirá a …": aclara cuando es el correo de prueba del piloto. */
+export function recipientNote(r: Pick<AiReservation, "venue_email_source">): string | null {
+  return isPilotTestEmail(r) ? "Correo de prueba del piloto, no es el del restaurante: nadie del restaurante lo recibe." : null;
+}
 export type AiReservationsResult = {
   ok: boolean; code?: string; message?: string; enabled?: boolean; reservations?: AiReservation[]; reservation?: AiReservation; venue_notified?: boolean;
   /** create_intent: a quién y qué se le escribirá (null si no hay correo verificado). */

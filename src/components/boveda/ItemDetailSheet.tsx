@@ -120,7 +120,7 @@ export function ItemDetailSheet({ item, files, revealed, uploading, onOpenChange
                 </div>
               ) : (
                 <Button variant="ghost" className="w-full text-muted-foreground hover:text-destructive" onClick={() => setConfirm(true)}>
-                  <Trash2 className="w-4 h-4 mr-1.5" aria-hidden="true" /> Borrar de mi bóveda
+                  <Trash2 className="w-4 h-4 mr-1.5" aria-hidden="true" /> Borrar de mis documentos
                 </Button>
               )}
             </div>

@@ -250,6 +250,16 @@ export async function receiptUrl(client: Client, path: string): Promise<string |
   }
 }
 
+/** Enlace temporal (5 min) para ver el recibo de un gasto personal (bucket privado "recibos"). */
+export async function expenseReceiptUrl(client: Client, path: string): Promise<string | null> {
+  try {
+    const { data } = await client.storage.from("recibos").createSignedUrl(path, 300);
+    return data?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Mi parte de los gastos compartidos de todos mis viajes (para Gastos del dashboard). */
 export async function loadMySharedParts(client: Client): Promise<{
   share_id: string; expense_id: string; trip_id: string; amount: number; currency: string; category: string;

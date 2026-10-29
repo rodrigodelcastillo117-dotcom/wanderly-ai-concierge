@@ -9,6 +9,7 @@ import { useCameraCapture } from "@/components/camera/CameraCapture";
 import { prepareRecuerdo, RECUERDO_ACCEPT, RECUERDO_LIMITS_TEXT, type PrepareDeps } from "@/lib/recuerdos/prepare";
 import { uploadRecuerdo, type RecuerdosClient } from "@/lib/recuerdos/api";
 import { tripForDate, type RecuerdoRow, type RecuerdoTrip } from "@/lib/recuerdos/model";
+import { tripOptionLabel } from "@/lib/tripName";
 
 type Job = { id: number; name: string; status: "preparando" | "subiendo" | "listo" | "error"; message?: string; trip?: string | null };
 
@@ -114,7 +115,7 @@ export function RecuerdosUploader({ client, userId, trips, onUploaded, onDone, p
             className="h-10 min-w-0 max-w-full rounded-full border border-border bg-background px-3 text-sm">
             <option value="auto">Automático, por la fecha de cada foto</option>
             <option value="ninguno">Sin viaje</option>
-            {trips.map((t) => <option key={t.id} value={t.id}>{t.destino || "Viaje"}</option>)}
+            {trips.map((t) => <option key={t.id} value={t.id}>{tripOptionLabel(t)}</option>)}
           </select>
         </div>
         <input ref={fileRef} type="file" multiple accept={RECUERDO_ACCEPT} className="hidden" aria-label="Elegir fotos y videos"

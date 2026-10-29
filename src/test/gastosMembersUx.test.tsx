@@ -190,7 +190,8 @@ describe("Ahorro para tu viaje: cuentas", () => {
     expect(g.meses).toBe(6);
     expect(g.faltante).toBe(100000);
     expect(g.mensual).toBeCloseTo(100000 / 6, 6);
-    expect(g.semanal).toBeCloseTo(100000 / 26, 6); // 182 días = 26 semanas
+    // El semanal es el mismo plan que el mensual, por semana (auditoría 10/10 P2-9: antes 100000 / 26).
+    expect(g.semanal).toBeCloseTo((100000 / 6) * 12 / 52, 6);
     expect(g.avance).toBeCloseTo(1 / 6, 6);
     expect(g.calendario).toHaveLength(6);
     expect(g.calendario[5].acumulado).toBeCloseTo(120000, 6);

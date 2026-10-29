@@ -14,7 +14,7 @@ import { adminClient } from "../_shared/entitlements.ts";
 import { aiFetchDetailed } from "../_shared/ai.ts";
 import { logUsage } from "../_shared/serpRuntime.ts";
 import { usageFromChat } from "../_shared/usage.ts";
-import { MAX_RECEIPT_BYTES, mimeForReceipt, parseReceipt, RECEIPT_BUCKET, receiptBody, receiptPathOk, toBase64 } from "./receipt.ts";
+import { MAX_RECEIPT_BYTES, mimeForReceipt, parseReceipt, RECEIPT_BUCKET, receiptBody, receiptContent, receiptPathOk, receiptTruncated, toBase64 } from "./receipt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +87,13 @@ Deno.serve(async (req) => {
     }
     const data = await res.json();
     await logUsage({ user_id: user.id, function: "scan-receipt", provider, model, ...(usageFromChat(data) ?? {}) });
-    const result = parseReceipt(data?.choices?.[0]?.message?.content, new Date().toISOString().slice(0, 10));
+    const choice = data?.choices?.[0];
+    const result = parseReceipt(receiptContent(choice), new Date().toISOString().slice(0, 10));
+    if (!result.ok && result.code === "respuesta_invalida") {
+      // Respuesta cortada o rara: es un problema de la lectura, no de la foto. Se dice así (502, no 422).
+      console.warn("scan-receipt: respuesta sin JSON válido", receiptTruncated(choice) ? "(cortada por tokens)" : "", String(choice?.finish_reason ?? ""));
+      return json({ ok: false, code: "respuesta_invalida", message: "No pudimos terminar de leer el ticket. Intenta de nuevo o captúralo a mano." }, 502);
+    }
     return json(result, result.ok ? 200 : 422);
   } catch (e) {
     console.warn("scan-receipt:", (e as Error)?.message);

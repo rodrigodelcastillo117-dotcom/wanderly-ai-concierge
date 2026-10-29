@@ -157,7 +157,7 @@ export function FriendsPrivacySection() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-3 gap-x-8 gap-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2">
         {(["perfil", "viajes", "actividad"] as const).map((g) => (
           <div key={g}>
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-2">{g === "perfil" ? "Perfil" : g === "viajes" ? "Viajes" : "Actividad"}</p>
@@ -179,7 +179,7 @@ export function FriendsPrivacySection() {
       {/* RECOMENDAR */}
       <div className="rounded-2xl border border-white/[0.06] p-4 space-y-3">
         <p className="font-medium text-sm flex items-center gap-1.5"><Star className="w-4 h-4 text-primary" aria-hidden="true" /> Recomienda un lugar</p>
-        <div className="grid sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input value={reco.nombre} onChange={(e) => setReco({ ...reco, nombre: e.target.value.slice(0, 120) })} placeholder="Nombre (p. ej. Cocina Las Ranitas)" aria-label="Nombre del lugar" />
           <Input value={reco.ciudad} onChange={(e) => setReco({ ...reco, ciudad: e.target.value.slice(0, 80) })} placeholder="Ciudad" aria-label="Ciudad" />
         </div>
@@ -254,7 +254,7 @@ export function FriendsPrivacySection() {
       {trips.length > 0 && (
         <div className="space-y-2">
           <p className="font-medium text-sm">Tus viajes</p>
-          <ul className="grid sm:grid-cols-2 gap-2">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {groupOwnTrips(trips).slice(0, 12).map((t) => {
               const shared = t.fase === "pasado" ? settings.viajes_pasados : settings.viajes_proximos;
               return (

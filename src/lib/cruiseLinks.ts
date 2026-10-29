@@ -2,8 +2,8 @@
 // una búsqueda con puertos y fechas. El precio siempre es "por cotizar con la naviera": IATOS no lo
 // inventa ni lo suma al total. Todos los dominios están en la lista blanca (_shared/booking/allowlist.ts).
 import { cruiseCriticLink, vacationsToGoLink } from "@/lib/affiliateLinks";
-import { checkAllowlisted } from "../../supabase/functions/_shared/booking/allowlist.ts";
-import { CRUISE_DOMAINS } from "../../supabase/functions/_shared/booking/allowlist.ts";
+// Módulo chico (no allowlist.ts): ver la nota de cruiseDomains.ts.
+import { CRUISE_DOMAINS, isCruiseLinkAllowed } from "../../supabase/functions/_shared/booking/cruiseDomains.ts";
 import { normText, type Cruise } from "../../supabase/functions/_shared/tripSpec.ts";
 
 export type CruiseLink = { label: string; url: string; nota: string };
@@ -43,7 +43,7 @@ export function cruiseLinks(c: Cruise | null, from?: string | null, to?: string 
   // Cruise Critic recibe el destino por URL; las fechas y el puerto de salida se eligen en su buscador.
   out.push({ label: "Cruise Critic", url: cruiseCriticLink(llegada || salida), nota: `Buscador con el destino ${llegada || salida}${when ? `; elige ${when} ahí` : ""}.` });
   if (!site) out.push({ label: "Vacations To Go", url: vacationsToGoLink(), nota: `Buscador de cruceros: elige destino${when ? ` y ${when}` : " y mes"} ahí.` });
-  return out.filter((l) => checkAllowlisted(l.url).ok);
+  return out.filter((l) => isCruiseLinkAllowed(l.url));
 }
 
 export const CRUISE_PRICE_NOTE = "Precio por cotizar con la naviera · no suma al total";

@@ -7,6 +7,7 @@
  * defensiva y con una lista cerrada de campos: aunque el servidor mandara de más, la pantalla no lo pinta
  * (nunca precio, código de confirmación, proveedor, horario ni enlace de la reserva).
  */
+import { looksLikeRawPrompt, shortTripName } from "@/lib/tripName";
 import { bookingLink, getYourGuideLink, googleMapsSearchLink, openTableLink } from "@/lib/affiliateLinks";
 
 type RpcClient = { rpc: (fn: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> };
@@ -187,13 +188,13 @@ export function parseTripList(v: unknown): FriendTrip[] {
  * Si el destino parece una frase, se usa el país (o países) del viaje; si no hay, se recorta.
  */
 export function displayTripName(t: Pick<FriendTrip, "destino" | "paises">): string {
+  // Misma regla que el resto de la app (_shared/tripName.ts): si el destino es la frase cruda del usuario,
+  // se muestra lo que se entendió de ella; aquí, además, los países del viaje si los hay.
   const d = (t.destino ?? "").replace(/\s+/g, " ").trim();
-  const sentence = d.length > 40 || /[.,;:¿?¡!]\s|[.,;:]$/.test(d) || /^(quiero|quisiera|me gustar[ií]a|planea|planear|necesito|busco|ay[uú]dame)\b/i.test(d);
-  if (!sentence) return d || "Viaje";
+  if (!looksLikeRawPrompt(d)) return d || "Viaje";
   const countries = (t.paises ?? []).map((p) => p.trim()).filter(Boolean);
   if (countries.length) return countries.slice(0, 3).join(", ");
-  const short = d.split(/[.,;:¿?¡!]/)[0].trim();
-  return short.length > 40 ? `${short.slice(0, 39).trimEnd()}…` : short || "Viaje";
+  return shortTripName({ destino: d }) || "Viaje";
 }
 
 /**
