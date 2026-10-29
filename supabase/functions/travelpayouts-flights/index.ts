@@ -4,6 +4,8 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { pricesForDatesUrl, resolveTpMarker } from "../_shared/tp-params.ts";
 import { aviasalesSearchLink } from "../_shared/travelpayouts.ts";
 import { filterFares, knownCityCode } from "../_shared/fareGuard.ts";
+import { flightPlaceMetro } from "../_shared/airports.ts";
+import { travelpayoutsReference } from "../_shared/tpReference.ts";
 // Consulta precios de vuelos via Travelpayouts/Aviasales v3 prices_for_dates.
 // Acepta IATA o nombre de ciudad (auto-resuelve via autocomplete Travelpayouts).
 
@@ -37,6 +39,10 @@ async function resolveIata(input: string | undefined): Promise<string | null> {
   // nombres en español puede devolver otra ciudad.
   const known = knownCityCode(cleaned);
   if (known) return known;
+  // País con entrada clara ("India" → DEL), primera ciudad de una ruta o error de dedo ("beijin" →
+  // BJS), con la tabla de aeropuertos; el autocompletado de abajo con "beijin" o "India" no daba nada útil.
+  const place = flightPlaceMetro(cleaned);
+  if (place) return place;
   try {
     const url = `https://autocomplete.travelpayouts.com/places2?term=${encodeURIComponent(cleaned)}&locale=en&types[]=city&types[]=airport`;
     const res = await fetch(url);
@@ -143,12 +149,20 @@ Deno.serve(async (req) => {
     rows = guard.valid;
     const data = { data: rows };
     if (rows.length === 0) {
+      // Ruta o fecha lejana sin tarifas del mes: una tarifa de referencia (otro día u otro mes, con su
+      // fecha y fuente) para mostrarla aparte, nunca como vuelo comprable (_shared/tpReference.ts).
+      const reference = /^\d{4}-\d{2}-\d{2}$/.test(body.departure_date)
+        ? await travelpayoutsReference({ origin, destination, depart: body.departure_date, ret: body.return_date ?? null,
+          originCity: body.origin_city ?? null, destinationCity: body.destination_city ?? null }, TP_TOKEN, TP_MARKER)
+        : null;
       return okJson({
         source: "travelpayouts",
         error: guard.rejected.length ? "solo_tarifas_de_otra_ruta" : lastError ?? "sin_resultados_en_cache",
         rejected_count: guard.rejected.length,
         approximate_dates: false,
         flights: [],
+        ...(reference ? { reference } : {}),
+        origin, destination,
       });
     }
 

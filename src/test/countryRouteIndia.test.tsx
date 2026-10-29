@@ -183,7 +183,7 @@ describe("Comprar del viaje por la India: todos los tramos, 'Siguiente →' y re
   it("vuelo MEX→DEL de ida y regreso, cada tramo con avión / tren / coche con chofer y un hotel por ciudad", () => {
     const flow = buildBuyFlow(ROUTE_TRIP, { selVuelo: -1, selHospedaje: -1, selTours: new Set() });
     expect(flow.steps.map((s) => s.title)).toEqual(["Vuelo de ida y regreso", "Hotel en Delhi", "Delhi → Agra", "Hotel en Agra", "Agra → Jaipur", "Hotel en Jaipur",
-      "Jaipur → Ranthambore", "Hotel en Ranthambore", "Ranthambore → Delhi", "Hotel en Delhi", "Auto (opcional)"]);
+      "Jaipur → Ranthambore", "Hotel en Ranthambore", "Ranthambore → Delhi", "Hotel en Delhi", "Chofer o auto (opcional)"]); // India: chofer primero (caso Álvaro)
     expect(parseGoogleFlightsSearch(flow.steps[0].item!.url!)).toMatchObject({ origin: "MEX", destination: "DEL", depart: "2026-11-21", ret: "2026-12-05", adults: 2 });
     const legs = flow.steps.filter((s) => s.kind === "traslado") as any[];
     // Delhi → Agra: tren del plan (con precio estimado) elegido; avión con Google Flights solo ida; coche con chofer con la ruta.

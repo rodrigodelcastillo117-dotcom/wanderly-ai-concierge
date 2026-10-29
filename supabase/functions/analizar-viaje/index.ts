@@ -38,7 +38,8 @@ import { resolveTpMarker } from "../_shared/tp-params.ts";
 import { sanitizeSavedConsulta } from "../_shared/tripSpec.ts";
 import { enforceSources, gfStamp, hotelPreference, liveConsultedAt as sourceConsultedAt, localStamp, stampInZone } from "./sources.ts";
 import { applyTripCalendar, arrivalSummary, calendarPromptBlock, nightsDaysText, type FlightTimes } from "../_shared/tripCalendar.ts";
-import { countryOfCity } from "../_shared/airports.ts";
+import { countryOfCity, resolveFlightPlace } from "../_shared/airports.ts";
+import { annotateNoLivePrice, noLivePriceReason } from "../_shared/flightNoPrice.ts";
 import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
@@ -1106,6 +1107,19 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       a.desglose_presupuesto = capped.desglose;
     }
 
+    // Sin precio en vivo de vuelos (caso Álvaro, 28-oct-2026): cada vuelo estimado lleva el motivo en
+    // español simple, la tarifa de referencia de Aviasales (si la hubo, con su fecha y fuente) y qué
+    // destino se buscó ("India" → Delhi). La pantalla ofrece "Consultar precio en vivo" con eso.
+    const flightNoPrice = googleFlightsLive ? null : noLivePriceReason(googleFlights);
+    if (flightNoPrice && !shortTrip) {
+      const place = resolveFlightPlace(body.destino);
+      a.vuelos = annotateNoLivePrice(a.vuelos, {
+        reason: flightNoPrice,
+        reference: googleFlights?.tarifa_referencia ?? tpFlights?.reference ?? null,
+        destinoNota: place.ok && place.via !== "ciudad" ? place.note : null,
+      });
+    }
+
     // Itinerario con fechas reales, todos los días del calendario y el día de llegada / salida según las
     // horas reales del vuelo elegido (equilibrio). En coche solo fechas y número de días.
     const vueloElegido = shortTrip ? null : (Array.isArray(a.vuelos) ? a.vuelos : []).find((v: any) => v?.tier === "equilibrio" && !v?.modo) ?? null;
@@ -1255,7 +1269,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
         restaurantes: googleRestaurants.length ? "google_places" : "estimado",
         traslado_carretera: shortTrip ? { fuente: shortTrip.source ?? "aproximado", consultado_at: shortTrip.consultedAt ?? null, km: shortTrip.approxRoadKm, casetas: driveOk?.tolls?.estado ?? (drive ? "NO_DISPONIBLE" : "SIN_CONSULTAR") } : null,
         travelpayouts: { count: tpFlights?.flights?.length ?? 0, consulted_at: tpFlights?.consulted_at ?? null, approximate_dates: !!tpFlights?.approximate_dates, cache_max_age_h: 48 },
-        google_flights: { live: googleFlightsLive, consulted_at: googleFlights?.consulted_at ?? null },
+        google_flights: { live: googleFlightsLive, consulted_at: googleFlights?.consulted_at ?? null, ...(flightNoPrice ? { motivo: flightNoPrice.codigo } : {}) },
         google_hotels: { live: serpHotelsLive, consulted_at: serpHotels?.consulted_at ?? null },
         fx_eur: fxEurInfo,
         perplexity_citations: investigacion.citations.length,

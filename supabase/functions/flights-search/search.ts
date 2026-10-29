@@ -6,7 +6,8 @@
 // se devolvían aerolíneas y precios inventados con botón de compra, como si fueran reales.
 import { aiFetch } from "../_shared/ai.ts";
 import { resolveTpMarker } from "../_shared/tp-params.ts";
-import { mainAirport } from "../_shared/airports.ts";
+import { mainAirport, placeQuestion, resolveFlightPlace } from "../_shared/airports.ts";
+import { type ReferenceFare, travelpayoutsReference } from "../_shared/tpReference.ts";
 import { googleFlightsSearchUrl } from "../_shared/booking/links.ts";
 import { airlineCode } from "../_shared/airlines.ts";
 
@@ -103,6 +104,8 @@ export type FlightsSearchEnv = {
   marker?: string | null;
   /** fetch para SerpApi: el de la caché compartida (_shared/serpCache.ts) en producción. */
   serpFetch?: typeof fetch;
+  /** fetch para Travelpayouts (pruebas); por defecto el global. */
+  tpFetch?: typeof fetch;
 };
 
 export type SearchResult = { status: number; body: Record<string, unknown> };
@@ -203,8 +206,14 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
     dep = d2 ?? dep; arr = a2 ?? arr;
   }
   if (!dep || !arr) {
-    return { status: 400, body: { ok: false, error: "no_iata", origin, destination } };
+    // Qué preguntarle a la persona ("¿A qué ciudad de Estados Unidos vas?"), nunca un código inventado.
+    const bad = !arr ? resolveFlightPlace(destination) : resolveFlightPlace(origin);
+    return { status: 400, body: { ok: false, error: "no_iata", origin, destination,
+      motivo_codigo: "ciudad_no_reconocida", motivo_detalle: placeQuestion(bad) } };
   }
+  // "India" → Delhi, "beijin" → Pekín: se dice qué se buscó.
+  const destPlace = resolveFlightPlace(destination);
+  const destinoNota = destPlace.ok && destPlace.via !== "ciudad" ? destPlace.note : null;
 
   const searchLink = aviasalesBuyUrl(dep, arr, depart, roundTrip ? return_date : null, travelers, marker);
   let results: any[] = [];
@@ -273,7 +282,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
       u.searchParams.set("token", env.tpToken);
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 12000);
-      const r = await fetch(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+      const r = await (env.tpFetch ?? fetch)(u.toString(), { signal: ctrl.signal }).finally(() => clearTimeout(tid));
       if (r.ok) {
         const j = await r.json();
         const items: any[] = Object.values(j?.data?.[arr] ?? {});
@@ -311,6 +320,16 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
     }
   }
 
+  // Sin vuelos: una tarifa de referencia de búsquedas recientes (mismo mes u otro, con su fecha y
+  // fuente) para rutas lejanas o fechas lejanas. No es un vuelo comprable ni cuenta como resultado.
+  let referencia: ReferenceFare | null = null;
+  if (results.length === 0 && env.tpToken && !departureToken) {
+    referencia = await travelpayoutsReference(
+      { origin: dep, destination: arr, depart, ret: roundTrip ? return_date : null, originCity: origin, destinationCity: destination },
+      env.tpToken, marker, { fetchImpl: env.tpFetch ?? fetch },
+    );
+  }
+
   const disponible = results.length > 0;
   return {
     status: 200,
@@ -329,6 +348,8 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
       // Link de búsqueda (sin precio) para que el usuario busque por su cuenta si no hay datos.
       search_url: searchLink,
       google_flights_url: google_flights_url ?? searchLink,
+      ...(referencia ? { tarifa_referencia: referencia } : {}),
+      ...(destinoNota ? { destino_nota: destinoNota } : {}),
       meta: { origin, destination, depart, return_date, travelers, dep_iata: dep, arr_iata: arr, ...(departureToken ? { leg: "return" } : {}) },
     },
   };

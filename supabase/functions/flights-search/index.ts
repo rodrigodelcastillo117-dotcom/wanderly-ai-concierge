@@ -7,6 +7,7 @@ import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { dbCacheStore, isAnalysisCall, liveSearchGateFor, serpFetchFor } from "../_shared/serpRuntime.ts";
 import { getRateToMxnInfo } from "../_shared/fx.ts";
 import { finalizeSearchResponse } from "../_shared/liveSearch.ts";
+import { noLivePriceReason } from "../_shared/flightNoPrice.ts";
 import { searchFlights } from "./search.ts";
 import { exploreDestinations } from "./explore.ts";
 import { searchMultiCity } from "./multiCity.ts";
@@ -27,7 +28,10 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const analysis = await isAnalysisCall(req, __user.id);
-    const serp = serpFetchFor("flights-search", __user.id, analysis ? undefined : liveSearchGateFor(__user.id));
+    // Vuelos (análisis o la búsqueda que pide la persona) tienen prioridad en el tope diario sobre
+    // hoteles, mapas y cron (serpBrake.ts). "Explorar destinos" no: es inspiración, no la cotización.
+    const serp = serpFetchFor("flights-search", __user.id, analysis ? undefined : liveSearchGateFor(__user.id),
+      { priority: body?.action === "explore" ? "normal" : "vuelos" });
     const serpKey = Deno.env.get("SERPAPI_PRIVATE_KEY");
     // "explore": Vuelos baratos desde {origen} / Explorar destinos. Con live:false solo lee la caché
     // compartida (cero búsquedas de pago); con live:true pasa por la bolsa del plan y el freno.
@@ -44,6 +48,12 @@ Deno.serve(async (req) => {
         serpFetch: serp.fetch,
       });
     const { status, body: out } = finalizeSearchResponse(result, serp.trace);
+    // Sin precio en vivo: el motivo en español simple (búsquedas del día agotadas, ciudad no
+    // reconocida…) para la pantalla y para Iato. Solo en la búsqueda de vuelos (no en explorar).
+    if (body?.action !== "explore" && body?.type !== "multi" && out.disponible !== true) {
+      const why = noLivePriceReason(out);
+      if (why) { out.motivo_codigo = why.codigo; out.motivo_detalle = why.texto; }
+    }
     return new Response(JSON.stringify(out), {
       status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

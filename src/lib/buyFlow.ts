@@ -15,6 +15,7 @@ import { googleFlightsSearchUrl } from "../../supabase/functions/_shared/booking
 import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators, TRAINLINE_LABEL } from "../../supabase/functions/_shared/booking/railOperators.ts";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
 import { arrivalByLand, arrivalStepTitle } from "@/lib/groundTrip";
+import { driverOption, type DriverOption } from "@/lib/driverService";
 
 export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
   /** Modo elegido por traslado ("traslado:roma>florencia" → "tren"). */
@@ -29,7 +30,9 @@ export type HotelStep = { kind: "hospedaje"; n: number; title: string; city: str
   options: number[]; chosen: number; skipped: boolean; nights: number;
   /** true si la persona lo eligió; false si `chosen` es solo el hotel de la cotización (por defecto). */
   userChosen: boolean };
-export type CarStep = { kind: "auto"; n: number; title: string; item: PurchaseItem | null };
+export type CarStep = { kind: "auto"; n: number; title: string; item: PurchaseItem | null;
+  /** Chofer privado (por cotizar, se pide al equipo): primero si `recommended`; si no, como alternativa. */
+  driver?: DriverOption | null };
 /** Multi-destino: cómo ir de una ciudad a la siguiente (París → Roma), con su fecha y opciones estimadas. */
 export type LegStep = { kind: "traslado"; n: number; title: string; from: string; to: string; date: string | null; options: LegOption[];
   /** Avión, tren o coche/chofer, con su botón; `chosen` es el modo elegido. */
@@ -258,7 +261,13 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
     }
   }
   const car = items.find((i) => i.kind === "auto") ?? null;
-  if (car) steps.push({ kind: "auto", n: n++, title: "Auto (opcional)", item: car });
+  if (car) {
+    // Premium = el hotel del viaje es el de nivel premium (el que suma el total o el elegido).
+    const hotel = items.find((i) => i.kind === "hospedaje" && i.index >= 0);
+    const premium = !!hotel && String((Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [])[hotel.index]?.tier ?? "").toLowerCase() === "premium";
+    const driver = driverOption(trip, { premium });
+    steps.push({ kind: "auto", n: n++, title: driver?.recommended ? "Chofer o auto (opcional)" : "Auto (opcional)", item: car, driver });
+  }
 
   const cities = tripDestinations(trip);
   const list = (arr: any[]) => (Array.isArray(arr) ? arr : []);
