@@ -31,7 +31,7 @@ import { buildContextMessage, buildDynamicSystem, buildMemoryData, buildStableSy
 import { cardsForStorage } from "./storedCards.ts";
 import {
   asArray, buildRequestIntelligence, compactItem, compactTripForPrompt, computeTripGaps, loadReservationStates, reservationGuardInput,
-  tripBookingContext, tripListBookingState,
+  tripBookingContext, tripListBookingState, tripsDigest,
 } from "./context.ts";
 import { reservationStatesForPrompt } from "../_shared/reservationState.ts";
 import { chatError, type ChatErrorCode, modelHttpErrorCode, toolErrorCode } from "./errors.ts";
@@ -53,6 +53,7 @@ import { runEventSearch } from "./events.ts";
 import { ticketmasterFor } from "../_shared/ticketmasterRuntime.ts";
 import { runViatorSearch, viatorConfig } from "../_shared/viator.ts";
 import { executeAction } from "./actionExec.ts";
+import { type AiResRow, aiReservationsForPrompt, isDomesticTrip } from "./honesty.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
 import { withTimeout } from "./tools.ts";
@@ -397,12 +398,15 @@ Deno.serve(async (req) => {
       supabase.from("travel_profiles").select("estilo_viaje, presupuesto_rango, ritmo_viaje, preferencias_comida, alergias_restricciones, intereses, perfil_ia").eq("user_id", userId).maybeSingle(),
       supabase.from("profiles").select("active_trip_id").eq("id", userId).maybeSingle(),
       readTasteCache(supabase, userId),
+      // Todos sus viajes, ligeros (destino, país y fechas): el modelo los ve todos, no solo 8 (N1).
+      supabase.from("trips").select("id, destino, pais_destino, fecha_salida, fecha_regreso, ciudad_origen").eq("user_id", userId).limit(200),
     ]);
     // Se espera la reserva aunque el contexto falle, para que el catch de abajo la libere.
     const [quota, ctxRes] = await Promise.all([quotaP, contextP.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }))]);
     if (!ctxRes.ok) throw ctxRes.e;
     if (!quota.allowed) return quotaDeniedResponse(quota, "concierge", corsHeaders);
-    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache] = ctxRes.v;
+    const [{ data: tripRows }, { data: vault }, { data: prefs }, { data: profile }, { data: tprof }, pinnedRes, tasteCache, allTripsRes] = ctxRes.v;
+    const allTrips: any[] = Array.isArray((allTripsRes as any)?.data) ? (allTripsRes as any).data : [];
     // Si hay que recalcular, corre en paralelo con lo demás y tiene 700 ms; si tarda más, se usa el
     // perfil anterior y el nuevo se guarda en segundo plano para el siguiente mensaje.
     const tastePromise = getTasteProfile({ db: supabase, cache: adminClient(), userId, todayISO: tasteToday(), cached: tasteCache, timeoutMs: 700 })
@@ -491,6 +495,12 @@ Deno.serve(async (req) => {
     // a la vez que reservas y memoria.
     const resStatesP = withTimeout(loadReservationStates((fn, params) => supabase.rpc(fn, params) as any, trip_id_activo), 1500)
       .then((r) => (Array.isArray(r) ? r : [])).catch(() => []);
+    // Reservas IA con su estado EXACTO (awaiting_user_ok = borrador, aún no se envió), fecha y hora:
+    // la vista canónica solo trae el nombre del lugar y el modelo mezclaba dos solicitudes (N4).
+    const aiResRowsP = withTimeout(Promise.resolve(supabase.from("ai_reservations")
+      .select("id, venue_name, requested_local, party_size, status, reason, sent_at, trip_id")
+      .eq("user_id", userId).order("created_at", { ascending: false }).limit(10)), 1500)
+      .then((r: any) => (Array.isArray(r?.data) ? r.data as AiResRow[] : [])).catch(() => [] as AiResRow[]);
     const [bksRes, convRes] = await Promise.all([
       bookingTripIds.length
         ? supabase.from("bookings")
@@ -499,7 +509,7 @@ Deno.serve(async (req) => {
         : Promise.resolve({ data: [] as any[] }),
       trip_id_activo ? convQuery.eq("trip_id", trip_id_activo).maybeSingle() : convQuery.is("trip_id", null).maybeSingle(),
     ]);
-    const resStates = await resStatesP;
+    const [resStates, aiResRows] = await Promise.all([resStatesP, aiResRowsP]);
     const reservationGuard = reservationGuardInput(resStates);
     if (bookingTripIds.length) {
       bookingsAll = (bksRes as any)?.data ?? [];
@@ -530,7 +540,10 @@ Deno.serve(async (req) => {
     };
 
     // Lista compacta de viajes vigentes; el viaje en contexto se detalla aparte.
-    const viajes = viajesVigentes.slice(0, 8).map((tr: any) => {
+    const detailed = viajesVigentes.slice(0, 8);
+    // Los demás viajes vigentes (de la lista completa y ligera), compactos: destino, país y fechas (N1).
+    const otrosViajes = tripsDigest(allTrips.length ? allTrips : viajesVigentes, { skipIds: detailed.map((t: any) => t.id), todayISO });
+    const viajes = detailed.map((tr: any) => {
       const base: Record<string, unknown> = {
         ...tripSummary(tr), origen: tr.ciudad_origen ?? undefined, viajeros: tr.num_viajeros ?? undefined,
         estado_reservas: tripListBookingState(tr, bookingsAll),
@@ -564,6 +577,9 @@ Deno.serve(async (req) => {
     });
 
     plan.notes.push(turnPlaceNote(turnPlace));
+    // Viaje nacional (mismo país de origen y destino): sin adaptador de corriente en la lista (N10).
+    const domesticTrip = isDomesticTrip(trip, profile?.ciudad_origen ?? null);
+    if (domesticTrip && intents.includes("packing")) plan.notes.push("Viaje nacional (mismo país de origen y destino): no incluyas adaptador de corriente en la lista.");
 
     // "Quiero hablar con un humano": respuesta inmediata, sin modelo y sin gastar mensaje.
     if (plan.direct) {
@@ -588,8 +604,8 @@ Deno.serve(async (req) => {
     // ≤ 350 tokens en el chat (lo declarado ya va en <perfil_usuario>): el contexto sigue compacto.
     const gustos = renderTasteProfile(taste.profile, { maxTokens: 350, omitDeclared: true });
     const contextMessage = buildContextMessage({
-      perfil: compactItem(perfil), gustos, viajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes,
-      reservas: reservationStatesForPrompt(resStates),
+      perfil: compactItem(perfil), gustos, viajes, otrosViajes, viajeEnContexto, faltantes: tripGaps, memoria, notas: plan.notes,
+      reservas: reservationStatesForPrompt(resStates), reservasIa: aiReservationsForPrompt(aiResRows),
     });
 
     // Eventos "aquí" (turnPlace): la ubicación física con permiso; si pidió otra ciudad, esa ciudad.
@@ -611,6 +627,10 @@ Deno.serve(async (req) => {
         requestIntel, hasConfirmedBookings: confirmedBookings.length > 0 || reservationGuard.hasVerifiedReservation,
         openRequests: reservationGuard.openRequests, knownRequests: reservationGuard.knownRequests,
         tripScope: { trip, position: situation?.position ?? "unknown", user: userLoc },
+        honesty: {
+          trips: [...allTrips, ...trips], userMessage: lastUserMsg, todayISO, planCardTypes: (plan.cards as { type?: string }[]).map((c) => String(c?.type ?? "")),
+          aiReservations: aiResRows, domesticTrip,
+        },
         // Enlaces de reserva (OpenTable/Maps): con la ciudad donde está el usuario si está fuera del viaje.
         city: turnPlace.searchCity || undefined,
         party: Number(trip?.num_viajeros) || 2,

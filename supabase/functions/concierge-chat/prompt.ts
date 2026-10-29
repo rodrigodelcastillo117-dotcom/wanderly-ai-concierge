@@ -17,6 +17,7 @@ import { DATA_SENTINEL } from "./stream.ts";
 import { TASTE_CITATION_RULE } from "../_shared/tasteProfile.ts";
 import { situationLine, type TripSituation } from "./location.ts";
 import { RESERVATION_STATE_RULE } from "../_shared/reservationState.ts";
+import { AI_RES_STATE_RULE } from "./honesty.ts";
 import { scrubProvidersDeep } from "../_shared/providerNames.ts";
 import { EXPENSE_CATEGORIES } from "./actions.ts";
 
@@ -69,7 +70,9 @@ HONESTIDAD (no negociable)
 7. ${BOOKING_STATE_RULE}
 8. No uses palabras como VIP, exclusivo o garantizado para describir lugares o servicios.
 9. Si detectas urgencia → card "alert" y la acción para una persona del equipo IATOS.
-10. Solicitudes: nunca digas que algo "ya está solicitado", "ya lo pedí", "ya enviamos tu solicitud" o "ya está en proceso" si no aparece en <estado_reservas_usuario>. Una acción que propones no existe hasta que el usuario la confirma: di "Te dejo el botón para pedirlo".
+10. ${AI_RES_STATE_RULE}
+11. No prometas tarjetas, enlaces ni botones que no existen: solo menciona la tarjeta o el enlace de un proveedor (Booking, Viator, Ticketmaster…) si su búsqueda corrió en este turno y lo trajo.
+12. Solicitudes: nunca digas que algo "ya está solicitado", "ya lo pedí", "ya enviamos tu solicitud" o "ya está en proceso" si no aparece en <estado_reservas_usuario>. Una acción que propones no existe hasta que el usuario la confirma: di "Te dejo el botón para pedirlo".
 
 ACCIONES (puedes hacer cosas por el usuario)
 Al final propón de 0 a 3 acciones, solo las que sirven para lo que pidió. El usuario las confirma con un toque: nada se ejecuta sin su confirmación, así que no digas que ya lo hiciste; di "Te dejo el botón para confirmarlo". Tipos y parámetros:
@@ -112,7 +115,8 @@ Los botones de cómo llegar, Uber, llamar y reservar los agrega IATOS a partir d
 
 export const TRIP_RULES = [
   "═══ REGLAS — VIAJES DEL USUARIO ═══",
-  "El usuario puede tener varios viajes vigentes; están en <viajes_usuario>. El viaje sobre el que hablas está detallado en <viaje_en_contexto>.",
+  "El usuario puede tener varios viajes vigentes; están en <viajes_usuario> (detallados) y <otros_viajes_usuario> (destino, país y fechas). El viaje sobre el que hablas está detallado en <viaje_en_contexto>.",
+  "0. Antes de decir que no tiene un viaje a un lugar, revisa destino y país de TODOS sus viajes (<viajes_usuario> y <otros_viajes_usuario>): Tokio está en Japón. Si no lo ves, no lo afirmes de más: pregúntale si lo está planeando.",
   "1. Si menciona un destino específico ('el viaje a Europa', 'mi vuelo de París'), usa ese viaje de la lista.",
   "2. Si dice 'mi viaje' sin especificar y hay varios viajes y no hay <viaje_en_contexto>, pregunta cuál listando destino y fechas. NO asumas el más próximo ni el más reciente.",
   "3. JAMÁS pidas al usuario datos que YA están en <viaje_en_contexto> (fechas, hotel, aeropuerto, vuelo). Úsalos literalmente; solo pregunta lo que no esté ahí.",
@@ -167,7 +171,7 @@ export function tripResolutionLine(reason: ActiveTripReason, hasTrip: boolean, s
       "VIAJE EN CONTEXTO: AMBIGUO. Hay varios viajes vigentes y el mensaje no dice cuál. Si la respuesta depende del viaje, pregunta cuál listando destino y fechas de <viajes_usuario>; no des horas, vuelos ni hoteles de ninguno hasta que el usuario elija.",
       // Hallazgos de producción R10: "mi viaje a Japón" sin viaje a Japón listaba Puebla/Madrid/Cancún,
       // y "hazme una noche Privé" respondía "¿a cuál viaje?" en vez de explicar Privé.
-      "Si el usuario nombra un destino que NO está en <viajes_usuario>, dile que no tiene un viaje guardado a ese destino y ofrécele planearlo; no le listes sus otros viajes.",
+      "Si el usuario nombra un destino que NO está en <viajes_usuario> ni en <otros_viajes_usuario> (revisa destino y país de todos), dile que no tiene un viaje guardado a ese destino y ofrécele planearlo; no le listes sus otros viajes.",
       "Si la petición no depende de un viaje (cómo funciona IATOS Privé o Members Only, una duda general, una emergencia), responde directamente sin preguntar por el viaje.",
     ].join(" ");
   }
@@ -227,6 +231,10 @@ export interface ContextData {
   notas?: string[] | null;
   /** God Mode F1: estados reales de sus solicitudes y reservas (reservationStatesForPrompt). */
   reservas?: unknown[] | null;
+  /** Viajes vigentes que no van detallados en <viajes_usuario> (context.ts tripsDigest, N1). */
+  otrosViajes?: unknown[] | null;
+  /** Reservas IA con su estado exacto (honesty.ts aiReservationsForPrompt, N4). */
+  reservasIa?: unknown[] | null;
 }
 
 /** Mensaje de CONTEXTO (role user) con cada bloque delimitado y neutralizado. */
@@ -238,9 +246,11 @@ export function buildContextMessage(raw: ContextData): ChatMessage | null {
   if (data.perfil && Object.keys(data.perfil).length) blocks.push(untrustedBlock("perfil_usuario", data.perfil));
   if (data.gustos && data.gustos.trim()) blocks.push(untrustedBlock("gustos_usuario", data.gustos));
   if (data.viajes?.length) blocks.push(untrustedBlock("viajes_usuario", data.viajes));
+  if (data.otrosViajes?.length) blocks.push(untrustedBlock("otros_viajes_usuario", data.otrosViajes));
   if (data.viajeEnContexto) blocks.push(untrustedBlock("viaje_en_contexto", data.viajeEnContexto));
   if (data.faltantes?.length) blocks.push(untrustedBlock("faltantes_viaje", data.faltantes));
   if (data.reservas?.length) blocks.push(untrustedBlock("estado_reservas_usuario", data.reservas));
+  if (data.reservasIa?.length) blocks.push(untrustedBlock("reservas_ia_usuario", data.reservasIa));
   if (data.memoria && Object.keys(data.memoria).length) blocks.push(untrustedBlock("memoria_conversaciones", data.memoria));
   if (data.notas?.length) blocks.push(untrustedBlock("notas_del_turno", data.notas));
   if (!blocks.length) return null;

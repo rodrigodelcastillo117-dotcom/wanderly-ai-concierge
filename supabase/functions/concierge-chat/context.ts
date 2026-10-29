@@ -194,7 +194,9 @@ export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
       severidad: dias !== null && dias <= 14 ? "alta" : "media",
       titulo: "Sin seguro de viaje",
       detalle: "No detecto seguro de viaje contratado para este viaje.",
-      sugerencia: "Recomienda contratar seguro y dirígelo a la sección Seguros de IATOS (/dashboard/insurance).",
+      // Sin rutas técnicas en el texto (la ruta que se daba ni siquiera existía en la app; auditoría 10,
+      // cuenta P1-1): se nombra la sección como la ve el usuario en el menú.
+      sugerencia: "Recomienda contratar seguro y menciona la sección Seguros de IATOS (en el menú de la app). No escribas rutas ni enlaces.",
     });
   }
 
@@ -405,4 +407,23 @@ export function compactTripForPrompt(trip: any, extras: {
     clics_a_socios_sin_confirmar: extras.clics_sin_confirmar || undefined,
     datos_relevantes_para_la_peticion_actual: extras.datos_relevantes ?? undefined,
   });
+}
+
+// ═══ Todos los viajes vigentes, compactos (auditoría 10, ronda 2, N1) ═══
+// El modelo solo recibía 8 viajes detallados y respondía "Japón no está entre tus viajes" con dos viajes
+// a Tokio (país Japón) más abajo en la lista. Los que no van detallados se pasan aquí: destino, país y
+// fechas, nada más (unos pocos tokens por viaje).
+export const MAX_TRIPS_DIGEST = 60;
+
+export function tripsDigest(trips: any[], opts: { skipIds?: Iterable<string>; todayISO: string; max?: number }) {
+  const skip = new Set(opts.skipIds ?? []);
+  return asArray(trips)
+    .filter((t) => t && !skip.has(t.id))
+    .filter((t) => !(t.fecha_regreso || t.fecha_salida) || String(t.fecha_regreso || t.fecha_salida).slice(0, 10) >= opts.todayISO)
+    .sort((a, b) => String(a.fecha_salida ?? "").localeCompare(String(b.fecha_salida ?? "")))
+    .slice(0, opts.max ?? MAX_TRIPS_DIGEST)
+    .map((t) => compactItem({
+      id: t.id, destino: t.destino ? String(t.destino).slice(0, 80) : undefined, pais: t.pais_destino ?? undefined,
+      salida: t.fecha_salida ? String(t.fecha_salida).slice(0, 10) : undefined, regreso: t.fecha_regreso ? String(t.fecha_regreso).slice(0, 10) : undefined,
+    }));
 }

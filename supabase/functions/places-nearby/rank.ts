@@ -95,8 +95,8 @@ export const usesEmergencyRanking = (kind: string) => kind in STRONG_TYPES;
  * Si nada pasa el filtro, quedan los de tipo principal correcto con más reseñas (nunca una lista vacía
  * cuando Google sí trajo lugares de ese tipo).
  */
-export function rankEmergencyPlaces<T extends EmergencyPlace>(kind: string, places: T[], origin?: { lat: number; lng: number } | null): T[] {
-  const withDist = places.map((p) => {
+export function rankEmergencyPlaces<T extends EmergencyPlace>(kind: string, places: T[], origin?: { lat: number; lng: number } | null): Array<T & { distance_m?: number }> {
+  const withDist: Array<T & { distance_m?: number }> = places.map((p) => {
     const ok = origin && typeof p.lat === "number" && typeof p.lng === "number" && Number.isFinite(p.lat) && Number.isFinite(p.lng);
     return ok ? { ...p, distance_m: Math.round(metersBetween(origin!, { lat: p.lat as number, lng: p.lng as number })) } : p;
   });
@@ -104,7 +104,7 @@ export function rankEmergencyPlaces<T extends EmergencyPlace>(kind: string, plac
   const dist = (p: EmergencyPlace) => (typeof p.distance_m === "number" ? p.distance_m : Number.MAX_SAFE_INTEGER);
   const ranked = withDist
     .map((p) => ({ p, t: emergencyTier(kind, p) }))
-    .filter((x): x is { p: T; t: 1 | 2 | 3 } => x.t !== null)
+    .filter((x): x is { p: T & { distance_m?: number }; t: 1 | 2 | 3 } => x.t !== null)
     .sort((a, b) => a.t - b.t || dist(a.p) - dist(b.p))
     .map((x) => x.p);
   if (ranked.length) return ranked;

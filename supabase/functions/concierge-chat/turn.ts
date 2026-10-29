@@ -17,6 +17,7 @@ import type { ConciergeStreamEvent } from "./stream.ts";
 import { TOOL_DEFS } from "./toolDefs.ts";
 import { withTimeout } from "./tools.ts";
 import { LiveAdviceFilter } from "./brevity.ts";
+import { type HonestyCtx, LiveHonestyFilter } from "./honesty.ts";
 
 export interface TurnDeps {
   plan: TurnPlan;
@@ -56,6 +57,12 @@ export interface TurnDeps {
    * (nadie vio nada antes del final, así que el recorte de brevity.ts todavía puede aplicarse).
    */
   streaming?: boolean;
+  /**
+   * Guardarraíles de honestidad EN VIVO (honesty.ts): viajes que sí existen, tarjetas prometidas que no
+   * existen, "enviada" sin envío y adaptador en viaje nacional. Se aplican oración por oración antes de
+   * mostrarse, así lo visto es lo que queda. Sin valor: el texto pasa tal cual.
+   */
+  honesty?: Omit<HonestyCtx, "toolsWithData"> | null;
 }
 
 /**
@@ -123,6 +130,12 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   // oración por oración ANTES de mostrarse; nada se borra después del streaming.
   const newLive = () => new LiveAdviceFilter({ avoidFlight: !!d.plan.avoidTopics?.includes("vuelo"), userMessage: d.userMessage });
   let live = newLive();
+  // Herramientas que trajeron datos en este turno (las previstas y las que pida el modelo): una tarjeta
+  // de Booking o Viator solo puede existir si su búsqueda corrió (honesty.ts, N3).
+  const withData = new Set<string>(prefetched.filter((r) => r.result?.disponible !== false).map((r) => r.name));
+  const honestyCtx: HonestyCtx | null = d.honesty ? { ...d.honesty, toolsWithData: () => withData } : null;
+  const newHonest = () => new LiveHonestyFilter(honestyCtx);
+  let honest = newHonest();
   const dynamicSystem = shownLead
     ? `${d.dynamicSystem}\n\nYA EN PANTALLA (lo escribió la app mientras llegaban los datos; no lo repitas): «${shownLead}». Tu respuesta aparece justo después, en el mismo párrafo: empieza directo con el resultado, sin saludo.`
     : d.dynamicSystem;
@@ -137,7 +150,13 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     }
     d.send({ type: "delta", data: { text } });
   };
-  const sendText = (raw: string) => show(live.push(raw));
+  const sendText = (raw: string) => show(honest.push(live.push(raw)));
+  const execTool = async (name: string, args: Record<string, unknown>) => {
+    const r = await d.execTool(name, args);
+    const p = r && typeof r === "object" && !Array.isArray(r) ? r as Record<string, unknown> : null;
+    if (p && !p.error && p.ok !== false && !(Array.isArray(p.results) && p.results.length === 0)) withData.add(name);
+    return r;
+  };
 
   // 2) Modelo (streaming) con herramientas.
   const chain = providerChain(d.route, d.config, d.breaker, { hasAnthropicKey: d.hasAnthropicKey, hasLovableKey: d.hasLovableKey });
@@ -145,13 +164,14 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     chain, breaker: d.breaker, cooldownMs: d.config.breaker_cooldown_s * 1000, callModel: d.callModel,
     stableSystem: d.stableSystem, dynamicSystem, messages: buildTurnMessages(d.contextMessage, d.history, prefetched),
     tools: TOOL_DEFS, maxIterations: d.route.maxIterations, maxTokens: d.route.maxTokens, userMessage: d.userMessage,
-    execTool: d.execTool, prepare: prepareToolResultForModel, toolTimeoutMs: d.toolTimeout, prefetched,
+    execTool, prepare: prepareToolResultForModel, toolTimeoutMs: d.toolTimeout, prefetched,
     deadlineMs: d.exigente ? 50_000 : 30_000, hardBudgetMs: Math.max(0, TURN_BUDGET_MS - prefetchMs), now: d.now,
     emit: {
       status: (id, text, state) => d.send({ type: "status", data: { id, text, state } }),
       delta: sendText,
       reset: () => {
         live = newLive();
+        honest = newHonest();
         d.send({ type: "reset", data: {} });
         if (shownLead) {
           d.send({ type: "delta", data: { text: shownLead } });
@@ -162,14 +182,15 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   });
 
   // Lo que quedó retenido al final de la última oración.
-  show(live.flush());
+  show(honest.push(live.flush()) + honest.flush());
 
   // 3) Respuesta validada.
   const final = finalizeTurn({
     raw: agent.finalText, toolRuns: agent.toolRuns, plan: d.plan, actionCtx: d.actionCtx,
     requestIntel: d.requestIntel, hasConfirmedBookings: d.hasConfirmedBookings, openRequests: d.openRequests, knownRequests: d.knownRequests, city: d.city, party: d.party,
     exigente: d.exigente, userMessage: d.userMessage, tripScope: d.tripScope ?? null,
-    liveText: d.streaming === false ? undefined : live.shown, liveDropped: live.dropped,
+    liveText: d.streaming === false ? undefined : honest.shown, liveDropped: live.dropped, liveRevised: honest.revised,
+    honesty: honestyCtx,
   });
   if (shownLead) final.text = joinLead(shownLead, final.text);
   return { final, agent, prefetched, prefetchMs, totalMs: now() - t0, lead: shownLead, leadMs };

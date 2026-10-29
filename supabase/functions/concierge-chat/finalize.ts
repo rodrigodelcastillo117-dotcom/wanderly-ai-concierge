@@ -22,6 +22,7 @@ import { ensureTransferUsesKnownData, normText } from "./context.ts";
 import { itineraryActionScope, type TripPosition, type UserLocation, userTripPosition } from "./location.ts";
 import { compactReply, dropUnaskedFlightAdvice } from "./brevity.ts";
 import { scrubProviders } from "../_shared/providerNames.ts";
+import { applyHonesty, type HonestyCtx } from "./honesty.ts";
 
 export interface FinalTurn {
   text: string;
@@ -61,6 +62,10 @@ export interface FinalizeInput {
   liveText?: string;
   /** Oraciones que el filtro en vivo no mostró (consejos del vuelo que no pidió). */
   liveDropped?: number;
+  /** Oraciones que los guardarraíles de honestidad en vivo quitaron o corrigieron (honesty.ts). */
+  liveRevised?: number;
+  /** Contexto de los guardarraíles de honestidad (honesty.ts): se aplica también a la respuesta en JSON. */
+  honesty?: HonestyCtx | null;
 }
 
 export function finalizeTurn(i: FinalizeInput): FinalTurn {
@@ -100,6 +105,15 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
   const places = ev.places.filter((p) => isGooglePlaceId(p.placeId)).map((p) => ({ placeId: p.placeId!, name: p.name, ...(p.city ? { city: p.city } : {}) }));
   const ctx: ActionContext = { ...i.actionCtx, priveExperienceIds: ev.priveIds, places };
   const acts = validateActions(data.actions, i.plan.suggestedActions, ctx, i.makeId);
+  // Viaje nacional: la lista de empaque no lleva adaptador de corriente (auditoría 10, N10).
+  if (i.honesty?.domesticTrip) {
+    for (const a of acts.actions) {
+      if (a.type !== "add_packing_items" || !Array.isArray(a.params.items)) continue;
+      const items = (a.params.items as unknown[]).filter((x) => !/adaptador/i.test(String(x)));
+      if (items.length !== (a.params.items as unknown[]).length) { a.params = { ...a.params, items }; guards.push("sin_adaptador_nacional"); }
+    }
+    acts.actions = acts.actions.filter((a) => a.type !== "add_packing_items" || (a.params.items as unknown[]).length > 0);
+  }
 
   // "Agregar a tu viaje X" para un restaurante de otra ciudad no tiene sentido: se quita y, si el lugar
   // salió de los resultados, se ofrece guardarlo en favoritos.
@@ -161,6 +175,7 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     // Ya se mostró en vivo: se queda completo (la brevedad la pide el prompt). Solo se registra si el
     // filtro en vivo no mostró consejos del vuelo que no pidió.
     if (i.liveDropped) guards.push("sin_consejo_no_pedido");
+    if (i.liveRevised) guards.push("honestidad_en_vivo");
   } else {
     // Respuesta que nadie vio todavía: primero lo que no pidió, luego el tope del modo (por bloques
     // completos, sin dejar nada colgando ni quitar la fuente). Los guardarraíles van después.
@@ -170,6 +185,10 @@ export function finalizeTurn(i: FinalizeInput): FinalTurn {
     }
     const short = compactReply(text, { exigente: i.exigente });
     if (short.trimmed && short.text.trim()) { text = short.text; guards.push("respuesta_recortada"); }
+    if (i.honesty) {
+      const h = applyHonesty(text, i.honesty);
+      if (h.revised && h.text.trim()) { text = h.text.trim(); guards.push("honestidad_en_vivo"); }
+    }
   }
   const before = text;
   text = correctFailureClaims(text, ev.unavailableState);
