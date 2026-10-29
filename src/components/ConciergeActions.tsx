@@ -25,7 +25,13 @@ type Place = {
   type: string | null;
   photo_url?: string | null;
   source?: string | null;
+  /** Distancia desde tu ubicación (la calcula places-nearby). */
+  distance_m?: number | null;
 };
+
+/** "a 350 m", "a 1.2 km". */
+export const distanceText = (m: number | null | undefined) =>
+  typeof m === "number" && Number.isFinite(m) ? (m < 1000 ? `a ${Math.max(10, Math.round(m / 10) * 10)} m` : `a ${(m / 1000).toFixed(1)} km`) : null;
 
 // Numeros de emergencia por país (ISO o nombre común). Fallback: 112.
 const EMERGENCY_NUMBERS: Record<string, { police: string; medical: string; fire: string; general?: string }> = {
@@ -317,6 +323,7 @@ export const ConciergeActions = ({
                             <Clock className="w-3 h-3" /> {p.open_now ? "Abierto" : "Cerrado"}
                           </span>
                         )}
+                        {distanceText(p.distance_m) && <span>{distanceText(p.distance_m)}</span>}
                         {p.type && <span>· {p.type}</span>}
                         {p.source && <span>· {p.source}</span>}
                       </div>

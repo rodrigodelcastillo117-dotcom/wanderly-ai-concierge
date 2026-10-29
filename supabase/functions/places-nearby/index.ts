@@ -3,7 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { serpFetchFor } from "../_shared/serpRuntime.ts";
-import { nearbySearchBody } from "./rank.ts";
+import { nearbySearchBody, rankEmergencyPlaces } from "./rank.ts";
 
 type Body = {
   lat: number;
@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
           "places.websiteUri",
           "places.currentOpeningHours.openNow",
           "places.primaryTypeDisplayName",
+          "places.primaryType",
         ].join(","),
       },
       body: JSON.stringify(nearbySearchBody(body, type)),
@@ -135,7 +136,7 @@ Deno.serve(async (req) => {
         // Respaldo con Google Maps vía SerpApi y la caché compartida (7 días).
         const fallbackPlaces = await searchWithSerpApi(body, serpFetchFor("places-nearby", __user.id).fetch);
         if (fallbackPlaces) {
-          return new Response(JSON.stringify({ ok: true, places: fallbackPlaces, source: "serpapi_fallback" }), {
+          return new Response(JSON.stringify({ ok: true, places: rankEmergencyPlaces(body.kind, fallbackPlaces, { lat: body.lat, lng: body.lng }), source: "serpapi_fallback" }), {
             status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -161,11 +162,14 @@ Deno.serve(async (req) => {
       website: p.websiteUri ?? null,
       open_now: p.currentOpeningHours?.openNow ?? null,
       type: p.primaryTypeDisplayName?.text ?? null,
+      primary_type: p.primaryType ?? null,
       photo_url: null,
       source: "Google Places",
     }));
+    // Hospital, policía, embajada: los reales primero (relevancia y luego distancia), sin los mal clasificados.
+    const ranked = rankEmergencyPlaces(body.kind, places, { lat: body.lat, lng: body.lng });
 
-    return new Response(JSON.stringify({ ok: true, places }), {
+    return new Response(JSON.stringify({ ok: true, places: ranked }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
