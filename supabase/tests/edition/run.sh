@@ -19,6 +19,9 @@ main() {
   local before after f
   before=$($PSQL -At -d "$DB" -c "$q")
   for f in "$T_MIG"/202610251001*.sql "$T_MIG"/202610251100*.sql; do t_apply "$DB" "$f" "(segunda pasada, no es idempotente) "; done
+  # 20261029020000 redefine edition_admin_require (403 en vez de 400): se vuelve a aplicar para que la base
+  # termine igual que en producción después de la segunda pasada de arriba.
+  t_apply "$DB" "$T_MIG/20261029020000_fix_cuenta_prive.sql" "(segunda pasada) "
   after=$($PSQL -At -d "$DB" -c "$q")
   [ -n "$after" ] && [ "$before" = "$after" ] && echo "OK E-IDEM re-aplicar las migraciones no duplica nada ($after)" || echo "FALLA E-IDEM $before → $after"
   $PSQL -d "$DB" -c "CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY, user_id uuid, not_after timestamptz, created_at timestamptz DEFAULT now())" >/dev/null

@@ -7,7 +7,7 @@ import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { formatBookingDate } from "@/lib/localDate";
+import { formatInstant, formatBookingDate } from "@/lib/localDate";
 import { dedupeVisits } from "@/lib/bookingKinds";
 import { isPilotTestEmail, recipientNote } from "@/lib/aiReservations";
 import { favoriteHref, favoriteKindLabel } from "@/lib/favorites";
@@ -37,11 +37,11 @@ import Favoritos from "@/pages/Favoritos";
 
 describe("P1-8 fechas sin zona en Mis reservas", () => {
   it("una fecha guardada a medianoche UTC se muestra el mismo día", () => {
-    expect(formatBookingDate("2027-03-10T00:00:00+00:00")).toBe(new Date(2027, 2, 10, 12).toLocaleDateString("es-MX"));
-    expect(formatBookingDate("2027-02-10T00:00:00Z")).toBe(new Date(2027, 1, 10, 12).toLocaleDateString("es-MX"));
-    expect(formatBookingDate("2027-02-10")).toBe(new Date(2027, 1, 10, 12).toLocaleDateString("es-MX"));
+    expect(formatBookingDate("2027-03-10T00:00:00+00:00")).toBe("10 mar 2027"); // formato único de la app (28-oct)
+    expect(formatBookingDate("2027-02-10T00:00:00Z")).toBe("10 feb 2027");
+    expect(formatBookingDate("2027-02-10")).toBe("10 feb 2027");
     // Un instante con hora real sigue pasando a la hora local.
-    expect(formatBookingDate("2027-02-10T18:30:00Z")).toBe(new Date("2027-02-10T18:30:00Z").toLocaleDateString("es-MX"));
+    expect(formatBookingDate("2027-02-10T18:30:00Z")).toBe(formatInstant("2027-02-10T18:30:00Z"));
   });
 });
 
@@ -67,7 +67,7 @@ describe("P2-12 visitas y correo del piloto", () => {
     render(<MemoryRouter><Reservas /></MemoryRouter>);
     const section = (await screen.findByRole("heading", { name: /Búsquedas\/visitas a socios/ })).closest("section")!;
     expect(within(section).getAllByText("Cabo da Roca")).toHaveLength(1);
-    expect(within(section).getByTestId("reserva-fecha").textContent).toBe(new Date(2027, 2, 10, 12).toLocaleDateString("es-MX"));
+    expect(within(section).getByTestId("reserva-fecha").textContent).toBe("10 mar 2027");
     expect(section.textContent).toMatch(/Abierto 2 veces/);
   });
 });

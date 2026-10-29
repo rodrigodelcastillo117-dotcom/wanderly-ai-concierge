@@ -68,7 +68,8 @@ export function formatInstant(
 ): string {
   if (!value) return "—";
   const d = value instanceof Date ? value : new Date(value);
-  return Number.isFinite(d.getTime()) ? d.toLocaleDateString(locale, options) : "—";
+  // Opciones vacías ({}) = formato único de la app, igual que formatLocalDate.
+  return Number.isFinite(d.getTime()) ? d.toLocaleDateString(locale, Object.keys(options).length ? options : APP_DATE_FORMAT) : "—";
 }
 
 /**

@@ -50,7 +50,7 @@ describe("nombre corto del viaje", () => {
   it("las listas usan el nombre corto", () => {
     for (const f of ["src/pages/Trips.tsx", "src/pages/DashboardHome.tsx", "src/components/social/FriendsPrivacySection.tsx",
       "src/components/TripCommandCenter.tsx", "src/pages/TripDetail.tsx", "src/pages/Gastos.tsx", "src/lib/recuerdos/api.ts"]) {
-      expect(read(f), f).toMatch(/shortTripName\(/);
+      expect(read(f), f).toMatch(/shortTripName\(|displayTripName\(|groupOwnTrips\(/); // FriendsPrivacySection usa groupOwnTrips → displayTripName → shortTripName
     }
     for (const f of ["src/pages/Recuerdos.tsx", "src/components/recuerdos/RecuerdosUploader.tsx", "src/components/recuerdos/RecuerdosViewer.tsx"]) {
       expect(read(f), f).toMatch(/tripOptionLabel\(t\)/);

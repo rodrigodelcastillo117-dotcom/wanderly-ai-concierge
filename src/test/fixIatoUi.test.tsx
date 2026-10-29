@@ -163,7 +163,7 @@ describe("#12: la hoja de emergencia queda encima de la barra de abajo", () => {
     const src = readFileSync("src/components/ConciergeActions.tsx", "utf8");
     expect(src).toMatch(/fixed inset-0 z-\[90\]/);
     expect(src).toMatch(/env\(safe-area-inset-bottom\)/);
-    expect(readFileSync("src/components/DashboardLayout.tsx", "utf8")).toMatch(/fixed bottom-0 inset-x-0 z-50/);
+    expect(readFileSync("src/components/DashboardLayout.tsx", "utf8")).toMatch(/fixed bottom-0 inset-x-0 z-(40|50)/) // la barra bajó a z-40 (herramientas); la hoja (z-[90]) sigue encima;
   });
 });
 
