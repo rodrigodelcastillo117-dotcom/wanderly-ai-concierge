@@ -33,6 +33,7 @@ import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/Grou
 import { isGroundTripOption } from "@/lib/booking";
 import { partsList, splitTripTotal } from "@/lib/totalSplit";
 import { broughtFlights, broughtHotelFor, isBroughtTrip } from "@/lib/broughtTrip";
+import { purchaseStepHint } from "@/lib/tripSectionHelp";
 
 const DESGLOSE_LABEL: Record<string, string> = { vuelos: "Vuelos", hospedaje: "Hospedaje", comida: "Comida", tours: "Experiencias", transporte_local: "Transporte local", extras: "Extras", casetas: "Casetas" };
 const money = (n: number, cur: string | null = "MXN") => `$${Math.round(n).toLocaleString("es-MX")} ${cur ?? "MXN"}`;
@@ -282,6 +283,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               <li key="vuelo" id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-vuelo" data-state={it ? state(it) : "pendiente"}>
                 <StepHeader n={s.n} title={s.title} icon={s.ground ? RouteIcon : Plane} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
+                {!s.skipped && !done && s.options.length > 0 && onSelectVuelo && <StepHint text={purchaseStepHint("vuelo", { ground: s.ground })} />}
                 {s.skipped ? (
                   brought
                     ? <SkipNote text={`Ya lo tienes${ownFlights ? ` (vuelo ${ownFlights})` : ""}: no suma al total.`} />
@@ -368,6 +370,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               <li key={`hotel-${s.n}`} id={`paso-${s.n}`} className={box(done, `paso-${s.n}`)} data-testid="comprar-hospedaje" data-city={cityId ?? ""} data-state={it ? state(it) : "pendiente"}>
                 <StepHeader n={s.n} title={s.title} icon={Hotel} done={done} />
                 {it?.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
+                {!s.skipped && !done && s.options.length > 0 && onSelectHotel && <StepHint text={purchaseStepHint("hospedaje")} />}
                 {s.skipped ? (
                   brought
                     ? <SkipNote text={(() => { const own = broughtHotelFor(trip, cityId); return own?.nombre ? `Ya lo tienes: ${own.nombre}. No suma al total.` : "Ya tienes dónde quedarte: no suma al total."; })()} />
@@ -442,6 +445,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
               <li key={`leg-${s.n}`} id={id} className={box(done, id)} data-testid="comprar-traslado" data-from={s.from} data-to={s.to} data-state={state(it)} data-chosen={s.chosen ?? ""}>
                 <StepHeader n={s.n} title={s.title} icon={MODE_ICON[s.chosen ?? ""] ?? RouteIcon} done={done} />
                 {it.subtitle && <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{it.subtitle}</p>}
+                {!done && s.choices.length > 1 && <StepHint text={purchaseStepHint("traslado")} />}
                 {s.choices.length > 0 ? (
                   <div role="radiogroup" aria-label={`Cómo ir de ${s.from} a ${s.to}`} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {s.choices.map((c) => {
@@ -731,6 +735,11 @@ function StepHeader({ n, title, icon: Icon, done }: { n: number; title: string; 
       <span className={`text-[11px] ${done ? "text-emerald-400" : "text-muted-foreground"}`}>{done ? "Listo" : "Pendiente"}</span>
     </div>
   );
+}
+
+/** Una línea bajo el paso: qué hacer con sus opciones (orientación, sin jerga). */
+function StepHint({ text }: { text: string }) {
+  return <p className="mt-1 text-xs text-primary/90" data-testid="comprar-paso-ayuda">{text}</p>;
 }
 
 function SkipNote({ text, onUndo }: { text: string; onUndo?: () => void }) {
