@@ -27,6 +27,8 @@ import Auth from "@/pages/Auth";
 import { CookieBanner, bottomBarOffset } from "@/components/CookieBanner";
 import { Ayuda, Terminos } from "@/pages/Legal";
 import { DNA_LABELS } from "@/lib/social";
+import { INITIAL_ROUTE_CHUNKS } from "@/lib/routeChunks";
+import { INITIAL_ROUTE_PAGES } from "../../vite.routePreload";
 import { iatoMarkHtml, shell, para, SERIF } from "../../supabase/functions/_shared/email-kit";
 import { userConfirmedEmail } from "../../supabase/functions/_shared/ai-reservations/templates";
 
@@ -170,6 +172,25 @@ describe("P2-3 · \"Iato\" ya no se lee \"lato\"", () => {
       quote: "Confirmado", receivedAt: "2 nov", icsUrl: null, appUrl: "https://app.test" } as any);
     expect(m.html).toMatch(/pediste a <span style="font-family:[^"]+;font-size:1\.15em;">Iato<\/span> que escribiera/);
     expect(m.text).toMatch(/pediste a Iato que escribiera/);
+  });
+});
+
+describe("P2-4 · /ayuda: LCP móvil, enlaces distinguibles y \"Mi perfil\" con enlace", () => {
+  it("el chunk de Ayuda y legales se pide desde el HTML y al arrancar (sin cascada index → Legal)", () => {
+    for (const p of ["/ayuda", "/terminos", "/privacidad", "/cookies", "/reembolsos"]) {
+      expect(INITIAL_ROUTE_CHUNKS.find(([re]) => re.test(p))?.[1].name, p).toBe("loadLegal");
+      expect(INITIAL_ROUTE_PAGES.some(([re, page]) => new RegExp(re).test(p) && page === "src/pages/Legal.tsx"), p).toBe(true);
+    }
+    expect(INITIAL_ROUTE_CHUNKS.find(([re]) => re.test("/ayuda/extra"))).toBeUndefined();
+  });
+
+  it("\"Mi perfil\" enlaza al perfil y los enlaces del texto van subrayados; el logo reserva su tamaño", () => {
+    const { container } = render(<MemoryRouter initialEntries={["/ayuda"]}><Ayuda /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Mi perfil" })).toHaveAttribute("href", "/dashboard/perfil");
+    expect(container.querySelector("article")!.className).toMatch(/\[&_a\]:underline/);
+    const logo = screen.getByRole("img", { name: "IATOS AI" });
+    expect(logo).toHaveAttribute("width", "320");
+    expect(logo).toHaveAttribute("height", "91");
   });
 });
 

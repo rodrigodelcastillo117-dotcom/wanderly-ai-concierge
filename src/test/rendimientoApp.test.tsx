@@ -75,7 +75,17 @@ describe("tipografías", () => {
     }
     const html = read("index.html");
     expect(html).toMatch(/<link rel="preload" href="\/fonts\/manrope-latin-v20\.woff2" as="font" type="font\/woff2" crossorigin \/>/);
-    expect(html).toMatch(/<link rel="preload" href="\/fonts\/fraunces-latin-v38\.woff2" as="font" type="font\/woff2" crossorigin \/>/);
+    // Fraunces se precarga desde un script en línea en todas las pantallas salvo Ayuda y legales (ronda 2, P2-4).
+    const fr = /<script>(\(function\(\)\{[^<]*fraunces-latin-v38\.woff2[^<]*)<\/script>/.exec(html);
+    expect(fr, "precarga de Fraunces").not.toBeNull();
+    const preloaded = (path: string) => {
+      const head = { children: [] as Record<string, string>[], appendChild(l: Record<string, string>) { this.children.push(l); } };
+      const doc = { head, createElement: () => ({}) as Record<string, string> };
+      new Function("document", "location", fr![1])(doc, { pathname: path });
+      return head.children.some((l) => l.rel === "preload" && l.as === "font" && l.href === "/fonts/fraunces-latin-v38.woff2" && l.crossOrigin === "anonymous");
+    };
+    for (const p of ["/", "/dashboard", "/auth", "/dashboard/viajes/x", "/prive"]) expect(preloaded(p), p).toBe(true);
+    for (const p of ["/ayuda", "/terminos", "/privacidad/", "/cookies", "/reembolsos"]) expect(preloaded(p), p).toBe(false);
   });
 });
 
@@ -127,7 +137,8 @@ describe("precarga de la pantalla inicial desde el HTML", () => {
       const name = page.replace(/^src\/pages\/|\.tsx$/g, "");
       expect(chunks).toContain(`export const load${name} = () => import("@/pages/${name}");`);
       expect(INITIAL_ROUTE_CHUNKS[i][1].name).toBe(`load${name}`);
-      expect(read("src/App.tsx")).toContain(`lazyWithRetry(load${name})`);
+      // Legal.tsx exporta varias páginas (Ayuda, Términos…): lazyWithRetry(() => loadLegal().then(…)).
+      expect(read("src/App.tsx")).toMatch(new RegExp(`lazyWithRetry\\((\\(\\) => )?load${name}\\b`));
     });
     expect(read("src/main.tsx")).toMatch(/preloadInitialRoute\(window\.location\.pathname\)/);
   });

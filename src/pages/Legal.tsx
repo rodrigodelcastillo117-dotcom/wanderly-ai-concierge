@@ -56,14 +56,15 @@ const Shell = ({ title, description, children, updated = UPDATED }: { title: str
   <div className="min-h-screen bg-background">
     <header className="border-b border-border/40">
       <div className="container mx-auto flex items-center justify-between py-5">
-        <Link to="/"><img src={iatosLogo} alt="IATOS AI" className="h-8 w-auto object-contain" /></Link>
+        <Link to="/"><img src={iatosLogo} alt="IATOS AI" width={320} height={91} decoding="async" className="h-8 w-auto object-contain" /></Link>
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition">Volver al inicio</Link>
       </div>
     </header>
     <main className="container mx-auto max-w-3xl py-12 px-4">
       <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-2">{title}</h1>
       <p className="text-sm text-muted-foreground mb-10">{description} · Última actualización: {updated}</p>
-      <article className="space-y-8 text-[15px] leading-relaxed text-muted-foreground [&_h2]:text-foreground [&_h2]:text-lg [&_h2]:font-medium [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
+      {/* Enlaces dentro del texto subrayados: se distinguen sin depender del color (accesibilidad, ronda 2 P2-4). */}
+      <article className="space-y-8 text-[15px] leading-relaxed text-muted-foreground [&_h2]:text-foreground [&_h2]:text-lg [&_h2]:font-medium [&_h2]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_a]:underline [&_a]:underline-offset-2">
         {children}
       </article>
       <footer className="mt-16 pt-8 border-t border-border/40 text-sm text-muted-foreground flex flex-wrap gap-4">
@@ -295,7 +296,7 @@ export const Ayuda = () => {
       <Faq id="cuenta" q="Mi cuenta">
         <ul>
           <li><strong>Olvidé mi contraseña:</strong> en la pantalla de inicio de sesión escribe tu correo y toca «¿Olvidaste tu contraseña?». Te enviamos un enlace.</li>
-          <li><strong>Mis datos:</strong> en Mi perfil puedes editar tus preferencias, borrar tu avatar, elegir qué ven tus amigos y eliminar tu cuenta. Lo que se borra y lo que no está en el <Link to="/privacidad" className="text-primary">Aviso de Privacidad</Link>.</li>
+          <li><strong>Mis datos:</strong> en <Link to="/dashboard/perfil" className="text-primary">Mi perfil</Link> puedes editar tus preferencias, borrar tu avatar, elegir qué ven tus amigos y eliminar tu cuenta. Lo que se borra y lo que no está en el <Link to="/privacidad" className="text-primary">Aviso de Privacidad</Link>.</li>
           <li><strong>Cookies:</strong> puedes cambiar tu elección en la <Link to="/cookies" className="text-primary">Política de Cookies</Link>.</li>
         </ul>
       </Faq>

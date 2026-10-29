@@ -16,7 +16,7 @@ import { SlowLoading } from "@/components/brand/SlowLoading";
 import Landing from "./pages/Landing";
 import { FreeLimitDialogLazyHost } from "@/components/FreeLimitDialogLazy";
 import { Navigate } from "react-router-dom";
-import { loadAuth, loadConcierge, loadDashboardHome, loadTripDetail, loadTrips } from "@/lib/routeChunks";
+import { loadAuth, loadConcierge, loadDashboardHome, loadLegal, loadTripDetail, loadTrips } from "@/lib/routeChunks";
 
 // Code-splitting: todo lo que no es la landing se carga bajo demanda por ruta.
 // El bundle único pesaba >4.4MB; esto reparte el peso en chunks por página.
@@ -93,11 +93,11 @@ const Trenes = lazyWithRetry(() => import("./pages/Trenes"));
 const Ferries = lazyWithRetry(() => import("./pages/Ferries"));
 const Cruceros = lazyWithRetry(() => import("./pages/Cruceros"));
 const Reservas = lazyWithRetry(() => import("./pages/Reservas"));
-const Terminos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Terminos })));
-const Privacidad = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Privacidad })));
-const Cookies = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Cookies })));
-const Reembolsos = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Reembolsos })));
-const Ayuda = lazyWithRetry(() => import("./pages/Legal").then((m) => ({ default: m.Ayuda })));
+const Terminos = lazyWithRetry(() => loadLegal().then((m) => ({ default: m.Terminos })));
+const Privacidad = lazyWithRetry(() => loadLegal().then((m) => ({ default: m.Privacidad })));
+const Cookies = lazyWithRetry(() => loadLegal().then((m) => ({ default: m.Cookies })));
+const Reembolsos = lazyWithRetry(() => loadLegal().then((m) => ({ default: m.Reembolsos })));
+const Ayuda = lazyWithRetry(() => loadLegal().then((m) => ({ default: m.Ayuda })));
 // IATOS Privé: cada pantalla en su propio chunk (la ceremonia y la bienvenida no pesan en el hub ni
 // en el resto de la app). PriveRoot trae el estado Privé, la tipografía y el CSS propio.
 const PriveRoot = lazyWithRetry(() => import("./pages/prive/PriveRoot"));
