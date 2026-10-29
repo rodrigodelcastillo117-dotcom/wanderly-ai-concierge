@@ -14,7 +14,7 @@ import {
   type AccountBrake, cacheGet, cacheKey, cachePut, type CacheStore, freshnessOf, isSerpQuotaError, type LiveGate,
 } from "../_shared/serpCache.ts";
 import { normText } from "./context.ts";
-import type { TmEvent, TmQuery, TmResult } from "../_shared/ticketmaster.ts";
+import { type TmEvent, type TmQuery, tmQueryTerms, type TmResult } from "../_shared/ticketmaster.ts";
 
 export const EVENTS_ENGINE = "google_events";
 export const MAX_EVENTS = 6;
@@ -307,53 +307,122 @@ export function partialNote(found: number, from: string | null, to: string | nul
   };
 }
 
+// ═══ Presupuesto de tiempo (auditoría 10 #5, ronda 2) ═══
+// La herramienta tiene un tope (TOOL_TIMEOUTS.search_events) y antes se pasaba: Ticketmaster (hasta
+// 8 s + ranuras de límite) y luego Google Events con "lo que quedara" (mínimo 3 s) sumaban más de 15 s,
+// el turno la cortaba y el usuario leía "Buscando eventos · no respondió" a los 20 s. Ahora cada paso
+// corre contra el MISMO reloj y la herramienta siempre regresa antes del tope con lo que tenga y el
+// porqué (Ticketmaster sin eventos, respaldo sin cupo o sin tiempo), nunca un "no respondió" mudo.
+
+/** Margen para que la respuesta llegue antes del tope del turno. */
+export const EVENTS_SAFETY_MS = 400;
+/** Tope de la primera consulta a Ticketmaster (deja tiempo para el reintento amplio y el respaldo). */
+export const TM_FIRST_MS = 6000;
+/** Menos que esto no alcanza para una búsqueda de Google Events (SerpApi tarda 2–6 s). */
+export const GOOGLE_MIN_MS = 2500;
+
+const TIMED_OUT = Symbol("timeout");
+async function within<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  if (ms <= 0) return TIMED_OUT;
+  let t: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([p, new Promise<typeof TIMED_OUT>((r) => { t = setTimeout(() => r(TIMED_OUT), ms); })]);
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
+const quoted = (q: string) => `«${q}»`;
+
 /**
  * search_events: Ticketmaster como fuente primaria cuando hay llave (gratis, con su propio límite) y
  * Google Events (SerpApi, con la bolsa del plan y el freno de gasto) como respaldo o complemento.
- * Usa la ubicación física solo si el turno es "aquí"; si no, la ciudad pedida.
+ * Usa la ubicación física solo si el turno es "aquí"; si no, la ciudad pedida. Todo dentro de
+ * `timeoutMs`: lo que no alcance se dice (aviso) en vez de agotar el tiempo.
  */
 export async function runEventSearch(args: Record<string, unknown>, deps: EventSearchDeps): Promise<Record<string, unknown>> {
-  if (!deps.ticketmaster) return runGoogleEventSearch(args, deps);
+  const now = deps.now ?? Date.now;
+  const budget = deps.timeoutMs ?? 7000;
+  const t0 = now();
+  const left = () => budget - EVENTS_SAFETY_MS - (now() - t0);
+  if (!deps.ticketmaster) {
+    const g = await within(runGoogleEventSearch(args, { ...deps, timeoutMs: Math.max(1000, left()) }), Math.max(0, left()));
+    return g === TIMED_OUT ? { error: "eventos_sin_tiempo", motivo: "Google Events no respondió a tiempo." } : g;
+  }
   const city = clean(args.city, 80);
   if (!city && !deps.nearCoords) return { error: "falta_ciudad" };
   const from = typeof args.date_from === "string" && ISO.test(args.date_from) ? args.date_from : null;
   const toRaw = typeof args.date_to === "string" && ISO.test(args.date_to) ? args.date_to : null;
   const to = toRaw && from && toRaw < from ? from : toRaw ?? from;
   const query = clean(args.query, 80);
-  const t0 = (deps.now ?? Date.now)();
-  let tm: TmResult;
-  try {
-    tm = await deps.ticketmaster({ city, coords: deps.nearCoords ?? null, from, to, category: query || null, keyword: query || null });
-  } catch {
-    tm = { ok: false, code: "ticketmaster_error", motivo: "Ticketmaster no respondió." };
-  }
-  let tmOk = tm.ok === true ? tm : null;
-  // "Aquí" sin eventos alrededor de la ubicación: antes de gastar SerpApi, otra vez Ticketmaster (gratis)
-  // con la ciudad (auditoría 10 #5: CDMX en Día de Muertos quedó sin eventos).
-  if (tmOk && tmOk.results.length === 0 && deps.nearCoords && city) {
+  const avisos: string[] = [];
+
+  const tmCall = async (q: TmQuery, ms: number): Promise<TmResult | null> => {
     try {
-      const byCity = await deps.ticketmaster({ city, coords: null, from, to, category: query || null, keyword: query || null });
-      if (byCity.ok === true && byCity.results.length) tmOk = byCity;
-    } catch { /* se queda la primera respuesta */ }
+      const r = await within(deps.ticketmaster!(q), ms);
+      return r === TIMED_OUT ? { ok: false, code: "ticketmaster_timeout", motivo: "Ticketmaster tardó demasiado en responder." } : r;
+    } catch {
+      return { ok: false, code: "ticketmaster_error", motivo: "Ticketmaster no respondió." };
+    }
+  };
+  const base: TmQuery = { city, coords: deps.nearCoords ?? null, from, to, category: query || null, keyword: query || null };
+  let tm = await tmCall(base, Math.min(TM_FIRST_MS, left()));
+  let tmOk = tm?.ok === true ? tm : null;
+  // "Aquí" sin eventos alrededor de la ubicación: otra vez Ticketmaster (gratis) con la ciudad.
+  if (tmOk && tmOk.results.length === 0 && deps.nearCoords && city && left() > GOOGLE_MIN_MS) {
+    const byCity = await tmCall({ ...base, coords: null }, Math.min(TM_FIRST_MS, left() - GOOGLE_MIN_MS));
+    if (byCity?.ok === true && byCity.results.length) tmOk = byCity;
+  }
+  // Nada con la categoría o el nombre pedido: se amplía (gratis) a todo lo que haya en la ciudad y las
+  // fechas, y se dice que es una búsqueda ampliada.
+  const terms = tmQueryTerms(query);
+  let ampliada = false;
+  if (tmOk && tmOk.results.length === 0 && query && (terms.classifications.length || terms.keyword) && left() > GOOGLE_MIN_MS) {
+    const wide = await tmCall({ ...base, coords: tmOk === tm ? base.coords : null, broad: true }, Math.min(TM_FIRST_MS, left() - GOOGLE_MIN_MS));
+    if (wide?.ok === true && wide.results.length) {
+      tmOk = wide;
+      ampliada = true;
+      avisos.push(`Ticketmaster no tiene eventos de ${quoted(query)} en esas fechas; estos son otros eventos en la ciudad: dilo así.`);
+    }
   }
   const primary = tmOk ? tmOk.results.map(fromTicketmaster) : [];
+  const found = Math.max(primary.length, tmOk?.total ?? 0);
   if (tmOk && primary.length >= TM_ENOUGH) {
     return { ok: true, source: "ticketmaster", results: primary.slice(0, MAX_EVENTS), consulted_at: tmOk.consulted_at, ...(tmOk.from_cache ? { from_cache: true } : {}),
-      ...partialNote(primary.length, from, to) };
+      ...(ampliada ? { ampliada: true } : {}), ...(avisos.length ? { aviso: avisos.join(" ") } : {}), ...partialNote(found, from, to) };
   }
-  const aviso = tmOk ? undefined : (tm as { motivo?: string }).motivo;
-  // El respaldo usa lo que queda del tiempo de la herramienta (Ticketmaster puede tardar hasta 8 s).
-  const left = Math.max(3000, (deps.timeoutMs ?? 7000) - ((deps.now ?? Date.now)() - t0));
-  const g = city ? await runGoogleEventSearch(args, { ...deps, timeoutMs: Math.min(deps.timeoutMs ?? 7000, left) }) : { error: "falta_ciudad" };
-  const gResults = g.ok === true && Array.isArray(g.results) ? g.results as EventResult[] : [];
+  if (!tmOk && tm) avisos.push(`${(tm as { motivo?: string }).motivo ?? "Ticketmaster no respondió."}`);
+
+  // Respaldo: Google Events (SerpApi) SOLO si queda tiempo para una búsqueda completa.
+  let g: Record<string, unknown> | null = null;
+  let respaldo: "ok" | "pausa" | "sin_tiempo" | "error" | "sin_ciudad" = "sin_ciudad";
+  if (city) {
+    const ms = left();
+    if (ms < GOOGLE_MIN_MS) {
+      respaldo = "sin_tiempo";
+    } else {
+      const r = await within(runGoogleEventSearch(args, { ...deps, timeoutMs: ms - 200 }), ms);
+      if (r === TIMED_OUT) respaldo = "sin_tiempo";
+      else {
+        g = r;
+        respaldo = r.ok === true ? "ok" : r.error === "busquedas_en_pausa" || r.code === "FREE_LIMIT_REACHED" ? "pausa" : "error";
+      }
+    }
+  }
+  const gResults = g?.ok === true && Array.isArray(g.results) ? g.results as EventResult[] : [];
+  const pausa = g?.error === "busquedas_en_pausa" ? String(g.pausa ?? "budget") : g?.code === "FREE_LIMIT_REACHED" ? "plan" : null;
+  if (respaldo === "sin_tiempo") avisos.push("La búsqueda de respaldo (Google Events) no alcanzó a responder a tiempo.");
+  if (respaldo === "error") avisos.push("La búsqueda de respaldo (Google Events) no respondió.");
   if (tmOk) {
     const merged = mergeEvents(primary, gResults);
     const both = gResults.length > 0 && merged.length > primary.length;
-    // El respaldo de Google Events no se pudo consultar por el tope de búsquedas en vivo: se dice así.
-    const pausa = g.error === "busquedas_en_pausa" ? String(g.pausa ?? "budget") : g.code === "FREE_LIMIT_REACHED" ? "plan" : null;
     return { ok: true, source: both ? "ticketmaster+google_events" : "ticketmaster", results: merged, consulted_at: tmOk.consulted_at,
-      ...(tmOk.from_cache && !both ? { from_cache: true } : {}), ...(pausa ? { respaldo_en_pausa: pausa } : {}) };
+      ...(tmOk.from_cache && !both ? { from_cache: true } : {}), ...(pausa ? { respaldo_en_pausa: pausa } : {}),
+      ...(respaldo === "sin_tiempo" || respaldo === "error" ? { respaldo: respaldo } : {}),
+      ...(ampliada ? { ampliada: true } : {}), ...(avisos.length ? { aviso: avisos.join(" ") } : {}), ...partialNote(found, from, to) };
   }
   // Sin Ticketmaster: Google Events tal cual, con el aviso honesto de por qué no hay Ticketmaster.
-  return { ...g, ...(aviso ? { aviso_ticketmaster: aviso } : {}) };
+  if (g && g.ok === true) return { ...g, ...(avisos.length ? { aviso_ticketmaster: avisos[0] } : {}) };
+  if (g && pausa) return { ...g, ...(avisos.length ? { aviso_ticketmaster: avisos[0] } : {}) };
+  return { error: "eventos_no_disponibles", motivo: avisos.join(" ").slice(0, 300) || "No se pudo consultar ninguna fuente de eventos." };
 }

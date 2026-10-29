@@ -170,6 +170,17 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
       motivo: `Ticketmaster no trajo eventos para esas fechas y la búsqueda de respaldo (Google Events) no se hizo: ${pauseMotivo(r.respaldo_en_pausa).charAt(0).toLowerCase()}${pauseMotivo(r.respaldo_en_pausa).slice(1)}`,
     };
   }
+  // Eventos sin nada que mostrar: se dice qué se consultó y por qué no hay más (nunca un "no respondió"
+  // mudo; auditoría 10 #5, ronda 2).
+  if (name === "search_events" && Array.isArray(r.results) && r.results.length === 0) {
+    const aviso = typeof r.aviso === "string" ? ` ${r.aviso.slice(0, 300)}` : "";
+    return { disponible: false, estado: "sin_resultados", fuente: typeof r.source === "string" ? r.source : "ticketmaster",
+      motivo: `${r.source === "google_events" ? "Google Events no trajo eventos" : "Ticketmaster no tiene eventos publicados"} para esa ciudad y esas fechas.${aviso} Dilo así; no inventes eventos.`.trim() };
+  }
+  if (name === "search_events" && r.error === "eventos_no_disponibles") {
+    return { disponible: false, estado: "no_respondio", error: "eventos_no_disponibles",
+      motivo: `${typeof r.motivo === "string" && r.motivo ? r.motivo.slice(0, 300) : "No se pudo consultar ninguna fuente de eventos."} Dilo así con el motivo y sugiere intentarlo en unos minutos o ver Ticketmaster directo; no inventes eventos.` };
+  }
   if (r.error === "no_configurado") {
     return { disponible: false, estado: "no_respondio", error: "no_configurado", motivo: "Esta búsqueda no está disponible en este momento." };
   }
@@ -215,6 +226,7 @@ export function prepareToolResultForModel(name: string, raw: unknown): Record<st
   }
   // Eventos: solo los primeros por fecha (events.ts → partialNote); la nota es nuestra, no de terceros.
   if (name === "search_events" && r.parcial === true && typeof r.nota === "string") out.nota_resultados = r.nota.slice(0, 400);
+  if (name === "search_events" && typeof r.aviso === "string" && r.aviso) out.aviso = r.aviso.slice(0, 400);
   if (name === "check_flight_status" && (r.provider === "perplexity" || r?.data?.fuente === "perplexity")) {
     out.nota_fuente = "Dato obtenido de una búsqueda web, no del sistema de la aerolínea: dilo así y sugiere confirmar con la aerolínea.";
   }

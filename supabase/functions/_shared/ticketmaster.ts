@@ -69,9 +69,13 @@ export interface TmQuery {
   keyword?: string | null;
   size?: number;
   locale?: string;
+  /** Sin categoría ni palabra clave: todo lo que haya en la ciudad y las fechas (reintento amplio). */
+  broad?: boolean;
 }
 
-export type TmOk = { ok: true; source: "ticketmaster"; results: TmEvent[]; consulted_at: string; from_cache?: boolean };
+export type TmOk = { ok: true; source: "ticketmaster"; results: TmEvent[]; consulted_at: string; from_cache?: boolean;
+  /** Cuántos eventos dice Ticketmaster que hay en total (page.totalElements), si lo dijo. */
+  total?: number };
 export type TmFail = { ok: false; code: string; motivo: string; http?: number };
 export type TmResult = TmOk | TmFail;
 
@@ -133,13 +137,76 @@ export function tmClassification(query: unknown): string | null {
   return null;
 }
 
+// ─── Qué buscar en Ticketmaster a partir de lo que pidió el usuario (auditoría 10 #5, ronda 2) ───
+// Caso real (CDMX, Día de Muertos): "¿Qué eventos o conciertos hay este fin de semana?" mandaba
+// keyword="eventos o conciertos" + classificationName=music. La Discovery API busca `keyword` como
+// texto del evento: ningún evento se llama así y la respuesta fue {"results": []} con decenas de
+// eventos en venta. Ahora:
+//   * Las palabras de categoría (conciertos, teatro, partido…) van a classificationName (varias = lista
+//     separada por comas, el parámetro es un arreglo) y NUNCA a keyword.
+//   * "eventos o conciertos" / "eventos y teatro" = lo pide todo: sin categoría.
+//   * Géneros conocidos (jazz, rock…) van como classificationName (acepta género y subgénero).
+//   * keyword solo lleva lo específico que queda (un artista, un equipo, "Día de Muertos").
+
+const NORM = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+const SEGMENT_WORDS: Array<[RegExp, string]> = [
+  [/^(conciertos?|conciert\w*|concerts?|musica\w*|music|musicales|festival(es)?|bandas?|djs?|tocadas?)$/, "music"],
+  [/^(partidos?|futbol|soccer|beisbol|baseball|basquet\w*|basketball|nba|nfl|mlb|nhl|deportes?|deportiv\w*|sports?|box|boxeo|lucha|luchas|f1|formula|tenis|tennis|golf|carreras?)$/, "sports"],
+  [/^(teatro|teatral\w*|theat\w*|obras?|musical|opera|ballet|danza|dance|standup|stand-up|comedia|comedy|espectaculos?|shows?|arte|arts|cultural\w*|culturales)$/, "arts & theatre"],
+  [/^(familia|familiar\w*|family|ninos|ninas|kids|infantil\w*|circo|circus|disney)$/, "family"],
+];
+const GENRE_WORDS: Record<string, string> = {
+  rock: "Rock", pop: "Pop", jazz: "Jazz", metal: "Metal", reggaeton: "Latin", latina: "Latin", latino: "Latin", salsa: "Latin",
+  electronica: "Dance/Electronic", electronic: "Dance/Electronic", techno: "Dance/Electronic", rap: "Hip-Hop/Rap", "hip-hop": "Hip-Hop/Rap",
+  clasica: "Classical", sinfonica: "Classical", sinfonico: "Classical", country: "Country", blues: "Blues", indie: "Alternative",
+};
+/** Palabras que dicen "lo que haya" (no son nombre de nada). */
+const GENERIC_WORDS = new Set(["evento", "eventos", "que", "hay", "hacer", "planes", "plan", "cosas", "algo", "actividades", "actividad", "boletos", "entradas"]);
+const STOP_WORDS = new Set([
+  "y", "o", "u", "e", "de", "del", "la", "el", "los", "las", "en", "para", "con", "un", "una", "unos", "unas", "al", "a", "por", "sobre",
+  "este", "esta", "estos", "estas", "ese", "esa", "fin", "semana", "finde", "hoy", "manana", "noche", "tarde", "cerca", "mi", "mis", "me", "se",
+  "buenos", "buenas", "mejores", "mejor", "top", "interesantes", "recomendados", "proximos", "proximo", "vivo", "en vivo", "live", "tipo",
+  "sabado", "domingo", "viernes", "lunes", "martes", "miercoles", "jueves", "obra", "partido",
+]);
+
+export interface TmTerms { classifications: string[]; keyword: string | null; broad: boolean }
+
+/** Categorías de Ticketmaster y la palabra clave específica (si queda alguna) de una consulta libre. */
+export function tmQueryTerms(query: unknown): TmTerms {
+  const raw = String(query ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!raw) return { classifications: [], keyword: null, broad: true };
+  const tokens = raw.split(/[\s,;/]+/).filter(Boolean);
+  const cats: string[] = [];
+  const rest: string[] = [];
+  let generic = false;
+  let conj = /[,;/]/.test(raw);
+  for (const t of tokens) {
+    const n = NORM(t).replace(/[^a-z0-9-]/g, "");
+    if (!n) continue;
+    if (n === "y" || n === "o" || n === "u" || n === "e") { conj = true; continue; }
+    const seg = SEGMENT_WORDS.find(([re]) => re.test(n));
+    if (seg) { if (!cats.includes(seg[1])) cats.push(seg[1]); continue; }
+    if (GENRE_WORDS[n]) { const g = GENRE_WORDS[n]; if (!cats.includes(g)) cats.push(g); continue; }
+    if (GENERIC_WORDS.has(n)) { generic = true; continue; }
+    if (STOP_WORDS.has(n) || n.length < 2) continue;
+    rest.push(t.replace(/^[¿¡"“(]+|[?!.,"”)]+$/g, ""));
+  }
+  // "eventos o conciertos", "eventos y teatro": pide de todo (la categoría solo es un ejemplo).
+  const broad = !cats.length || (generic && conj);
+  // Sin categoría ni palabras genéricas, la frase va completa ("Día de Muertos", "Real Madrid").
+  const phrase = !cats.length && !generic && rest.length ? raw.replace(/^[¿¡"“(]+|[?!.,"”)]+$/g, "") : rest.filter(Boolean).join(" ");
+  const keyword = phrase.slice(0, 80) || null;
+  return { classifications: broad ? [] : cats.slice(0, 4), keyword, broad };
+}
+
 const GENERIC_KEYWORD = /^(eventos?|que hay|que hacer|planes?|cosas que hacer|conciertos?|teatro|deportes?|partidos?|espectaculos?|shows?|musica|familia|para ninos)$/;
 
 /** Dónde buscar: coordenadas físicas (con permiso) → ciudad conocida (coordenadas + país) → nombre de ciudad. */
-export function tmLocation(q: TmQuery): { geoPoint?: string; radius?: number; countryCode?: string; city?: string; keyLoc: string } | null {
+export function tmLocation(q: TmQuery): { geoPoint?: string; radius?: number; countryCode?: string; city?: string; keyLoc: string; lng?: number } | null {
   if (validPoint(q.coords)) {
     const radius = Math.min(Math.max(Math.round(q.radiusKm ?? 25), 1), 100);
-    return { geoPoint: geohash(q.coords.lat, q.coords.lng, 7), radius, keyLoc: `${q.coords.lat.toFixed(2)},${q.coords.lng.toFixed(2)}|${radius}` };
+    return { geoPoint: geohash(q.coords.lat, q.coords.lng, 7), radius, keyLoc: `${q.coords.lat.toFixed(2)},${q.coords.lng.toFixed(2)}|${radius}`, lng: q.coords.lng };
   }
   const city = clean(q.city, 80);
   if (!city) return null;
@@ -147,13 +214,18 @@ export function tmLocation(q: TmQuery): { geoPoint?: string; radius?: number; co
   const cc = clean(q.countryCode, 2).toUpperCase() || known?.iso2 || "";
   if (known) {
     const radius = Math.min(Math.max(Math.round(q.radiusKm ?? 40), 1), 100);
-    return { geoPoint: geohash(known.lat, known.lng, 6), radius, ...(cc ? { countryCode: cc } : {}), keyLoc: `${known.name.toLowerCase()}|${radius}` };
+    return { geoPoint: geohash(known.lat, known.lng, 6), radius, ...(cc ? { countryCode: cc } : {}), keyLoc: `${known.name.toLowerCase()}|${radius}`, lng: known.lng };
   }
   return { city, ...(/^[A-Z]{2}$/.test(cc) ? { countryCode: cc } : {}), keyLoc: city.toLowerCase() };
 }
 
 const isoStart = (d: string) => `${d}T00:00:00Z`;
 const isoEnd = (d: string) => `${d}T23:59:59Z`;
+const addDays = (d: string, n: number) => {
+  const x = new Date(`${d}T12:00:00Z`);
+  x.setUTCDate(x.getUTCDate() + n);
+  return x.toISOString().slice(0, 10);
+};
 
 /** Parámetros de la búsqueda SIN la llave (también son la llave de la caché). */
 export function tmParams(q: TmQuery, nowMs = Date.now()): Record<string, string> | null {
@@ -166,20 +238,24 @@ export function tmParams(q: TmQuery, nowMs = Date.now()): Record<string, string>
   if (loc.geoPoint) { p.geoPoint = loc.geoPoint; p.radius = String(loc.radius); p.unit = "km"; }
   if (loc.city) p.city = loc.city;
   if (loc.countryCode) p.countryCode = loc.countryCode;
-  // Un día de margen por zona horaria: la fecha local manda y se filtra abajo con localDate.
-  const startDay = from && from > today ? from : today;
+  // startDateTime/endDateTime comparan la hora UTC del evento; el día que importa es el LOCAL (se filtra
+  // abajo con localDate). Al este de Greenwich (UTC+) un evento temprano del primer día empieza el día
+  // anterior en UTC: se pide desde un día antes. Sin coordenadas, también (no se sabe la zona).
+  const east = typeof loc.lng !== "number" || loc.lng > 0;
+  const wanted = from && from > today ? from : today;
+  const startDay = east && wanted > today ? addDays(wanted, -1) : wanted;
   p.startDateTime = isoStart(startDay);
-  if (to) {
-    const end = new Date(`${to}T12:00:00Z`);
-    end.setUTCDate(end.getUTCDate() + 1);
-    p.endDateTime = isoEnd(end.toISOString().slice(0, 10));
-  }
-  const cat = q.category ? tmClassification(q.category) ?? (["music", "sports", "arts & theatre", "family"].includes(q.category) ? q.category : null) : null;
-  if (cat) p.classificationName = cat;
-  const kw = clean(q.keyword, 80);
-  const kwNorm = kw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  if (kw && !GENERIC_KEYWORD.test(kwNorm) && !(cat && tmClassification(kw) === cat && kwNorm.split(" ").length <= 2)) p.keyword = kw;
-  p.size = String(Math.min(Math.max(q.size ?? 20, 1), 50));
+  if (to) p.endDateTime = isoEnd(addDays(to, 1));
+  const terms = tmQueryTerms(q.keyword ?? q.category ?? "");
+  // Compatibilidad: una categoría ya dicha en inglés ("music") pasa tal cual.
+  const legacy = q.category && ["music", "sports", "arts & theatre", "family"].includes(q.category) ? [q.category] : [];
+  const cats = q.broad ? [] : terms.classifications.length ? terms.classifications : legacy;
+  if (cats.length) p.classificationName = cats.join(",");
+  const kw = q.broad ? "" : clean(terms.keyword, 80);
+  if (kw && !GENERIC_KEYWORD.test(NORM(kw))) p.keyword = kw;
+  // Con un rango de fechas se piden más (la ciudad puede tener muchos eventos el mismo día; se
+  // muestran los primeros 6 por fecha y se avisa que hay más).
+  p.size = String(Math.min(Math.max(q.size ?? (from ? 50 : 20), 1), 100));
   p.sort = "date,asc";
   p.locale = q.locale ?? "es-mx,es,en,*";
   return p;
@@ -188,7 +264,7 @@ export function tmParams(q: TmQuery, nowMs = Date.now()): Record<string, string>
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)/;
 
 /** Respuesta de la Discovery API → eventos en venta (o fuera de venta), dentro del rango local pedido. */
-export function mapTicketmasterEvents(json: any, range: { from?: string | null; to?: string | null } = {}): TmEvent[] {
+export function mapTicketmasterEvents(json: any, range: { from?: string | null; to?: string | null } = {}, stats?: { inRange: number }): TmEvent[] {
   const list = Array.isArray(json?._embedded?.events) ? json._embedded.events : [];
   const from = range.from && ISO.test(range.from) ? range.from : null;
   const to = range.to && ISO.test(range.to) ? range.to : from;
@@ -222,13 +298,15 @@ export function mapTicketmasterEvents(json: any, range: { from?: string | null; 
     const k = `${title.toLowerCase()}|${fecha}|${(recinto ?? "").toLowerCase()}`;
     if (seen.has(k)) continue;
     seen.add(k);
+    if (stats) stats.inRange += 1;
+    // Se cuentan todos los del rango (para decir que hay más), pero solo se devuelven los primeros.
+    if (out.length >= TM_MAX_RESULTS) continue;
     out.push({
       id, title, fecha, hora, ...(typeof e?.dates?.start?.dateTime === "string" ? { date_time: clean(e.dates.start.dateTime, 30) } : {}),
       estado: code as TmEstado, ...(recinto ? { recinto } : {}), ...(direccion ? { direccion } : {}), ...(ciudad ? { ciudad } : {}),
       ...(coords ? coords : {}), ...(categoria ? { categoria } : {}), ...(precio ? { precio } : {}), url,
       ...(img ? { miniatura: img.url as string } : {}),
     });
-    if (out.length >= TM_MAX_RESULTS) break;
   }
   return out;
 }
@@ -287,8 +365,9 @@ export async function searchTicketmaster(q: TmQuery, deps: TmDeps): Promise<TmRe
   const key = await tmCacheKey(params, q);
   const cached = await cacheGet(deps.store, key);
   if (cached && freshnessOf(cached, now()).fresh) {
-    const rows = (cached.response as { results?: TmEvent[] } | null)?.results ?? [];
-    return { ok: true, source: "ticketmaster", results: rows, consulted_at: cached.fetched_at, from_cache: true };
+    const resp = cached.response as { results?: TmEvent[]; total?: number } | null;
+    const rows = resp?.results ?? [];
+    return { ok: true, source: "ticketmaster", results: rows, consulted_at: cached.fetched_at, from_cache: true, ...(typeof resp?.total === "number" ? { total: resp.total } : {}) };
   }
   if (!deps.apiKey) return fail(TM_NO_DISPONIBLE, NO_DISPONIBLE_MOTIVO);
   if (deps.userGate) {
@@ -312,10 +391,15 @@ export async function searchTicketmaster(q: TmQuery, deps: TmDeps): Promise<TmRe
   if (r.status === 401 || r.status === 403) return fail(TM_NO_DISPONIBLE, NO_DISPONIBLE_MOTIVO, r.status);
   if (r.status === 429) return fail("ticketmaster_ocupado", "Ticketmaster alcanzó su límite de consultas por ahora.", 429);
   if (!r.ok || !r.json || typeof r.json !== "object") return fail("ticketmaster_error", "Ticketmaster no respondió bien.", r.status);
-  const results = mapTicketmasterEvents(r.json, range);
-  const put = Promise.resolve(cachePut(deps.store, key, TM_ENGINE, { results })).catch(() => { /* la caché es opcional */ });
+  const stats = { inRange: 0 };
+  const results = mapTicketmasterEvents(r.json, range, stats);
+  // Más páginas en Ticketmaster de las que se pidieron: hay al menos uno más de los contados.
+  const j = r.json as { page?: { totalElements?: unknown }; _embedded?: { events?: unknown[] } };
+  const pageMore = Number(j?.page?.totalElements) > (Array.isArray(j?._embedded?.events) ? j._embedded!.events!.length : 0);
+  const total = stats.inRange + (pageMore ? 1 : 0);
+  const put = Promise.resolve(cachePut(deps.store, key, TM_ENGINE, { results, total })).catch(() => { /* la caché es opcional */ });
   if (deps.background) deps.background(put); else await put;
-  return { ok: true, source: "ticketmaster", results, consulted_at: new Date(now()).toISOString() };
+  return { ok: true, source: "ticketmaster", results, consulted_at: new Date(now()).toISOString(), total };
 }
 
 /**
