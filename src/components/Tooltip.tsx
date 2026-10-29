@@ -55,7 +55,9 @@ export function Tooltip({
       ? "w-full"
       : position === "top"
       ? "fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,520px)] pointer-events-none"
-      : "fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,520px)] pb-[env(safe-area-inset-bottom)] pointer-events-none";
+      // En celular y tableta va arriba de la barra inferior (Inicio · Viajes · Planear…): antes la tapaba
+      // hasta cerrarlo. Desde lg no hay barra inferior.
+      : "fixed bottom-24 lg:bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,520px)] pb-[env(safe-area-inset-bottom)] pointer-events-none";
 
   return (
     <AnimatePresence>

@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { IllustrativeCaption } from "@/components/media/SmartImage";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
@@ -14,7 +14,7 @@ import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 
 const Discover = () => {
   const navigate = useNavigate();
-  const { recos, loading, error, refresh } = useAIRecommendations();
+  const { recos, profileless, loading, error, refresh } = useAIRecommendations();
   const { saved, pending: pendingSave, toggle: toggleSave } = useSavedDestinations();
 
   return (
@@ -23,12 +23,20 @@ const Discover = () => {
         <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
           <div>
             <p className="text-primary text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-2">
-              <Sparkles className="w-3 h-3" /> Curados por IATOS AI · 100% personalizado
+              <Sparkles className="w-3 h-3" /> {profileless ? "Para empezar" : "Curados por IATOS AI · 100% personalizado"}
             </p>
             <h1 className="font-display text-3xl md:text-5xl mb-2">Descubre</h1>
+            {profileless ? (
+              // Cuenta nueva: no se promete "para tu perfil" ni se muestra un % afín sin datos con qué calcularlo.
+              <p className="text-muted-foreground text-sm max-w-xl" data-testid="descubre-sin-perfil">
+                Aún no conocemos tus gustos: estos destinos son <span className="text-foreground">variados para empezar</span>. Se afinan cuando guardas favoritos, planeas un viaje o{" "}
+                <Link to="/onboarding/deep" className="text-primary underline underline-offset-2">cuentas tus gustos</Link>.
+              </p>
+            ) : (
             <p className="text-muted-foreground text-sm max-w-xl">
               Destinos generados <span className="text-foreground">específicamente para tu perfil de viajero</span> — basados en tus intereses, ritmo, gastronomía, presupuesto y viajes anteriores.
             </p>
+            )}
           </div>
           <button
             onClick={refresh}
@@ -73,10 +81,12 @@ const Discover = () => {
                     className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-3">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-overlay" />
-                    <IllustrativeCaption className="top-[3.25rem] left-4" />
+                    <IllustrativeCaption className={profileless ? "top-4 left-4" : "top-[3.25rem] left-4"} />
+                    {!profileless && (
                     <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
                       {d.score}% afín a ti
                     </div>
+                    )}
                     {d.trip_type && (
                       <div className="absolute top-4 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[10px] tracking-wider uppercase">
                         {d.trip_type}

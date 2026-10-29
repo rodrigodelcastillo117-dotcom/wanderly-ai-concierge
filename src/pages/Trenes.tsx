@@ -45,7 +45,8 @@ const Trenes = () => {
   const actions = [...ops.map((o) => operatorAction(o, q)), ...(origin && destination ? [multimodalAction(q)].filter((a): a is NonNullable<typeof a> => !!a) : [])];
 
   const sources = [
-    { name: "Trainline", desc: "El #1 en Europa y Reino Unido. 270+ operadores.", link: trainlineLink, prefill: "trainline" },
+    // Sin superlativos sin fuente ("El #1…"): qué cubre cada sitio, y las cifras atribuidas a quien las publica.
+    { name: "Trainline", desc: "Trenes y autobuses en Europa y Reino Unido; más de 270 operadores, según Trainline.", link: trainlineLink, prefill: "trainline" },
     { name: "Omio", desc: "Trenes, autobuses y vuelos en una sola búsqueda.", link: omioLink, prefill: "omio" },
     { name: "Rail Europe", desc: "Eurail y trenes de alta velocidad en Europa.", link: raileuropeLink, prefill: "raileurope" },
   ];
@@ -78,11 +79,11 @@ const Trenes = () => {
           <div className="grid md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label htmlFor="trenes-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Origen</label>
-              <Input id="trenes-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="París" />
+              <Input id="trenes-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ej. París" />
             </div>
             <div className="space-y-1">
               <label htmlFor="trenes-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Destino</label>
-              <Input id="trenes-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ámsterdam" />
+              <Input id="trenes-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ej. Ámsterdam" />
             </div>
             <div className="space-y-1">
               <label htmlFor="trenes-fecha" className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>

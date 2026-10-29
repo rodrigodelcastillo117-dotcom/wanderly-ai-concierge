@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart, MapPin, X, Star, Sparkles, Loader2, Navigation, Check } from "lucide-react";
+import { Heart, MapPin, X, Star, Sparkles, Loader2, Navigation, Check, LocateFixed } from "lucide-react";
 import { toast } from "sonner";
 import { logInsight } from "@/lib/insights";
 import { motion, AnimatePresence } from "framer-motion";
@@ -170,15 +170,18 @@ const Cercanos = () => {
     return () => { alive = false; };
   }, []);
 
-  // Geolocalización
-  useEffect(() => {
+  // Geolocalización. Si falla se puede reintentar desde la pantalla (antes solo había un aviso y nada que tocar).
+  const locate = useCallback(() => {
     if (!("geolocation" in navigator)) { setGeoError("Tu navegador no soporta geolocalización."); return; }
+    setGeoError(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => { setGeoError(err.message); toast.error("Activa la ubicación para ver lugares cerca."); },
+      (pos) => { setGeoError(null); setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      // Sin aviso flotante: la tarjeta «No tenemos tu ubicación» ya lo dice y trae «Reintentar».
+      (err) => { setGeoError(err.message || "sin ubicación"); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   }, []);
+  useEffect(() => { locate(); }, [locate]);
 
   // Fetch nearby cuando hay ubicación + tipo. Solo depende de eso: antes también dependía del
   // food_dna y de los visitados, y cada vez que llegaban se volvía a llamar a Google (2 búsquedas
@@ -316,11 +319,11 @@ const Cercanos = () => {
             <p className="text-muted-foreground">
               {userLoc
                 ? <>Lugares reales cerca de <span className="text-primary">tu ubicación</span>.{topCuisine ? ` IATOS resalta los de comida ${topCuisine}.` : ""}</>
-                : geoError ? "Activa la ubicación para ver lugares cerca." : "Detectando ubicación…"}
+                : geoError ? "Restaurantes, cafés, bares y atracciones cerca de ti." : "Detectando ubicación…"}
             </p>
           </div>
           {activeTrip ? (
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-xs text-primary tracking-[0.2em] uppercase">Viaje activo</p>
               <p className="text-sm">{shortTripName(activeTrip)} · {formatDateOnly(activeTrip.fecha_salida)} → {formatDateOnly(activeTrip.fecha_regreso)}</p>
             </div>
@@ -342,6 +345,20 @@ const Cercanos = () => {
           ))}
           {loading && <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Buscando…</span>}
         </div>
+
+        {geoError && !userLoc && (
+          <div role="status" data-testid="cercanos-sin-ubicacion" className="glass-card rounded-2xl p-4 mb-4 border border-primary/25 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">No tenemos tu ubicación</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permite el acceso a tu ubicación en el navegador (el ícono junto a la dirección de la página) y toca Reintentar.
+              </p>
+            </div>
+            <Button variant="outline" onClick={locate} className="shrink-0 min-h-[44px] border-primary/40">
+              <LocateFixed className="w-4 h-4 mr-2" aria-hidden="true" /> Reintentar
+            </Button>
+          </div>
+        )}
 
         <div className="glass-card rounded-2xl overflow-hidden gold-border">
           {hasKey && mapError ? (

@@ -244,3 +244,22 @@ export function fxSourceName(source: unknown, isFallback = false): string {
   if (/er-api/i.test(s)) return "ExchangeRate-API";
   return s;
 }
+
+/**
+ * Cifra del convertidor en español de México: "1,865.35" (antes "1865.35"). Montos menores a 1 conservan
+ * hasta 4 decimales para no redondear a "0.01" (1 JPY = 0.0066 USD).
+ */
+export function formatConverterAmount(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const max = abs > 0 && abs < 1 ? 4 : 2;
+  return value.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: max });
+}
+
+/** Nombre de cada moneda del convertidor (el selector solo decía "KRW", "CLP"...). */
+export const CURRENCY_NAMES: Record<string, string> = {
+  MXN: "Peso mexicano", USD: "Dólar estadounidense", EUR: "Euro", GBP: "Libra esterlina", JPY: "Yen japonés",
+  CAD: "Dólar canadiense", BRL: "Real brasileño", ARS: "Peso argentino", CLP: "Peso chileno", COP: "Peso colombiano",
+  PEN: "Sol peruano", CHF: "Franco suizo", AUD: "Dólar australiano", CNY: "Yuan chino", KRW: "Won surcoreano",
+  THB: "Baht tailandés", IDR: "Rupia indonesia", INR: "Rupia india", TRY: "Lira turca", AED: "Dírham de EAU",
+};

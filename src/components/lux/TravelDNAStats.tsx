@@ -63,17 +63,20 @@ export function useTravelDNA(): { dna: DNAResult | null; loading: boolean; reloa
 }
 
 /** Barras del Travel DNA en español. Sin datos lo dice, en lugar de mostrar 0 % por todos lados. */
-export const TravelDNAStats = ({ dna }: { dna: Pick<DNAResult, "stats" | "fuente" | "viajesHechos" | "viajesPlaneados" | "lugares"> }) => {
+export const TravelDNAStats = ({ dna, showImportLink = true }: { dna: Pick<DNAResult, "stats" | "fuente" | "viajesHechos" | "viajesPlaneados" | "lugares">; showImportLink?: boolean }) => {
   if (dna.fuente === "ninguna") {
     return (
       <div className="rounded-2xl border border-dashed border-primary/30 p-4 space-y-2" data-testid="dna-sin-datos">
         <p className="font-display text-lg text-foreground">Aún no hay datos</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Tu perfil de viajero se llena con tus viajes: los que haces con IATOS y los que ya hiciste. Sube los boletos o reservas de un viaje pasado y lo calculamos.
+          Tu perfil de viajero se llena con tus viajes: los que haces con IATOS y los que ya hiciste. Con tu primer viaje (planeado o uno que ya hiciste) lo calculamos.
         </p>
-        <Link to="/dashboard/viajes/importar" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-          <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste
-        </Link>
+        {/* En Perfil la tarjeta «Sube un viaje que ya hiciste» está justo abajo: no se repite el enlace. */}
+        {showImportLink && (
+          <Link to="/dashboard/viajes/importar" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+            <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste
+          </Link>
+        )}
       </div>
     );
   }

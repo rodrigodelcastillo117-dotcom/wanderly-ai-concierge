@@ -47,6 +47,12 @@ function writeCompareCache(list: string[], rows: Row[]) {
 
 // Un ejemplo distinto por campo (antes los dos decían "Tokio, Japón").
 const DEST_EXAMPLES = ["Tokio, Japón", "Lisboa, Portugal", "Cusco, Perú", "Marrakech, Marruecos"];
+/** Pares de un toque: solo llenan los campos; nada se compara sin «Comparar». */
+export const COMPARE_EXAMPLES: readonly (readonly [string, string])[] = [
+  ["Lisboa", "Oporto"],
+  ["Cancún", "Los Cabos"],
+  ["Tokio", "Seúl"],
+];
 
 const Compare = () => {
   const navigate = useNavigate();
@@ -151,6 +157,10 @@ const Compare = () => {
             <h1 className="font-display text-3xl md:text-4xl">Destino vs destino</h1>
           </div>
         </div>
+        {/* Qué obtienes, en una línea (antes la pantalla eran dos campos sin explicación). */}
+        <p className="-mt-3 mb-4 text-sm text-muted-foreground" data-testid="comparar-que-es">
+          Ve lado a lado el costo diario, la mejor época, visa, seguridad, idioma y lo imperdible de 2 a 4 destinos.
+        </p>
 
         <div className="glass-card rounded-2xl p-4 sm:p-5 mb-6 space-y-2">
           {dests.map((d, i) => (
@@ -161,6 +171,17 @@ const Compare = () => {
               )}
             </div>
           ))}
+          {!rows && !loading && dests.every((d) => !d.trim()) && (
+            <div className="flex flex-wrap items-center gap-2 pt-1" aria-label="Ejemplos para comparar" data-testid="comparar-ejemplos">
+              <span className="text-[11px] text-muted-foreground">Prueba con:</span>
+              {COMPARE_EXAMPLES.map((pair) => (
+                <button key={pair.join("|")} type="button" onClick={() => setDests([...pair])}
+                  className="min-h-[36px] rounded-full border border-white/[0.1] bg-white/[0.02] px-3 text-xs text-muted-foreground hover:text-primary hover:border-primary/40 transition">
+                  {pair.join(" vs ")}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-2">
             {dests.length < 4 && (
               <Button variant="outline" onClick={add} className="sm:flex-1"><Plus className="w-4 h-4 mr-1" /> Otro destino</Button>

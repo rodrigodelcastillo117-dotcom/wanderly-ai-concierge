@@ -17,13 +17,17 @@ export type AIRecommendation = {
 type AIRecommendationsResponse = {
   destinations?: AIRecommendation[];
   error?: string;
+  /** El servidor no tenía gustos, favoritos ni viajes con qué personalizar (cuenta nueva). */
+  sin_perfil?: boolean;
 };
+
+type RecoResult = { list: AIRecommendation[]; profileless: boolean };
 
 const RATE_LIMITED_MSG = "Generaste muchas recomendaciones seguidas. Intenta de nuevo en unos minutos.";
 
 // Compartido entre Inicio y Descubrir: navegar entre páginas no vuelve a pedirlas.
-const cache = new Map<string, AIRecommendation[]>();
-const inflight = new Map<string, Promise<AIRecommendation[]>>();
+const cache = new Map<string, RecoResult>();
+const inflight = new Map<string, Promise<RecoResult>>();
 
 /**
  * Cambiaron tus gustos (por ejemplo, subiste un Mejor momento): la próxima vez que Inicio o
@@ -47,7 +51,7 @@ function statusOf(error: unknown): number | null {
   return ctx instanceof Response ? ctx.status : null;
 }
 
-async function fetchRecommendations(refresh: boolean): Promise<AIRecommendation[]> {
+async function fetchRecommendations(refresh: boolean): Promise<RecoResult> {
   // Sesión local (sin red): antes era getUser(), que va al servidor; un tropiezo de red al abrir
   // la app se tomaba como "sesión vencida" y cerraba la sesión.
   const { data: local } = await supabase.auth.getSession();
@@ -67,22 +71,26 @@ async function fetchRecommendations(refresh: boolean): Promise<AIRecommendation[
   }
   const response = data as AIRecommendationsResponse | null;
   if (response?.error) throw new Error(response.error);
-  return response?.destinations ?? [];
+  return { list: response?.destinations ?? [], profileless: response?.sin_perfil === true };
 }
 
 export function useAIRecommendations() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [recos, setRecos] = useState<AIRecommendation[] | null>(() =>
-    userId ? cache.get(userId) ?? null : null,
+    userId ? cache.get(userId)?.list ?? null : null,
   );
+  // Sin perfil todavía: se presentan como "Para empezar" y sin el "% afín", que no tendría base.
+  const [profileless, setProfileless] = useState<boolean>(() => (userId ? cache.get(userId)?.profileless ?? false : false));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (!userId) return;
     if (!refresh && cache.has(userId)) {
-      setRecos(cache.get(userId)!);
+      const hit = cache.get(userId)!;
+      setRecos(hit.list);
+      setProfileless(hit.profileless);
       return;
     }
     setLoading(true);
@@ -95,7 +103,8 @@ export function useAIRecommendations() {
       }
       const result = await pending.finally(() => inflight.delete(userId));
       cache.set(userId, result);
-      setRecos(result);
+      setRecos(result.list);
+      setProfileless(result.profileless);
     } catch (e: unknown) {
       if (e instanceof SessionExpiredError) {
         if (await sessionTrulyExpired(supabase.auth)) {
@@ -125,5 +134,5 @@ export function useAIRecommendations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  return { recos, loading, error, refresh: () => load(true) };
+  return { recos, profileless, loading, error, refresh: () => load(true) };
 }

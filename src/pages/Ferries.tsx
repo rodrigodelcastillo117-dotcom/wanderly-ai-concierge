@@ -44,17 +44,17 @@ const Ferries = () => {
   const sources = [
     {
       name: "Ferryhopper",
-      desc: "El #1 en Grecia, Italia, España y Mediterráneo. 80+ operadores, precios y horarios reales.",
+      desc: "Grecia, Italia, España y el Mediterráneo, con horarios y precios de cada naviera; más de 80 operadores, según Ferryhopper.",
       link: () => ferryhopperLink(origin, destination, date, passengers),
     },
     {
       name: "Direct Ferries",
-      desc: "Cobertura mundial — Europa, Canal de la Mancha, Irlanda, Asia. 3,500+ rutas.",
+      desc: "Europa, Canal de la Mancha, Irlanda y Asia; más de 3,500 rutas, según Direct Ferries.",
       link: () => directFerriesLink(origin, destination, date, passengers),
     },
     {
       name: "AFerry",
-      desc: "Especialista UK / Norte de Europa. Buenos precios en Dover-Calais, Holyhead-Dublín.",
+      desc: "Reino Unido y norte de Europa, como Dover–Calais y Holyhead–Dublín.",
       link: () => aferryLink(origin, destination, date),
     },
   ];
@@ -97,11 +97,11 @@ const Ferries = () => {
           <div className="grid md:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label htmlFor="ferries-puerto-origen" className="text-xs uppercase tracking-wide text-muted-foreground">Puerto origen</label>
-              <Input id="ferries-puerto-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Athens (Piraeus)" />
+              <Input id="ferries-puerto-origen" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ej. Athens (Piraeus)" />
             </div>
             <div className="space-y-1">
               <label htmlFor="ferries-puerto-destino" className="text-xs uppercase tracking-wide text-muted-foreground">Puerto destino</label>
-              <Input id="ferries-puerto-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Mykonos" />
+              <Input id="ferries-puerto-destino" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Ej. Mykonos" />
             </div>
             <div className="space-y-1">
               <label htmlFor="ferries-fecha" className="text-xs uppercase tracking-wide text-muted-foreground">Fecha</label>

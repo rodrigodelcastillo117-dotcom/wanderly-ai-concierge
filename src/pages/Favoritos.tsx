@@ -26,6 +26,8 @@ type Reco = {
 const Favoritos = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<Reco[]>([]);
+  // Mientras llega la lista no se dice «Aún no has guardado nada» (antes aparecía un instante aunque tuvieras favoritos).
+  const [loaded, setLoaded] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -36,6 +38,7 @@ const Favoritos = () => {
       .eq("guardado", true)
       .order("created_at", { ascending: false });
     setItems((data as Reco[]) ?? []);
+    setLoaded(true);
   };
 
   useEffect(() => { load(); }, [user]);
@@ -63,10 +66,17 @@ const Favoritos = () => {
           </div>
         </section>
 
-        {items.length === 0 ? (
-          <div className="glass-card rounded-3xl p-8 md:p-12 text-center">
+        {!loaded ? (
+          <div aria-busy="true" aria-label="Cargando tus favoritos" data-testid="favoritos-cargando" className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
+            {[0, 1].map((i) => <div key={i} className="aspect-[4/5] rounded-3xl bg-white/[0.04] motion-safe:animate-pulse" />)}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="glass-card rounded-3xl p-8 md:p-12 text-center" data-testid="favoritos-vacio">
             <Heart className="w-10 h-10 text-primary/40 mx-auto mb-4" />
             <p className="text-muted-foreground text-sm md:text-base">Aún no has guardado nada. Toca el corazón en cualquier destino para empezar.</p>
+            <Link to="/dashboard/descubre" className="mt-5 inline-flex items-center justify-center gap-1.5 min-h-[44px] rounded-2xl bg-gradient-gold text-primary-foreground px-5 text-sm font-medium hover:opacity-90 transition">
+              <Heart className="w-4 h-4" aria-hidden="true" /> Ver destinos para ti
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">

@@ -110,10 +110,33 @@ const HERO_REELS = [
   { query: "tokyo japan neon shibuya night cinematic", fallback: kyoto, label: "Tokio" },
 ];
 
+// Herramientas de Inicio: se ven las primeras 8 (una fila en escritorio ancho) y el resto con «Ver las 16».
+const TOOLS_VISIBLE = 8;
+// Las más usadas primero (vuelos, hotel, qué hacer, dónde comer, comparar, moneda, datos y documentos).
+const HOME_TOOLS = [
+  { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=70&auto=format&fit=crop" },
+  { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop" },
+  { icon: Compass, label: "Actividades", sub: "Tours y experiencias", to: "/dashboard/actividades", img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=70&auto=format&fit=crop" },
+  { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },
+  { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
+  { icon: ArrowLeftRight, label: "Convertidor de moneda", sub: "Tipo de cambio", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
+  { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim", img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&auto=format&fit=crop" },
+  { icon: Gift, label: "Documentos", sub: "Tarjetas y membresías", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
+  { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos", img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&q=70&auto=format&fit=crop" },
+  { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros", img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&q=70&auto=format&fit=crop" },
+  { icon: TrainFront, label: "Trenes", sub: "Europa+", to: "/dashboard/trenes", img: tileTrenes },
+  { icon: Anchor, label: "Ferries", sub: "Islas", to: "/dashboard/ferries", img: tileFerries },
+  { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
+  { icon: MapPin, label: "Cerca de ti", sub: "Lugares", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
+  { icon: Receipt, label: "Mis reservas", sub: "Historial", to: "/dashboard/reservas", img: tileReservas },
+  { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
+];
+const TOOLS_TOTAL = HOME_TOOLS.length;
+
 const DashboardHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { recos: aiRecos, loading: recosLoading } = useAIRecommendations();
+  const { recos: aiRecos, profileless: recosProfileless, loading: recosLoading } = useAIRecommendations();
   const [name, setName] = useState("");
 
   // Viaje activo único (el mismo que Iato, Cercanos y Gastos): viajes propios y compartidos +
@@ -125,6 +148,7 @@ const DashboardHome = () => {
   // La tarjeta del Concierge tiene su propio texto: compartía el estado con el buscador de
   // arriba y escribir aquí abría el panel "Tu idea de viaje".
   const [conciergeCard, setConciergeCard] = useState("");
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [tick, setTick] = useState(0);
   const [reelIdx, setReelIdx] = useState(0);
   const [reelFading, setReelFading] = useState(false);
@@ -403,15 +427,17 @@ const DashboardHome = () => {
               <h2 className="font-display text-4xl md:text-6xl leading-[1.02] mb-3 max-w-2xl">
                 Planea un <span className="italic gold-text font-light">nuevo</span> viaje
               </h2>
-              <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed">
-                IATOS entiende si es un destino o varios, y arma vuelos, hospedaje y experiencias según tu ADN de viaje.
+              {/* Abre el modo emoción ("¿Cuál es tu emoción del viaje?"): el texto y el botón dicen eso, para no
+                  confundirlo con «Crear nuevo viaje», que pide destino y fechas. */}
+              <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed" data-testid="home-hero-texto">
+                ¿Aún sin destino? Dinos qué quieres sentir (descanso, aventura, romance…) y IATOS te propone a dónde ir, con vuelos, hospedaje y experiencias.
               </p>
               <Button
                 onClick={() => navigate("/dashboard/planear?mode=emocion")}
                 className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide"
               >
-                <Plus className="w-4 h-4 mr-2" strokeWidth={2.25} />
-                Empezar análisis
+                <Sparkles className="w-4 h-4 mr-2" strokeWidth={2.25} />
+                Planear por emoción
               </Button>
             </div>
           </div>
@@ -423,9 +449,9 @@ const DashboardHome = () => {
           <div className="flex items-end justify-between mb-6">
             <div>
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3" /> Curado por IATOS AI para ti
+                <Sparkles className="w-3 h-3" /> {recosProfileless ? "Para empezar" : "Curado por IATOS AI para ti"}
               </p>
-              <h2 className="font-display text-2xl md:text-3xl">Destinos afines a ti</h2>
+              <h2 className="font-display text-2xl md:text-3xl">{recosProfileless ? "Destinos para inspirarte" : "Destinos afines a ti"}</h2>
             </div>
             <Link to="/dashboard/descubre" className="text-xs text-primary/80 hover:text-primary transition flex items-center gap-1 whitespace-nowrap tracking-wide">
               Ver todos <ChevronRight className="w-3.5 h-3.5" />
@@ -465,10 +491,13 @@ const DashboardHome = () => {
                     <SmartImage alt={d.name} stockQuery={destinationPhotoQuery(d.country ? `${d.name}, ${d.country}` : d.name)} className="!absolute inset-0 w-full h-full" captionClassName="hidden" />
                     <DestinationVideo query={d.image_query} lowPriority alt={d.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-                    <IllustrativeCaption className="top-11 left-3" />
+                    <IllustrativeCaption className={recosProfileless ? "top-3 left-3" : "top-11 left-3"} />
+                    {/* Sin perfil todavía no hay con qué calcular un "% afín": no se muestra. */}
+                    {!recosProfileless && (
                     <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur-md border border-primary/30 text-primary text-[10px] font-medium tracking-wider">
                       {d.score}% afín a ti
                     </div>
+                    )}
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFav(d); }}
                       disabled={favPending.has(d.name)}
@@ -497,10 +526,12 @@ const DashboardHome = () => {
 
 
 
-        {/* MIS PRÓXIMOS VIAJES + SMART SPEND */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
-          {/* Próximos viajes */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0">
+        {/* MIS PRÓXIMOS VIAJES + SMART SPEND (sin viajes, Gastos ocupa todo el ancho: no queda media fila vacía) */}
+        <div className={`grid grid-cols-1 ${hasTrips || active.loading ? "lg:grid-cols-2" : ""} gap-5 min-w-0 w-full max-w-full`}>
+          {/* Próximos viajes. Sin viajes no se pinta: la guía del primer viaje de arriba ya dice qué hacer
+              (antes repetía "Aún no tienes viajes planeados" + otro botón dorado de crear viaje). */}
+          {(hasTrips || active.loading) && (
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0" data-testid="home-upcoming">
 
             <div className="flex items-center justify-between gap-2 mb-5">
               <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
@@ -562,6 +593,7 @@ const DashboardHome = () => {
               Crear nuevo viaje
             </Button>
           </section>
+          )}
 
 
           {/* Tus gastos (antes "Smart Spend") */}
@@ -702,24 +734,7 @@ const DashboardHome = () => {
               <h2 id="tools-title" className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase font-normal">Herramientas</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5">
-              {[
-                { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=70&auto=format&fit=crop" },
-                { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop" },
-                { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos", img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&q=70&auto=format&fit=crop" },
-                { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim", img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&auto=format&fit=crop" },
-                { icon: Compass, label: "Actividades", sub: "Tours y experiencias", to: "/dashboard/actividades", img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=70&auto=format&fit=crop" },
-                { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros", img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&q=70&auto=format&fit=crop" },
-                { icon: Gift, label: "Documentos", sub: "Tarjetas y membresías", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
-                { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
-                { icon: ArrowLeftRight, label: "Convertidor de moneda", sub: "Tipo de cambio", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
-                { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
-                { icon: MapPin, label: "Cerca de ti", sub: "Lugares", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
-                { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
-                { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },
-                { icon: TrainFront, label: "Trenes", sub: "Europa+", to: "/dashboard/trenes", img: tileTrenes },
-                { icon: Anchor, label: "Ferries", sub: "Islas", to: "/dashboard/ferries", img: tileFerries },
-                { icon: Receipt, label: "Mis reservas", sub: "Historial", to: "/dashboard/reservas", img: tileReservas },
-              ].map(({ icon: Icon, label, sub, to, img }) => (
+              {HOME_TOOLS.filter((_, i) => toolsOpen || i < TOOLS_VISIBLE).map(({ icon: Icon, label, sub, to, img }) => (
                 <button
                   key={label}
                   onClick={() => navigate(withTripParam(to, active.trip?.id))}
@@ -749,6 +764,18 @@ const DashboardHome = () => {
                 </button>
               ))}
             </div>
+            {/* 16 mosaicos de golpe abrumaban (sobre todo al entrar por primera vez): se ven los 8 más usados y
+                el resto con un toque. Ninguna herramienta se quita. */}
+            <button
+              type="button"
+              onClick={() => setToolsOpen((v) => !v)}
+              aria-expanded={toolsOpen}
+              data-testid="home-tools-toggle"
+              className="mt-3 w-full min-h-[44px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-sm text-primary hover:border-primary/40 transition flex items-center justify-center gap-1.5"
+            >
+              {toolsOpen ? "Ver menos herramientas" : `Ver las ${TOOLS_TOTAL} herramientas`}
+              <ChevronRight className={`w-4 h-4 transition-transform ${toolsOpen ? "-rotate-90" : "rotate-90"}`} aria-hidden="true" />
+            </button>
           </section>
       </div>
     </DashboardLayout>

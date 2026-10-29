@@ -9,6 +9,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { getTasteProfile, readTasteCache } from "../_shared/tasteProfileStore.ts";
+import { recoProfileIsEmpty } from "../_shared/recoProfile.ts";
 import { hasTasteSignals, lovedLabels as tasteLovedLabels, renderTasteProfile, savedOnlyLabels, stripUnfoundedLove, tasteToday, TASTE_CITATION_RULE } from "../_shared/tasteProfile.ts";
 
 const corsHeaders = {
@@ -101,6 +102,7 @@ Deno.serve(async (req) => {
           })),
           cached: true,
           stale,
+          sin_perfil: sinPerfil,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -110,6 +112,8 @@ Deno.serve(async (req) => {
     const lovedLabels = () => loved;
     // Solo guardados en favoritos: «Porque guardaste X», no «te encantó» (R3 viajes P2-8).
     let saved: string[] = [];
+    // Sin gustos, favoritos ni viajes: la app no muestra un "% afín" que la IA no pudo calcular.
+    let sinPerfil = false;
 
     // Perfil de gustos (caché por persona; se recalcula solo si cambió una señal). Todas las
     // consultas van filtradas por user_id aunque este cliente sea de servicio.
@@ -125,6 +129,7 @@ Deno.serve(async (req) => {
     const tasteHash = taste?.hash ?? null;
     loved = tasteLovedLabels(taste);
     saved = savedOnlyLabels(taste);
+    sinPerfil = recoProfileIsEmpty({ taste, travelProfile: tp, aiPrefs: ai });
     // Recomendaciones de antes de esta versión (sin huella) siguen sirviendo si aún no hay gustos que usar.
     const cachedHash = cached?.[0]?.metadata?.taste_hash;
     const cacheMatchesTaste = !tasteHash || cachedHash === tasteHash || (cachedHash === undefined && !hasTasteSignals(taste));
@@ -289,7 +294,7 @@ Recomienda 8 destinos del mundo que CLARAMENTE encajen con este perfil específi
     await supabase.from("recomendaciones").insert(rows);
 
     return new Response(
-      JSON.stringify({ destinations, cached: false }),
+      JSON.stringify({ destinations, cached: false, sin_perfil: sinPerfil }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

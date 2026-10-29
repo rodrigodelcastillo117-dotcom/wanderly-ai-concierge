@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { converterRateLabel, providerUpdatedAt } from "@/lib/fx";
+import { converterRateLabel, CURRENCY_NAMES, formatConverterAmount, providerUpdatedAt } from "@/lib/fx";
 
 const CURRENCIES = ["MXN","USD","EUR","GBP","JPY","CAD","BRL","ARS","CLP","COP","PEN","CHF","AUD","CNY","KRW","THB","IDR","INR","TRY","AED"];
 
@@ -18,7 +18,8 @@ const Currency = () => {
   const [updated, setUpdated] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const load = async (base: string) => {
+  // `manual`: solo al tocar «Actualizar» se avisa con un mensaje (antes salía «Tasas actualizadas» al abrir la pantalla).
+  const load = async (base: string, manual = false) => {
     setLoading(true);
     try {
       // Open exchangerate-api (no key, CORS open)
@@ -30,7 +31,7 @@ const Currency = () => {
         setRates(r.rates);
         setUpdated(converterRateLabel("open.er-api.com", asOf, false));
         try { localStorage.setItem(`iatos:fx:${base}`, JSON.stringify({ rates: r.rates, asOf: asOf?.toISOString() ?? null })); } catch {}
-        toast.success("Tasas actualizadas");
+        if (manual) toast.success("Tipo de cambio actualizado");
       } else throw new Error();
     } catch {
       // Fallback to cache
@@ -52,9 +53,10 @@ const Currency = () => {
   useEffect(() => { load(from); }, [from]);
 
   // Sin tasa para la moneda destino no se muestra un número (nunca 1:1).
+  const qty = parseFloat(amount || "0");
   const result = from === to
-    ? (parseFloat(amount || "0")).toFixed(2)
-    : rates && rates[to] > 0 ? (parseFloat(amount || "0") * rates[to]).toFixed(2) : "—";
+    ? formatConverterAmount(qty)
+    : rates && rates[to] > 0 ? formatConverterAmount(qty * rates[to]) : "—";
   const swap = () => { setFrom(to); setTo(from); };
 
   return (
@@ -63,8 +65,9 @@ const Currency = () => {
         <div className="mb-6 flex items-center gap-3">
           <DollarSign className="w-7 h-7 text-primary" />
           <div>
-            <p className="text-primary text-xs tracking-[0.2em] uppercase">Convertidor de moneda</p>
-            <h1 className="font-display text-3xl md:text-4xl">Moneda en vivo</h1>
+            {/* El proveedor publica el tipo de cambio una vez al día: no se llama "en vivo". */}
+            <p className="text-primary text-xs tracking-[0.2em] uppercase">Tipo de cambio del día</p>
+            <h1 className="font-display text-3xl md:text-4xl">Convertidor de moneda</h1>
           </div>
         </div>
 
@@ -73,25 +76,25 @@ const Currency = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
             <select aria-label="Moneda de origen" value={from} onChange={e => setFrom(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
-              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c} · {CURRENCY_NAMES[c] ?? c}</option>)}
             </select>
             <Button variant="ghost" size="icon" onClick={swap} className="mx-auto" aria-label="Invertir monedas">
               <ArrowLeftRight className="w-5 h-5 text-primary" />
             </Button>
             <select aria-label="Moneda de destino" value={to} onChange={e => setTo(e.target.value)} className="bg-background border border-border rounded-lg p-3 text-lg w-full">
-              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CURRENCIES.map(c => <option key={c} value={c}>{c} · {CURRENCY_NAMES[c] ?? c}</option>)}
             </select>
           </div>
 
           <div className="text-center py-4">
             <div className="text-xs text-muted-foreground mb-1">Equivalente</div>
             <div className="text-4xl md:text-5xl font-display text-primary break-all">{result}</div>
-            <div className="text-sm text-muted-foreground mt-1">{to}</div>
+            <div className="text-sm text-muted-foreground mt-1">{to} · {CURRENCY_NAMES[to] ?? to}</div>
           </div>
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{updated || "Tipo de cambio: —"}</span>
-            <Button variant="ghost" size="sm" onClick={() => load(from)} disabled={loading}>
+            <Button variant="ghost" size="sm" onClick={() => load(from, true)} disabled={loading}>
               <RefreshCw className={`w-3 h-3 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </Button>
           </div>
@@ -104,7 +107,7 @@ const Currency = () => {
               {CURRENCIES.filter(c => c !== from).slice(0, 12).map(c => (
                 <div key={c} className="flex justify-between border-b border-border/30 py-1.5">
                   <span className="text-muted-foreground">{c}</span>
-                  <span className="font-medium">{rates[c]?.toFixed(2) ?? "—"}</span>
+                  <span className="font-medium">{rates[c] ? formatConverterAmount(rates[c]) : "—"}</span>
                 </div>
               ))}
             </div>

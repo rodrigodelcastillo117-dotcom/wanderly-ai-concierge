@@ -79,7 +79,7 @@ describe("Inicio sin viajes: guía del primer viaje", () => {
     renderHome();
     expect(await screen.findByRole("heading", { name: /Planea tu primer viaje/ })).toBeInTheDocument();
     expect(screen.queryByText(/Planea un/)).toBeNull(); // el hero de video no se repite
-    expect(screen.getByText(/te da el total en pesos/)).toBeInTheDocument();
+    expect(screen.getByText(/te da el total en pesos/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "“Oaxaca un fin de semana, 2 personas”" }));
     expect(screen.getByLabelText("Platícame tu viaje")).toHaveValue("Oaxaca un fin de semana, 2 personas");
     // No navegó ni analizó nada.

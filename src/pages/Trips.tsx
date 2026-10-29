@@ -256,8 +256,10 @@ const Trips = () => {
     <DashboardLayout>
       <div className="px-4 py-6 md:p-10 max-w-[1400px] mx-auto space-y-7 md:space-y-10">
         {/* Cinematic header */}
-        <section className="relative rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow">
-          <div className="h-[180px] md:h-[260px]">
+        {/* El alto lo da el contenido (mínimo 180/260 px): con alto fijo, en el celular el título y la
+            etiqueta «Tu colección» quedaban cortados arriba por los dos botones. */}
+        <section className="relative flex flex-col justify-end min-h-[180px] md:min-h-[260px] rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow" data-testid="trips-header">
+          <div className="absolute inset-0">
             {/* Respaldo: la foto del destino de tu viaje (Pexels) o el degradado de la marca; nunca Santorini. */}
             <SmartImage alt="" stockQuery={trips[0]?.destino ? destinationQuery(trips[0].destino, trips[0].pais_destino) : null} size="hero" eager className="h-full w-full" captionPosition="top-right">
               <DestinationVideo
@@ -267,23 +269,26 @@ const Trips = () => {
               />
             </SmartImage>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-          <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-9">
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/35" />
+          <div className="relative flex flex-col justify-end p-5 md:p-9">
             <p className="text-primary text-[10px] md:text-[11px] tracking-[0.35em] uppercase mb-2 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3" /> Tu colección
             </p>
             <h1 className="font-display text-3xl md:text-5xl leading-[1.05] text-white">Mis viajes</h1>
             <p className="text-xs md:text-sm text-white/70 mt-1.5">Cada travesía guardada — vuelos, hospedaje, experiencias.</p>
+            {/* Sin viajes, estos dos accesos ya están en la tarjeta de abajo (no se repiten). */}
+            {(loading || loadError || trips.length > 0) && (<div className="mt-3 flex flex-wrap gap-2">
             <Link
               to="/dashboard/viajes/importar"
-              className="mt-3 self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10"
+              className="self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10"
             >
               <FileUp className="w-3.5 h-3.5" aria-hidden="true" /> Sube un viaje que ya hiciste
             </Link>
             <button type="button" onClick={openBrought} data-testid="trips-ya-tengo"
-              className="mt-2 self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10">
+              className="self-start inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-black/40 backdrop-blur px-3.5 min-h-10 text-xs text-primary hover:bg-primary/10">
               <Hotel className="w-3.5 h-3.5" aria-hidden="true" /> Ya tengo vuelos y hotel
             </button>
+            </div>)}
           </div>
         </section>
 

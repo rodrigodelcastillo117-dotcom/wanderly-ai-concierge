@@ -167,6 +167,9 @@ const Profile = () => {
       ? `Tu estilo dominante: ${dna.dominant ? DNA_ARCHETYPES[dna.dominant].label.toLowerCase() : "por descubrir"}. Sigue viajando para refinar tu perfil de viajero.`
       : "Crea tu primer viaje para activar la evolución de tu avatar.");
 
+  // Perfil sin ninguna señal todavía (cuenta nueva): menos llamados a la acción repetidos.
+  const sinDatos = dna?.fuente === "ninguna";
+
   const diasDesde = (iso: string | null) => {
     if (!iso) return null;
     const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -258,13 +261,16 @@ const Profile = () => {
                     {dias != null && <> · {dnaUpdatedLabel(dias)}</>}
                   </p>
                 </div>
+                {/* Sin datos todavía no es la acción principal (no hay qué recalcular): botón secundario. */}
                 <Button
                   onClick={evolucionar}
                   disabled={evolving}
-                  className="bg-gradient-gold text-primary-foreground gold-glow"
+                  variant={sinDatos ? "outline" : "default"}
+                  data-testid="dna-recalcular"
+                  className={sinDatos ? "border-primary/40 hover:bg-primary/10" : "bg-gradient-gold text-primary-foreground gold-glow"}
                 >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${evolving ? "animate-spin" : ""}`} />
-                  {evolving ? "Recalculando…" : "✨ Recalcular mi perfil de viajero"}
+                  <RefreshCw className={`w-4 h-4 mr-2 ${evolving ? "animate-spin" : ""}`} aria-hidden="true" />
+                  {evolving ? "Recalculando…" : "Recalcular mi perfil de viajero"}
                 </Button>
               </div>
 
@@ -285,7 +291,7 @@ const Profile = () => {
                     <Sparkles className="w-3 h-3" /> Qué te mueve al viajar
                   </p>
                   {dna ? (
-                    <TravelDNAStats dna={dna} />
+                    <TravelDNAStats dna={dna} showImportLink={false} />
                   ) : (
                     <p className="text-xs text-muted-foreground">Cargando…</p>
                   )}
@@ -332,12 +338,7 @@ const Profile = () => {
                 </div>
               </div>
 
-              <p className="text-[11px] text-muted-foreground text-center">
-                Tu perfil de viajero se recalcula automáticamente cada 3 viajes. Si quieres hacerlo ahora,{" "}
-                <button type="button" onClick={evolucionar} disabled={evolving} className="text-primary underline underline-offset-2 disabled:opacity-60">
-                  recalcúlalo aquí
-                </button>.
-              </p>
+              {/* La nota "se recalcula cada 3 viajes… recalcúlalo aquí" repetía el aviso y el botón de arriba. */}
             </section>
 
             {/* PREFERENCIAS DE VIAJE */}

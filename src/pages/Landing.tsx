@@ -142,14 +142,16 @@ const Landing = () => {
             {
               n: "01",
               icon: Sparkles,
-              title: "Cuéntanos quién eres",
-              desc: "Unas preguntas opcionales al empezar y, cuando quieras, una encuesta visual de tu estilo, paladar y ritmo de viaje.",
+              // Los mismos 3 pasos que la bienvenida y la guía de Inicio (antes la landing empezaba por
+              // "Cuéntanos quién eres" y la app por "Dinos a dónde y cuándo").
+              title: "Dinos a dónde y cuándo",
+              desc: "Un destino, varias ciudades o tu idea con tus palabras: \u201cOaxaca un fin de semana, 2 personas\u201d.",
             },
             {
               n: "02",
               icon: Compass,
-              title: "La IA te conoce",
-              desc: "Tus respuestas personalizan destinos, hoteles y experiencias para tu estilo de viaje.",
+              title: "IATOS arma tu viaje",
+              desc: "Busca vuelos y hoteles con los proveedores y arma tu itinerario día por día. Si nos cuentas tu estilo (opcional), lo afina a tu gusto.",
             },
             {
               n: "03",
@@ -210,7 +212,10 @@ const Landing = () => {
         <div className="max-w-2xl mx-auto text-center mb-16">
           <p className="text-primary text-sm tracking-[0.2em] uppercase mb-4">Suscripción</p>
           <h2 className="font-display text-4xl md:text-6xl leading-tight mb-6">
-            Un precio. <span className="gold-text italic">Todo el mundo.</span>
+            Un precio.{" "}
+            {/* La cursiva dorada (texto recortado al fondo) perdía el trazo final de "el" al partir la línea en el
+                celular: el relleno se clona en cada renglón para que la letra quepa completa. */}
+            <span className="gold-text italic pr-[0.08em] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]" data-testid="landing-precio-titulo">Todo el mundo.</span>
           </h2>
         </div>
 

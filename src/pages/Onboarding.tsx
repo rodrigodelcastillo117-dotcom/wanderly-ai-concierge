@@ -249,35 +249,57 @@ const Onboarding = () => {
           {/* ============ PANTALLA 1 — BIENVENIDA ============ */}
           {step === 1 && (
             <motion.div key="s1" {...fadeSlide} className="relative flex-1 flex flex-col">
-              <div className="absolute inset-0 -mx-5 -mt-4 overflow-hidden rounded-none">
+              <div className="absolute inset-0 -mx-5 -mt-4 -mb-10 overflow-hidden rounded-none">
                 <img
                   src={welcomeImg}
                   alt="Vista premium IATOS"
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/95" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/55 to-black/95" />
               </div>
-              <div className="relative z-10 mt-auto pt-24 pb-2 space-y-5">
+              {/* Primer uso: en 10 segundos se entiende QUÉ hace IATOS y qué tocar. Las preguntas de
+                  personalización son opcionales y quedan como segunda opción (antes el único botón era
+                  «Conoce a Iato» y llevaba a "¿Qué tarjetas premium tienes?"). */}
+              <div className="relative z-10 mt-auto pt-20 pb-2 space-y-5">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-primary font-medium">
-                  Tu concierge personal
-                </p>
-                <h1 className="font-display text-4xl leading-tight text-white">
                   Bienvenido a IATOS
-                </h1>
-                <p className="text-base text-white/80 leading-relaxed">
-                  <IatoName /> es tu concierge IA para viajes. Son 3 preguntas opcionales y al final eliges cómo empezar;
-                  puedes saltarlas y completarlas después en tu Perfil.
                 </p>
+                <h1 className="font-display text-[2rem] leading-tight text-white">
+                  Planea tu viaje y conoce su costo antes de decidir
+                </h1>
+                <ol className="space-y-2.5" aria-label="Cómo funciona" data-testid="onb-como-funciona">
+                  {[
+                    "Dinos a dónde y cuándo.",
+                    <><IatoName /> busca vuelos y hoteles y arma tu itinerario día por día.</>,
+                    "Ves el total en pesos (en vivo o estimado) y reservas en el sitio de cada proveedor.",
+                  ].map((t, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-white/85 leading-snug">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/60 text-[11px] font-semibold text-primary" aria-hidden="true">{i + 1}</span>
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ol>
                 <Button
+                  onClick={() => finishAndGo("/dashboard/planear")}
+                  disabled={busy}
+                  data-testid="onb-planear-ya"
+                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)]"
+                >
+                  Planear mi primer viaje
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                <button
+                  type="button"
                   onClick={() => {
                     markStepComplete(1, {});
                     goNext();
                   }}
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)]"
+                  disabled={busy}
+                  data-testid="onb-personalizar"
+                  className="w-full min-h-[48px] rounded-xl border border-white/25 bg-black/30 backdrop-blur text-sm text-white/90 hover:border-primary/60 transition disabled:opacity-50"
                 >
-                  <span>Conoce a <IatoName /></span>
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
+                  Antes, personalizar con 3 preguntas (1 min)
+                </button>
               </div>
             </motion.div>
           )}
@@ -491,7 +513,7 @@ const Onboarding = () => {
           {/* ============ PANTALLA 5 — AHA MOMENT ============ */}
           {step === 5 && (
             <motion.div key="s5" {...fadeSlide} className="relative flex-1 flex flex-col">
-              <div className="absolute inset-0 -mx-5 -mt-4 overflow-hidden">
+              <div className="absolute inset-0 -mx-5 -mt-4 -mb-10 overflow-hidden">
                 <img
                   src={tripImg}
                   alt="Primer viaje"

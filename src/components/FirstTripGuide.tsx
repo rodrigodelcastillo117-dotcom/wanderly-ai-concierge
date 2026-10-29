@@ -10,6 +10,13 @@ import heroPoster from "@/assets/hero-santorini-960.jpg";
  * para empezar con un toque. Los ejemplos solo llenan el campo de texto; nada se analiza sin que
  * el usuario lo pida.
  */
+/** Los mismos 3 pasos que la bienvenida (onboarding) y la landing. */
+export const FIRST_TRIP_STEPS = [
+  "Dinos a dónde y cuándo.",
+  "IATOS busca vuelos y hoteles y arma tu itinerario.",
+  "Te da el total en pesos: qué es en vivo y qué es estimado.",
+] as const;
+
 export function FirstTripGuide({ onPickExample }: { onPickExample: (text: string) => void }) {
   const navigate = useNavigate();
   return (
@@ -27,9 +34,15 @@ export function FirstTripGuide({ onPickExample }: { onPickExample: (text: string
             <Sparkles className="w-4 h-4 text-primary shrink-0" aria-hidden />
             Planea tu primer viaje <span className="italic gold-text">en un minuto</span>
           </h2>
-          <p className="text-xs text-white/75 mt-1 leading-relaxed">
-            Dinos a dónde y cuándo; IATOS busca vuelos y hoteles y te da el total en pesos, marcando qué es en vivo y qué es estimado.
-          </p>
+          {/* Cómo funciona en 3 pasos cortos (antes una sola frase larga): se entiende de un vistazo. */}
+          <ol className="mt-2 grid gap-1.5 md:grid-cols-3 md:gap-3" aria-label="Cómo funciona" data-testid="first-trip-steps">
+            {FIRST_TRIP_STEPS.map((t, i) => (
+              <li key={t} className="flex items-start gap-2 text-xs text-white/85 leading-snug">
+                <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary/60 text-[10px] font-semibold text-primary" aria-hidden="true">{i + 1}</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ol>
         </div>
         <button
           type="button"

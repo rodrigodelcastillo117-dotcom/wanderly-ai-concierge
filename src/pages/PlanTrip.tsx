@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { FreeAnalysisNotice } from "@/components/plan/FreeAnalysisNotice";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
@@ -846,6 +847,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           </button>
           <h1 className="font-display text-2xl sm:text-3xl">Tu viaje, como lo entendimos</h1>
           <p className="mb-5 mt-1 text-sm text-muted-foreground">Revisa paradas, tramos y fechas. Nada se cotiza hasta que confirmes.</p>
+          <FreeAnalysisNotice />
           <TripSpecReview spec={review.spec} aviso={review.aviso} draft={!!review.draft} nota={review.nota ?? null}
             onChange={(sp) => openReview({ ...(reviewRef.current ?? review), spec: sp })}
             onConfirm={() => runSpec(review.spec, review.fp)} onCancel={backToText} />
