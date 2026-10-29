@@ -25,6 +25,7 @@ import { BestMomentsPanel } from "@/components/lux/BestMomentsPanel";
 import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { TelegramLink } from "@/components/canales/TelegramLink";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { FriendsPrivacySection } from "@/components/social/FriendsPrivacySection";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
@@ -399,6 +400,7 @@ const Profile = () => {
                 <li><Link to="/ayuda" state={{ from: "/dashboard/perfil#ajustes" }} className="block glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">Ayuda</span><span className="block text-xs text-muted-foreground mt-0.5">Cómo funciona IATOS, planes y contacto.</span></Link></li>
                 <li><button type="button" onClick={openOpinion} aria-haspopup="dialog" className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">{OPINION_CTA}</span><span className="block text-xs text-muted-foreground mt-0.5">Lo lee una persona del equipo IATOS.</span></button></li>
               </ul>
+              <TelegramLink isAdmin={isAdmin} />
             </section>
 
             {isAdmin && (

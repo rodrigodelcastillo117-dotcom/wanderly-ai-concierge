@@ -4,6 +4,7 @@ import { accionesEnBitacora, arnes, guion, USER } from "./helpers/operadorHarnes
 import { despacharCorreos, MAX_VUELTAS, tickOperador, trabajarCaso } from "../../supabase/functions/_shared/operador/bucle";
 import { autorizaVerTodo, costoUsd, datosNoVerificados, promesaIndebida, requiereHumanoYa, ventanaProveedor } from "../../supabase/functions/_shared/operador/politica";
 import { OPERADOR_TOOL_NAMES } from "../../supabase/functions/_shared/operador/herramientas";
+import { detectIncident } from "../../supabase/functions/_shared/incident-detect";
 
 afterEach(() => { vi.useRealTimers(); });
 
@@ -17,10 +18,10 @@ async function caso(h: ReturnType<typeof arnes>, texto: string, extra: Record<st
 }
 
 describe("operador: reglas fijas (politica.ts)", () => {
-  it("salud, seguridad y lo crítico van a una persona desde el inicio", () => {
+  it("salud y seguridad las lleva una persona desde el inicio; lo crítico de lo demás lo sigue el operador (el equipo ya está avisado)", () => {
     expect(requiereHumanoYa("salud", "media").si).toBe(true);
     expect(requiereHumanoYa("seguridad", "alta").si).toBe(true);
-    expect(requiereHumanoYa("robo", "critica").si).toBe(true);
+    expect(requiereHumanoYa("robo", "critica").si).toBe(false);
     expect(requiereHumanoYa("equipaje", "media").si).toBe(false);
   });
   it("horario del proveedor: traslado a las 23:30 en Cancún sale a las 08:00 de su hora; un hotel atiende 24 h", () => {
@@ -49,6 +50,10 @@ describe("operador: reglas fijas (politica.ts)", () => {
   it("costo por llamada con los precios publicados (Sonnet 5.5: 2/10 USD por millón)", () => {
     expect(costoUsd("claude-sonnet-5-5", { input_tokens: 10_000, output_tokens: 1_000 })).toBeCloseTo(0.03, 5);
     expect(costoUsd("modelo-desconocido", { input_tokens: 1_000_000 })).toBe(5); // el más caro conocido
+  });
+  it("detección: «el hotel dice que no tengo reserva» es un problema de hotel (antes no se detectaba)", () => {
+    expect(detectIncident("El hotel de Madrid dice que no tengo reserva").categoria).toBe("hotel_problema");
+    expect(detectIncident("en recepción dicen que no existe mi reserva").categoria).toBe("hotel_problema");
   });
   it("el operador no tiene ninguna herramienta para pagar, reservar o cancelar", () => {
     expect(OPERADOR_TOOL_NAMES.filter((n) => /pag|reserv|cancel|refund|reembols|book|pay/i.test(n))).toEqual([]);
@@ -259,8 +264,10 @@ describe("operador: correo del proveedor en su horario y su respuesta vuelve al 
     h.db.advance(9 * 60);
     expect((await despacharCorreos(h.despacho)).enviados).toBe(1);
     expect(h.db.incidents.get(r.id)!.events.some((e) => e.actor === "iato_ops" && e.channel === "email" && e.direction === "saliente")).toBe(true);
-    // Crítico (de noche sin traslado): además pasó a una persona.
-    expect(h.db.incidents.get(r.id)!.assignee).toBe("humano");
+    // Crítico (de noche sin traslado): el equipo quedó avisado al crearse y el operador sigue trabajando el caso.
+    expect(h.db.incidents.get(r.id)!.severidad).toBe("critica");
+    expect(h.db.alerts.some((a) => a.requestId === r.id && a.reason === "nuevo")).toBe(true);
+    expect(h.db.incidents.get(r.id)!.assignee).toBe("iato_ops");
     expect(USER).toBeTruthy();
   });
 });

@@ -115,7 +115,13 @@ const INCIDENT_ERROR: Record<string, string> = {
 // ───────── viajero ─────────
 export const confirmIncident = (id: string, resolved: boolean, comment?: string | null) =>
   rpc("my_incident_confirm", { _id: id, _resolved: resolved, _comment: comment?.trim() || null });
-export const messageIncident = (id: string, text: string) => rpc("my_incident_message", { _id: id, _text: text.trim() });
+/** El viajero escribe en su caso. Además despierta al Operador IATOS (si está apagado, no hace nada; si falla, el
+ * vigilante lo recoge en ≤ 2 min): no se espera su respuesta. */
+export async function messageIncident(id: string, text: string): Promise<RpcOk> {
+  const r = await rpc("my_incident_message", { _id: id, _text: text.trim() });
+  if (r.ok) void supabase.functions.invoke("operador", { body: { incident_id: id } }).catch(() => undefined);
+  return r;
+}
 
 // ───────── mesa ─────────
 export const takeIncident = (id: string) => rpc("admin_incident_take", { _id: id });
@@ -142,7 +148,36 @@ export async function resolveIncident(id: string, note: string, evidence?: strin
 }
 
 export type IncidentLogEvent = { id: number; at: string; kind: string; actor: string; by?: { name?: string | null; email?: string | null } | null;
-  channel?: string | null; direction?: string | null; counterpart?: string | null; body?: string | null; delivery?: string | null };
+  channel?: string | null; direction?: string | null; counterpart?: string | null; body?: string | null; delivery?: string | null; data?: Record<string, unknown> | null };
+
+/** Resumen del Operador IA a partir de la bitácora (acciones, gasto, si pasó a una persona y lo último que hizo). */
+export type OperatorSummary = { acciones: number; gastoUsd: number; escalado: boolean; motivo: string | null; ultima: string | null; herramientas: string[] };
+export function operatorSummary(events: IncidentLogEvent[]): OperatorSummary | null {
+  const op = events.filter((e) => e.actor === "iato_ops");
+  if (!op.length) return null;
+  let gasto = 0;
+  const herramientas: string[] = [];
+  let escalado = false;
+  let motivo: string | null = null;
+  for (const e of op) {
+    const d = (e.data?.operador ?? null) as { herramienta?: string; gasto_usd?: number; escalado?: boolean; motivo?: string } | null;
+    if (!d) continue;
+    if (typeof d.gasto_usd === "number") gasto = Math.max(gasto, d.gasto_usd);
+    if (d.herramienta && e.kind !== "mensaje") herramientas.push(d.herramienta);
+    if (d.escalado || d.herramienta === "pedir_humano") { escalado = true; motivo = d.motivo ?? motivo ?? "El operador pidió a una persona"; }
+  }
+  const ultima = [...op].reverse().find((e) => e.kind === "accion" || e.kind === "decision")?.body ?? null;
+  return { acciones: herramientas.length, gastoUsd: Math.round(gasto * 1000) / 1000, escalado, motivo, ultima, herramientas };
+}
+
+/** Nombre en español de cada herramienta del operador (para la bitácora de la Mesa). */
+export const OPERATOR_TOOL_LABEL: Record<string, string> = {
+  ver_viaje: "Revisó el viaje (con permiso)", pedir_permiso: "Pidió permiso al viajero", revisar_derechos_vuelo: "Revisó derechos del pasajero",
+  revisar_derechos_servicio: "Revisó derechos del consumidor", preparar_reclamo: "Preparó el reclamo", enviar_reclamo: "Envió el reclamo",
+  estado_vuelo: "Consultó el estado del vuelo", buscar_vuelos_alternativos: "Buscó vuelos alternativos", opciones_traslado: "Dio opciones de traslado",
+  lugares_cercanos: "Buscó lugares cercanos", buscar_contacto_proveedor: "Buscó el contacto oficial del proveedor", escribir_proveedor: "Escribió al proveedor",
+  escribir_viajero: "Escribió al viajero", prometer_seguimiento: "Prometió hora de seguimiento", pedir_humano: "Pidió a una persona", proponer_cierre: "Propuso cerrar",
+};
 export async function incidentLog(id: string): Promise<{ ok: true; events: IncidentLogEvent[] } | { ok: false; message: string }> {
   const r = await rpc("admin_incident_log", { _id: id });
   if (!r.ok) return { ok: false, message: (r as { message: string }).message };

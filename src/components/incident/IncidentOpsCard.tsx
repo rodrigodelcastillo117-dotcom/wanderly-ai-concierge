@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowUpCircle, Check, ChevronDown, Hand, Loader2, Mail, 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { actOps, whenText, type OpsItem } from "@/lib/opsDesk";
-import { escalateIncident, incidentLog, type IncidentLogEvent, resolveIncident, takeIncident } from "@/lib/incident";
+import { escalateIncident, incidentLog, type IncidentLogEvent, OPERATOR_TOOL_LABEL, operatorSummary, resolveIncident, takeIncident } from "@/lib/incident";
 import {
   categoryLabel, COMPLAINT_SUBTYPE_LABEL, EXPECTATION_LABEL, INCIDENT_SEVERITY_LABEL, isComplaintSubtype, isExpectation, isSentiment, localClock,
   SENTIMENT_LABEL,
@@ -194,15 +194,30 @@ export function IncidentOpsCard({ it, highlight, onDone }: { it: OpsItem; highli
       <button type="button" onClick={() => void loadLog()} className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground" data-testid="incident-log-toggle">
         <ChevronDown className="w-3 h-3" aria-hidden="true" />{log ? "Ocultar bitácora" : `Bitácora${inc.events_count ? ` (${inc.events_count})` : ""}`}
       </button>
+      {log && (() => {
+        const op = operatorSummary(log);
+        return op ? (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs space-y-0.5" data-testid="operator-summary">
+            <p className="font-medium text-foreground">Operador IA · {op.acciones} {op.acciones === 1 ? "acción" : "acciones"} · gasto en IA US${op.gastoUsd.toFixed(3)}</p>
+            {op.escalado && <p className="text-amber-200">Pasó a una persona: {op.motivo}</p>}
+            {op.ultima && <p className="text-muted-foreground break-words">Último paso: {op.ultima.slice(0, 160)}</p>}
+          </div>
+        ) : null;
+      })()}
       {log && (
         <ol className="mt-1 space-y-1 border-l border-white/10 pl-3 text-xs text-muted-foreground" data-testid="incident-log">
-          {log.map((e) => (
-            <li key={e.id}>
-              <span className="text-foreground/80">{new Date(e.at).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Mexico_City" })}</span>
-              {" · "}{ACTOR[e.actor] ?? e.actor}{e.by?.name ? ` (${e.by.name})` : ""}{e.channel ? ` · ${e.channel}` : ""}{e.direction === "entrante" ? " ←" : e.direction === "saliente" ? " →" : ""}
-              {e.counterpart ? ` ${e.counterpart}` : ""}{e.delivery === "fallido" ? " · FALLÓ" : ""} · {(e.body ?? e.kind).slice(0, 280)}
-            </li>
-          ))}
+          {log.map((e) => {
+            const tool = (e.data?.operador as { herramienta?: string } | undefined)?.herramienta;
+            const label = e.actor === "iato_ops" && tool && e.kind !== "mensaje" ? OPERATOR_TOOL_LABEL[tool] ?? tool : null;
+            return (
+              <li key={e.id} data-operador={e.actor === "iato_ops" ? "1" : undefined}>
+                <span className="text-foreground/80">{new Date(e.at).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Mexico_City" })}</span>
+                {" · "}{ACTOR[e.actor] ?? e.actor}{e.by?.name ? ` (${e.by.name})` : ""}{e.channel ? ` · ${e.channel}` : ""}{e.direction === "entrante" ? " ←" : e.direction === "saliente" ? " →" : ""}
+                {e.counterpart ? ` ${e.counterpart}` : ""}{e.delivery === "fallido" ? " · FALLÓ" : ""}
+                {label ? <> · <span className="text-primary">{label}</span></> : null} · {(e.body ?? e.kind).replace(/^[a-z_]+( \(no se pudo\))?: /, (m, f) => (label ? (f ? "no se pudo: " : "") : m)).slice(0, 280)}
+              </li>
+            );
+          })}
         </ol>
       )}
     </article>

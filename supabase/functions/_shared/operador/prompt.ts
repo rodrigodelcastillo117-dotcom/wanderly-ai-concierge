@@ -69,6 +69,7 @@ export function expediente(caso: CasoTomado, motivo: string, ahora: Date, extra:
     `Permisos del viajero: ${Object.keys(caso.case.consents ?? {}).join(", ") || "ninguno"}${caso.case.pending ? ` · pendiente: ${corto(JSON.stringify(caso.case.pending), 200)}` : ""}`,
     `Te quedan: ${JSON.stringify(quedan)}`,
     extra.humanoYa ? `IMPORTANTE: ${extra.humanoYa}. Da al viajero lo útil de inmediato (lugares, pasos) y usa pedir_humano en esta corrida.` : "",
+    !extra.humanoYa && inc.severity === "critica" ? "CASO CRÍTICO: el equipo humano ya está avisado. Actúa rápido; usa pedir_humano si hay riesgo, si hace falta pagar/cancelar/reservar o si no avanzas." : "",
     extra.contactos.length ? `Contactos que el viajero escribió en el caso: ${extra.contactos.join(" · ")}` : "",
     caso.case.summary ? `Tu nota de la corrida anterior: ${corto(caso.case.summary, 600)}` : "",
     "",

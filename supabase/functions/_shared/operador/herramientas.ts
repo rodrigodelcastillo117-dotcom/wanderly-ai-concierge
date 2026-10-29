@@ -210,6 +210,18 @@ function revisarSaliente(ctx: ContextoOperador, texto: string): string | null {
   return null;
 }
 
+/** Resultado de un reclamo para el modelo: lo que necesita para decidir (sin la carta en HTML, que es enorme). */
+function compactarReclamo(r: Record<string, unknown>): Record<string, unknown> {
+  const c = (r.claim ?? {}) as Record<string, unknown>;
+  const carta = (r.carta ?? null) as Record<string, unknown> | null;
+  const { claim: _c, carta: _k, ...resto } = r;
+  return {
+    ...Object.fromEntries(Object.entries(resto).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 600) : Array.isArray(v) ? v.slice(0, 6) : v])),
+    claim: { id: c.id, ref_code: c.ref_code, status: c.status, provider_name: c.provider_name, channel: c.channel, recipient_email: c.recipient_email ?? null, form_url: c.form_url ?? null },
+    ...(carta ? { carta: { para: carta.para ?? null, canal: carta.canal, url: carta.url ?? null, asunto: carta.asunto, idioma: carta.idioma, inicio: String(carta.texto ?? "").slice(0, 700) } } : {}),
+  };
+}
+
 // ───────────────────────────── ejecutor ─────────────────────────────
 export async function ejecutarHerramienta(nombre: string, a: Record<string, unknown>, ctx: ContextoOperador): Promise<Record<string, unknown>> {
   const d = ctx.deps;
@@ -251,8 +263,8 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       if (pedido && !conocido) return { ok: false, code: "CORREO_SIN_FUENTE", error: "Ese correo no viene de ninguna fuente del caso. Prepara el reclamo sin correo (queda para su formulario oficial) o pide al viajero el correo que le dio el proveedor." };
       const fuente = conocido ? (conocido.fuente.kind === "mensaje_usuario" ? "usuario_confirmado" : conocido.fuente.kind === "reserva" ? "reserva" : "correo_del_proveedor") : null;
       const r = await runReclamosTool("preparar_reclamo", { ...a, correo_proveedor: conocido?.email ?? null, fuente_correo: fuente, trip_id: inc.trip_id },
-        { userId: ctx.userId, lector: { from: () => { throw new Error("sin lector"); } } as never, deps, hoy });
-      return r as Record<string, unknown>;
+        { userId: ctx.userId, lector: { from: () => { throw new Error("sin lector"); } } as never, deps, hoy }) as Record<string, unknown>;
+      return compactarReclamo(r);
     }
     case "enviar_reclamo": {
       const folio = (s(a.folio, 10) ?? "").toUpperCase();
@@ -267,7 +279,7 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       const c = await consentir(ctx, `enviar_reclamo:${folio}`, (t) => autorizaReclamo(t, folio), folio);
       if (!c.ok) return { ok: false, code: "CONSENT_REQUIRED", instruccion: `No se envía nada sin su sí explícito. Usa pedir_permiso tipo enviar_reclamo con folio ${folio}.` };
       const r = await confirmarEnvio(deps, ctx.userId, { id, confirm: true, confirm_text: (c.texto ?? `Consentimiento en el evento ${c.eventId}`).slice(0, 300) });
-      return r.body;
+      return compactarReclamo(r.body);
     }
     case "estado_vuelo": {
       if (!d.estadoVuelo) return { ok: false, code: "NO_DISPONIBLE" };

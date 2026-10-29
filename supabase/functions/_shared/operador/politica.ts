@@ -5,12 +5,14 @@ import { autorizaEnvio } from "../derechos/herramientas.ts";
 import { normalizeText } from "../incident-detect.ts";
 
 // ───────────────────────────── Escalar ya ─────────────────────────────
-/** Categorías donde una persona del equipo debe estar desde el inicio (el operador ayuda, pero no lleva el caso). */
+/**
+ * Categorías donde una persona del equipo LLEVA el caso desde el inicio (el operador ayuda con lo inmediato y lo pasa).
+ * Lo crítico de otras categorías NO se le quita al operador: el equipo ya quedó avisado al crearse el caso
+ * (incident_config.notify_on_create = crítica) y el operador sigue trabajando 24/7 hasta que una persona lo tome.
+ */
 const SIEMPRE_HUMANO = new Set(["salud", "seguridad"]);
-/** Con severidad crítica, además: robo, documentos, traslado de noche, etc. */
-export function requiereHumanoYa(categoria: string, severidad: string): { si: boolean; motivo: string | null } {
+export function requiereHumanoYa(categoria: string, _severidad?: string): { si: boolean; motivo: string | null } {
   if (SIEMPRE_HUMANO.has(categoria)) return { si: true, motivo: categoria === "salud" ? "Salud o emergencia médica: lo lleva una persona" : "Seguridad del viajero: lo lleva una persona" };
-  if (severidad === "critica") return { si: true, motivo: "Caso crítico: una persona del equipo lo acompaña desde el inicio" };
   return { si: false, motivo: null };
 }
 
