@@ -314,7 +314,8 @@ describe("P2-16 · Destinos: trenes repetidos, texto de enlace y tuteo de avisos
         { mode: "tren", provider: "Trenitalia / Frecciarossa", duration: "1h 35m", price_per_person_usd: 57, from: "Roma" },
         { mode: "tren", provider: "Italo Treno", duration: "1h 36m", price_per_person_usd: 50, from: "Roma" },
       ] }] } } };
-    expect(groundOptionsForCity(trip, "Florencia").map((o) => o.aerolinea)).toEqual(["Trenitalia (Frecciarossa) / Italo", "Italo Treno"]);
+    // R2: dedupe por operador — «Italo Treno» ya está en «Trenitalia (Frecciarossa) / Italo».
+    expect(groundOptionsForCity(trip, "Florencia").map((o) => o.aerolinea)).toEqual(["Trenitalia (Frecciarossa) / Italo"]);
   });
   it("sin enlace del operador no se dice 'aún no tiene un enlace precargado'", () => {
     expect(noLinkText("tren", "Trenitalia")).not.toMatch(/precargado/);
