@@ -15,7 +15,7 @@ import type { CorreoRecibido, ReclamosDeps } from "./servicio.ts";
 const env = (k: string) => Deno.env.get(k) ?? undefined;
 const GATEWAY = "https://connector-gateway.lovable.dev";
 
-async function receivedEmail(emailId: string): Promise<CorreoRecibido | null> {
+export async function receivedEmail(emailId: string): Promise<CorreoRecibido | null> {
   if (!/^[A-Za-z0-9-]{8,100}$/.test(emailId)) return null;
   const direct = env("RESEND_RECEIVING_API_KEY");
   const url = direct ? `https://api.resend.com/emails/receiving/${emailId}` : `${GATEWAY}/resend/emails/receiving/${emailId}`;

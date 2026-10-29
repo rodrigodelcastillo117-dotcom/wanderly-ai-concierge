@@ -37,6 +37,8 @@ export type ReclamosDeps = {
   receivedEmail(id: string): Promise<CorreoRecibido | null>;
   profile(userId: string): Promise<{ name: string | null; email: string | null }>;
   nucleo?: NucleoIncidentes;
+  /** Respuesta de un proveedor al Operador IATOS (operador+<token>@): la atiende _shared/operador/entrante.ts. */
+  operadorEntrante?: (x: { token: string; emailId: string; eventId: string }) => Promise<Resultado>;
   config: { replyDomain?: string; fromAddress?: string; inboundSecret?: string; appUrl: string };
   now?: () => Date;
   warn?: (...a: unknown[]) => void;
@@ -339,6 +341,9 @@ export async function handleInbound(d: ReclamosDeps, headers: Headers, raw: stri
   if (ev?.type !== "email.received" || !ev.data?.email_id) return ok({ ignored: "event_type" });
   const dominio = d.config.replyDomain ?? DOMINIO_RESPUESTA;
   const ruta = rutaEntrante([...(ev.data.to ?? []), ...(ev.data.received_for ?? []), ...(ev.data.cc ?? [])], dominio);
+  if (ruta.tipo === "operador" && ruta.token) {
+    return d.operadorEntrante ? d.operadorEntrante({ token: ruta.token, emailId: String(ev.data.email_id), eventId: sig.id }) : ok({ ignored: "operador_no_conectado" });
+  }
   if (ruta.tipo === "reserva" || ruta.tipo === "ninguna" || !ruta.token) return ok({ ignored: ruta.tipo });
   const kind = ruta.tipo === "reclamo" ? "reclamo" : "caso";
   const claim = await d.db.rpc<Record<string, unknown>>("claim_inbound_claim", { _event_id: sig.id, _email_id: ev.data.email_id, _kind: kind, _token: ruta.token });

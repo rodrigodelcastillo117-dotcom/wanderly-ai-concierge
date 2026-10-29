@@ -9,6 +9,7 @@ import { redactPii } from "../_shared/redact.ts";
 import { reportIncident } from "../_shared/incident-report.ts";
 import { deliverIncidentAlerts } from "../_shared/incident-alerts.ts";
 import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
+import { despertarOperador } from "../_shared/operador/runtime.ts";
 import { INCIDENT_LIMITS, parseIncidentBody } from "./core.ts";
 
 const corsHeaders = {
@@ -42,6 +43,8 @@ Deno.serve(async (req) => {
     }, { ...parsed.value, userId: user.id, origen: "usuario", canal: "app",
       idempotencyKey: parsed.value.idempotencyKey ? `app:${user.id.slice(0, 8)}:${parsed.value.idempotencyKey}` : null });
     if (!r.ok) return json(r, r.code === "RATE_LIMITED" ? 429 : r.code === "DESCRIPTION_REQUIRED" || r.code === "INVALID" ? 400 : 500);
+    // Operador IATOS: si el caso nació del operador IA, se despierta ya (apagado → no hace nada).
+    if (r.created && r.assignee === "iato_ops") await despertarOperador(r.id, "nuevo");
     return json({
       ok: true, id: r.id, folio: r.folio, created: r.created, categoria: r.categoria, categoria_label: r.categoriaLabel, severidad: r.severidad,
       guia: r.guia, texto: r.texto, siguiente_paso: r.siguientePaso, siguiente_paso_hora: r.siguientePasoHora, team_notified: r.teamNotified,

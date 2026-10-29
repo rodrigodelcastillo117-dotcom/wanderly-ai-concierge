@@ -7,6 +7,8 @@
 //                          propio correo con autenticación (DMARC/DKIM).
 //   casos@…              → sin token no se puede saber de quién es: se ignora (se le muestra al usuario su
 //                          dirección personal casos+<token>@).
+//   operador+<24 hex>@…  → respuesta de un proveedor al que escribió el Operador IATOS (_shared/operador):
+//                          va a la bitácora del incidente y despierta al operador.
 // Mismo dominio y mismo proveedor (Resend Receiving): se registra un SEGUNDO webhook (reclamos-inbound,
 // con su propio secreto) y reservations-inbound ignora reclamos+/casos (cambio mínimo en service.ts).
 export const DOMINIO_RESPUESTA = "reply.traveliatos.life";
@@ -23,7 +25,7 @@ export function direccionCasos(token: string, dominio = DOMINIO_RESPUESTA): stri
   return `casos+${token}@${dominio}`;
 }
 
-export type RutaEntrante = { tipo: "reserva" | "reclamo" | "caso" | "ninguna"; token: string | null };
+export type RutaEntrante = { tipo: "reserva" | "reclamo" | "caso" | "operador" | "ninguna"; token: string | null };
 
 /** Clasifica un correo entrante por las direcciones a las que llegó (to, cc, received_for). */
 export function rutaEntrante(direcciones: unknown[], dominio = DOMINIO_RESPUESTA): RutaEntrante {
@@ -43,12 +45,14 @@ export function rutaEntrante(direcciones: unknown[], dominio = DOMINIO_RESPUESTA
   if (reclamo) return { tipo: "reclamo", token: reclamo };
   const caso = buscar("casos");
   if (caso) return { tipo: "caso", token: caso };
+  const operador = buscar("operador");
+  if (operador) return { tipo: "operador", token: operador };
   return { tipo: "ninguna", token: null };
 }
 
-/** ¿Va dirigido a reclamos+/casos(+)? Lo usa reservations-inbound para no tocarlo. */
+/** ¿Va dirigido a reclamos+/casos(+)/operador+? Lo usa reservations-inbound para no tocarlo. */
 export function esCorreoDeReclamos(direcciones: unknown[], dominio = DOMINIO_RESPUESTA): boolean {
   const d = esc(dominio);
-  const re = new RegExp(`(^|[^a-z0-9._%+-])(reclamos\\+[0-9a-f]{24}|casos(\\+[0-9a-f]{24})?)@${d}(?![a-z0-9.-])`, "i");
+  const re = new RegExp(`(^|[^a-z0-9._%+-])(reclamos\\+[0-9a-f]{24}|operador\\+[0-9a-f]{24}|casos(\\+[0-9a-f]{24})?)@${d}(?![a-z0-9.-])`, "i");
   return direcciones.flat().some((a) => re.test(String(a ?? "")));
 }

@@ -22,6 +22,7 @@ import { aiFetch } from "../_shared/ai.ts";
 import { runAdvisoryTool } from "../_shared/advisoryTool.ts";
 import { RECLAMOS_TOOL_NAMES, runReclamosTool } from "../_shared/derechos/herramientas.ts";
 import { buildReclamosDeps } from "../_shared/derechos/runtime.ts";
+import { despertarOperador } from "../_shared/operador/runtime.ts";
 import { accountBrake, dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip } from "../_shared/activeTrip.ts";
@@ -247,12 +248,17 @@ const bg = (p: Promise<unknown>) => {
 function iatoIncidentDeps(): IatoIncidentDeps {
   const deps = incidentAlertDeps(adminClient());
   return {
-    report: (input) => reportIncident({
-      db: deps.admin,
-      deliver: (id) => bg(deliverIncidentAlerts(deps, { requestId: id })) as ReturnType<typeof deliverIncidentAlerts>,
-      deliverTimeoutMs: 3000,
-      warn: (...a) => console.warn(...a.map((x) => redactPii(String(x), 200))),
-    }, input),
+    report: async (input) => {
+      const r = await reportIncident({
+        db: deps.admin,
+        deliver: (id) => bg(deliverIncidentAlerts(deps, { requestId: id })) as ReturnType<typeof deliverIncidentAlerts>,
+        deliverTimeoutMs: 3000,
+        warn: (...a) => console.warn(...a.map((x) => redactPii(String(x), 200))),
+      }, input);
+      // Operador IATOS: un caso nuevo del operador IA lo despierta ya (si está apagado, no hace nada).
+      if (r.ok && r.created && r.assignee === "iato_ops") bg(despertarOperador(r.id, "nuevo"));
+      return r;
+    },
   };
 }
 

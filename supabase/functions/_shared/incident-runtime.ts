@@ -4,6 +4,7 @@ import { sendEmail } from "./email.ts";
 import { pushToUser } from "./push.ts";
 import { teamEmails } from "./teamEmails.ts";
 import { createChannelRegistry, type ChannelRegistry } from "./channels/registry.ts";
+import { telegramChannel } from "./channels/telegram.ts";
 import type { IncidentAlertDeps } from "./incident-alerts.ts";
 import type { IncidentDb } from "./incidents.ts";
 
@@ -14,8 +15,9 @@ export function incidentChannels(): ChannelRegistry {
     env: (k) => Deno.env.get(k),
     sendEmail: (m) => sendEmail(m),
     emailFrom: INCIDENT_ALERT_FROM,
-    // Aquí se registran los adaptadores de Telegram / WhatsApp / SMS / voz cuando existan (otro módulo).
-    adapters: {},
+    // Telegram: prendido solo si existe TELEGRAM_BOT_TOKEN. WhatsApp y voz: interfaz lista (channels/whatsapp.ts,
+    // channels/voz.ts) pero NO se registran hasta que el dueño lo apruebe.
+    adapters: { telegram: (env) => telegramChannel({ token: String(env("TELEGRAM_BOT_TOKEN") ?? ""), webhookSecret: env("TELEGRAM_WEBHOOK_SECRET") ?? null }) },
   });
 }
 

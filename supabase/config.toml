@@ -46,6 +46,19 @@ verify_jwt = true
 [functions.incidentes-vigilante]
 verify_jwt = false
 
+# Operador IATOS (bucle de agente con Claude): tick del vigilante/cron (x-cron-secret o llave de servicio) o el viajero
+# que despierta SU caso (sesión validada dentro). Apagado con app_flags.operador_enabled = false.
+[functions.operador]
+verify_jwt = false
+
+# Bot de Telegram: Telegram no manda JWT; exige el secreto del webhook (derivado de TELEGRAM_BOT_TOKEN). Apagado sin token.
+[functions.telegram-webhook]
+verify_jwt = false
+
+# Vincular Telegram con la cuenta IATOS (código de un solo uso) y, solo administradores, registrar el webhook del bot.
+[functions.canales]
+verify_jwt = true
+
 [functions.editar-viaje-ai]
 verify_jwt = true
 

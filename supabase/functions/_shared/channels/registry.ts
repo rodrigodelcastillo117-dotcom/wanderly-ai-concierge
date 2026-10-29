@@ -9,7 +9,8 @@ import { emailChannel, type EmailSend } from "./email.ts";
  * (WHATSAPP_PROVIDER=meta). SMS y llamadas: Twilio.
  */
 export const CHANNEL_SECRETS: Record<Exclude<ChannelId, "email">, (env: (k: string) => string | undefined) => string[]> = {
-  telegram: () => ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"],
+  // El secreto del webhook se deriva del token (channels/telegram.ts): el dueño pega UN solo secreto.
+  telegram: () => ["TELEGRAM_BOT_TOKEN"],
   whatsapp: (env) => (String(env("WHATSAPP_PROVIDER") ?? "twilio").toLowerCase() === "meta"
     ? ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_APP_SECRET"]
     : ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"]),

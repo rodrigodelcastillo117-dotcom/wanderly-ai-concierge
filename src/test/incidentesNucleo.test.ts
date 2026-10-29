@@ -129,7 +129,8 @@ describe("canales enchufables", () => {
     const st = Object.fromEntries(reg.status().map((s) => [s.id, s]));
     expect(st.email).toMatchObject({ enabled: false, state: "apagado_sin_secretos", missing: ["RESEND_API_KEY"] });
     expect(st.whatsapp).toMatchObject({ enabled: false, state: "apagado_sin_secretos", missing: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"] });
-    expect(st.telegram.missing).toEqual(["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"]);
+    // Un solo secreto: el del webhook se deriva del token (channels/telegram.ts).
+    expect(st.telegram.missing).toEqual(["TELEGRAM_BOT_TOKEN"]);
     expect(st.voz.note).toMatch(/Llamada de voz apagado: faltan/);
     expect(CHANNEL_SECRETS.whatsapp((k) => (k === "WHATSAPP_PROVIDER" ? "meta" : undefined))).toEqual(["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_APP_SECRET"]);
   });
