@@ -42,9 +42,19 @@ let loc = "";
 const Spy = () => { nav = useNavigate(); const l = useLocation(); loc = l.pathname + l.search; return null; };
 
 const analyzeCalls = () => invoke.mock.calls.filter((c) => c[0] === "analizar-viaje").length;
-/** "Entendí…": se completan las fechas si faltan y se confirma (ahí se usa la búsqueda del plan). */
+/**
+ * Como antes del 28-oct (Carlo, 29-oct-2026): sin fechas, el paso corto las pide y se sigue directo; con
+ * todo dicho no hay paso intermedio. Si el resumen completo está en pantalla, se confirma ahí.
+ */
 const confirmReview = async () => {
-  await screen.findByTestId("spec-review");
+  const paso = await screen.findByTestId(/^(plan-preguntas|spec-review)$/);
+  if (paso.getAttribute("data-testid") === "plan-preguntas") {
+    expect(analyzeCalls()).toBe(0); // nada se cotiza antes de contestar
+    fireEvent.change(screen.getByLabelText("Salida"), { target: { value: "2027-03-01" } });
+    fireEvent.change(screen.getByLabelText("Regreso"), { target: { value: "2027-03-06" } });
+    fireEvent.click(screen.getByTestId("plan-continuar"));
+    return;
+  }
   const salida = screen.getAllByLabelText("Salida")[0] as HTMLInputElement;
   if (!salida.value) fireEvent.change(salida, { target: { value: "2027-03-01" } });
   const regreso = screen.getAllByLabelText("Regreso")[0] as HTMLInputElement;

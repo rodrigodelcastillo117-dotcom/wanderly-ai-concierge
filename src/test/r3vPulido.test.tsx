@@ -36,7 +36,8 @@ describe("P2-1 · sin foto de Santorini como respaldo del viaje", () => {
     for (const f of ["src/pages/TripDetail.tsx", "src/pages/Trips.tsx"]) {
       expect(src(f)).not.toMatch(/hero-santorini/);
       expect(src(f)).not.toMatch(/fallbackImage=\{santorini\}/);
-      expect(src(f)).toMatch(/stockQuery=\{[^}]*destinationQuery\(/);
+      // tripPhotoQuery = destinationQuery de la primera ciudad del viaje (Carlo, 29-oct-2026).
+      expect(src(f)).toMatch(/stockQuery=\{[^}]*(destinationQuery|tripPhotoQuery)\(/);
     }
   });
 });

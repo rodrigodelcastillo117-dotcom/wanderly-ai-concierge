@@ -180,10 +180,28 @@ export function SmartImage(props: SmartImageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Foto que llega tarde (Carlo, 29-oct-2026: "no salen las imágenes"): con varias tarjetas a la vez la
+  // búsqueda de Pexels esperaba turno más de IMAGE_STEP_TIMEOUT_MS, la tarjeta pasaba al ícono y la foto,
+  // que sí llegaba después, ya no se mostraba. Ahora, si la búsqueda sigue en curso, se pinta al llegar.
+  const liveId = useRef(id);
+  liveId.current = id;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
   useEffect(() => {
     if (state.res !== undefined || !visible) return;
     let alive = true;
-    void resolve(props, w, skip).then((res) => { if (alive) setState({ id, res }); });
+    const late = props.stockQuery && !skip.has("stock") ? props.stockQuery : null;
+    void resolve(props, w, skip).then((res) => {
+      if (!alive) return;
+      setState({ id, res });
+      if (res === null && late && cachedStockPhoto(late) === undefined) {
+        void getStockPhoto(late).then((ph) => {
+          if (!ph || !mounted.current || liveId.current !== id) return;
+          setState((cur) => (cur.id === id && cur.res === null ? { id, res: { url: ph.image, kind: "stock", credit: ph.photographer, step: "stock" } } : cur));
+        });
+      }
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, visible, skip, state.res === undefined]);

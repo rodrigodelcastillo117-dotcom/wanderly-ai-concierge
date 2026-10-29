@@ -59,13 +59,15 @@ describe("P2-2 · la portada es el destino, no la foto de Google de un lugar", (
     expect(destinationCoverUrl("http://images.pexels.com/x.jpg")).toBeNull();
   });
 
-  it("Inicio («Próximo viaje»): con portada de Google guardada se ve la foto del destino (Pexels, ilustrativa)", async () => {
+  // Revertido el 29-oct-2026 por decisión del dueño (Carlo: "no salen las imágenes"): la portada guardada
+  // del viaje vuelve a mostrarse como antes de la ronda 4; si no carga, la foto del destino (Pexels).
+  // analizar-viaje sigue sin guardar fotos de Google nuevas (prueba de abajo).
+  it("Inicio («Próximo viaje»): con portada guardada se ve esa portada, como antes de la ronda 4", async () => {
     render(<MemoryRouter><TripCommandCenter trip={{ id: "vb", destino: "Valle de Bravo", pais_destino: "México", fecha_salida: "2026-10-30", fecha_regreso: "2026-11-01", cover_image_url: GOOGLE_PLACE }} today="2026-10-29" /></MemoryRouter>);
     await flush();
     await waitFor(() => expect(document.querySelectorAll("img").length).toBeGreaterThan(0));
     const srcs = Array.from(document.querySelectorAll("img")).map((i) => i.getAttribute("src") ?? "");
-    expect(srcs.some((s) => s.includes("googleusercontent"))).toBe(false);
-    expect(srcs.some((s) => s.startsWith("https://images.pexels.com/"))).toBe(true);
+    expect(srcs.some((s) => s.includes("googleusercontent"))).toBe(true);
   });
 
   it("analizar-viaje ya no guarda una foto de Google como portada", async () => {

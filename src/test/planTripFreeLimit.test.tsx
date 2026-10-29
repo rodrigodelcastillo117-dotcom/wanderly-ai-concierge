@@ -82,9 +82,7 @@ const app = appFor(PHRASE);
 
 it("N-09: sin análisis disponible, muestra el diálogo de límite y conserva la frase en el campo", async () => {
   render(app);
-  await screen.findByTestId("spec-review");
-  expect(calls("analizar-viaje")).toBe(0); // nada se cotiza antes de confirmar
-  fireEvent.click(screen.getByTestId("spec-confirmar"));
+  // Con todo dicho (Puebla, fechas, viajeros y origen) se cotiza directo, como antes del 28-oct.
   expect(await screen.findByText("Usaste tu análisis gratuito")).toBeInTheDocument();
   expect(screen.getByText("Conocer IATOS PRO")).toBeInTheDocument();
   // La frase completa sigue en el resumen para corregirla o reintentar.

@@ -16,7 +16,7 @@
 //    ciudades conocidas (o relleno); "San Miguel de Allende" o "Valle de Guadalupe" no se parten.
 //  - "desde X" o una primera ciudad que es el origen del viajero ("CDMX → Madrid → Lisboa") es el
 //    origen, no una parada; si la última repite el origen (regreso), se quita.
-import { CITIES as AIRPORT_CITIES, cityAirports } from "../../supabase/functions/_shared/airports.ts";
+import { CITIES as AIRPORT_CITIES, TOWNS as AIRPORT_TOWNS, cityAirports } from "../../supabase/functions/_shared/airports.ts";
 import { catalogCities, matchCountry } from "../../supabase/functions/_shared/souvenirs.ts";
 import { sameCity, splitNights } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { COUNTRIES as PICKER_COUNTRIES } from "@/lib/countriesCities";
@@ -52,6 +52,12 @@ const CITY_STATES = new Set(["singapur", "panama", "mexico"]);
 for (const c of catalogCities()) if (!isCountryName(c.lugar) || CITY_STATES.has(norm(c.lugar))) add(c.lugar, { name: c.lugar, country: null });
 for (const country of PICKER_COUNTRIES) for (const city of country.cities) add(city, { name: city, country: country.name });
 for (const r of ROUTE_CITIES) add(r.city, { name: r.city, country: r.country });
+// Pueblos con coordenadas reales del catálogo (Sintra, Cascais, Nara…): son paradas de una ruta
+// ("Lisboa → Sintra → Oporto", caso Carlo 29-oct-2026: Sintra salía «no reconocida» y obligaba a revisar).
+// "Como" (lago de Como) es una palabra común en español ("como base"): no se agrega. Los pueblos de
+// México (Tepoztlán, Valle de Bravo…) siguen como antes: son viajes de un destino que lee analizar-viaje.
+const TOWN_SKIP = new Set(["como"]);
+for (const t of AIRPORT_TOWNS) if (t.iso2 !== "MX" && !TOWN_SKIP.has(norm(t.name)) && !isCountryName(t.name)) add(t.name, { name: t.name, country: null });
 // Nombres en inglés de ciudades del selector que la gente escribe así (caso Diego: "Cape Town" se leía
 // como el país Sudáfrica por un alias del catálogo de recuerdos). Solo ciudades que ya están en el catálogo.
 const EXTRA_CITY_ALIASES: Array<[string, string]> = [["cape town", "Ciudad del Cabo"], ["capetown", "Ciudad del Cabo"]];

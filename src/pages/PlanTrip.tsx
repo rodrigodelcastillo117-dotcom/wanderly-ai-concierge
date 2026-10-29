@@ -40,12 +40,14 @@ import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 // Intérprete de viaje completo: "Entendí…" editable antes de generar, y cobertura de lo escrito.
 import { TripSpecReview } from "@/components/plan/TripSpecReview";
 import { buildLocalSpec, finalizeSpec } from "@/lib/tripSpecLocal";
-import { generateFromSpec, interpretTripAi, INTERPRET_TIMEOUT_MS } from "@/lib/tripSpecFlow";
+import { generateFromSpec, interpretTrip, interpretTripAi, INTERPRET_TIMEOUT_MS } from "@/lib/tripSpecFlow";
+import { nextPlanStep, stashRouteConsulta } from "@/lib/planDirect";
+import { PlanQuickQuestions } from "@/components/plan/PlanQuickQuestions";
 // Borrador rápido: el resumen del lector local se ve al instante y la IA lo completa al responder.
 import { DRAFT_FAIL_AVISO, draftSpec, mergeDraftWithAi } from "@/lib/tripSpecDraft";
 import { routeFromItems, type RefAnswer } from "@/lib/tripCoverage";
 import { usePlaceResolve } from "@/lib/placeResolveClient";
-import { makeStop, newId, savedConsulta, setTripBasics, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
+import { makeStop, newId, routeOfSpec, savedConsulta, setTripBasics, withConsulta, type TripSpec } from "../../supabase/functions/_shared/tripSpec";
 import { IatoName } from "@/lib/iatoMark";
 
 const RADIO = "min-h-[44px] rounded-xl border px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -85,7 +87,9 @@ type IaResult = { ok: true; spec: TripSpec; aviso: string | null; ctx: HintCtx }
 type DraftRun = { ctx: Promise<HintCtx>; result: Promise<IaResult> };
 /** Borrador en pantalla: lo que se mostró (`base`, para saber qué editó la persona) y su revisión con Iato. */
 type DraftInfo = { token: string; base: TripSpec; hints: HintCtx };
-type ReviewState = { spec: TripSpec; aviso: string | null; fp?: string; draft?: DraftInfo | null; nota?: string | null };
+type ReviewState = { spec: TripSpec; aviso: string | null; fp?: string; draft?: DraftInfo | null; nota?: string | null;
+  /** Paso corto: solo las preguntas pendientes (fechas, origen…), sin el resumen completo. */
+  quick?: boolean };
 
 /** Arranque de la interpretación: un borrador inmediato (va con Iato) o el flujo de siempre (ruta / solo ciudades). */
 type Arranque = { kind: "borrador"; draft: DraftInfo; run: DraftRun } | { kind: "completo"; result: Promise<Interpretacion> };
@@ -109,8 +113,11 @@ async function ctxFor(userId: string, hints: HintCtx): Promise<HintCtx> {
 /** Solo ciudades conocidas, sin crucero, tramos ni regreso por otra ciudad: el lector local basta (sin IA). */
 const isSimpleSpec = (s: TripSpec) => s.menciones.length > 0 && s.menciones.every((m) => m.tipo === "ciudad" || m.tipo === "origen")
   && !s.preguntas.some((x) => !x.resuelta && x.tipo !== "fechas" && x.tipo !== "origen");
+/** El lector local ya ve preguntas de verdad (un país por confirmar, un crucero sin puertos…), no solo fechas u origen. */
+const hasRealQuestions = (s: TripSpec) => s.preguntas.some((x) => !x.resuelta && x.tipo !== "fechas" && x.tipo !== "origen");
+const LONG_TEXT_AVISO = "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo.";
 
-async function interpretarFrase(q: string, userId: string, hints: HintCtx): Promise<Interpretacion> {
+async function interpretarFrase(q: string, userId: string, hints: HintCtx, conIa = false): Promise<Interpretacion> {
   const ctx = await ctxFor(userId, hints);
 
   // roadtrip: road trip por una región curada → ruta en coche con sus paradas (sin IA ni costo).
@@ -122,7 +129,10 @@ async function interpretarFrase(q: string, userId: string, hints: HintCtx): Prom
     return { kind: "ruta", qs: qs.toString() };
   }
   // Solo ciudades conocidas: el lector local (sin IA), con el origen del perfil.
-  return { kind: "revisar", spec: finalizeSpec(buildLocalSpec(q, ctx), q, ctx), aviso: null };
+  if (!conIa) return { kind: "revisar", spec: finalizeSpec(buildLocalSpec(q, ctx), q, ctx), aviso: null };
+  // Tramos, crucero o regreso sin dudas a la vista: Iato lo lee completo (si falla, el lector local y el texto).
+  const r = await interpretTrip(supabase as any, q, ctx);
+  return { kind: "revisar", spec: r.spec, aviso: r.recortadoParaIa ? LONG_TEXT_AVISO : r.aviso };
 }
 
 /** Iato (interpretar-viaje) sobre un borrador: nunca lanza; más de 45 s en total cuenta como falla. */
@@ -133,7 +143,7 @@ function revisarConIa(q: string, userId: string, hints: HintCtx): DraftRun {
     const r = await interpretTripAi(supabase as any, q, c);
     if (!r.ok) return { ok: false, ctx: c };
     return { ok: true, spec: r.spec, ctx: c,
-      aviso: r.recortadoParaIa ? "Tu texto es muy largo: Iato leyó los primeros 8,000 caracteres. Se guarda completo; revisa que esté todo." : null };
+      aviso: r.recortadoParaIa ? LONG_TEXT_AVISO : null };
   })();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<IaResult>((res) => { timer = setTimeout(() => res({ ok: false, ctx: hints }), INTERPRET_TIMEOUT_MS); });
@@ -143,18 +153,21 @@ function revisarConIa(q: string, userId: string, hints: HintCtx): DraftRun {
 
 /**
  * En cuanto la persona envía su texto: road trip y frases de solo ciudades conocidas siguen el flujo de
- * siempre (rápido, sin IA); lo demás muestra AL INSTANTE el borrador del lector local mientras Iato lo revisa.
+ * siempre (rápido, sin IA). Si el lector local ya ve dudas de verdad (un país por confirmar, un crucero
+ * sin puertos…), se muestra AL INSTANTE el borrador mientras Iato lo revisa. Lo demás (tramos en tren,
+ * regreso por otra ciudad…) espera a Iato y, si no deja preguntas, sigue directo (como antes del 28-oct).
  */
 function arrancarInterpretacion(q: string, userId: string, hints: HintCtx): Arranque {
   const rt = detectRoadTrip(q);
   if (!(rt.isRoadTrip && rt.route)) {
     const base = draftSpec(q, hints);
-    if (!isSimpleSpec(base)) {
+    if (!isSimpleSpec(base) && hasRealQuestions(base)) {
       const draft: DraftInfo = { token: newId("b"), base, hints };
       const run = revisarConIa(q, userId, hints);
       draftRuns.set(draft.token, run);
       return { kind: "borrador", draft, run };
     }
+    if (!isSimpleSpec(base)) return { kind: "completo", result: interpretarFrase(q, userId, hints, true) };
   }
   return { kind: "completo", result: interpretarFrase(q, userId, hints) };
 }
@@ -420,8 +433,9 @@ const PlanTrip = () => {
     setInterpretando(true);
     try {
       const r = await start.result;
+      setInterpretando(false);
       if (r.kind === "ruta") navigate(`/dashboard/ruta?${r.qs}`);
-      else openReview({ spec: r.spec, aviso: r.aviso });
+      else proceed(r.spec, undefined, r.aviso);
     } catch {
       openReview({ spec: finalizeSpec(buildLocalSpec(q, { origen: ciudadOrigen || null }), q), aviso: "No pudimos interpretar todo tu mensaje. Revisa lo que entendimos y corrígelo." });
     } finally {
@@ -530,10 +544,30 @@ const PlanTrip = () => {
     } catch (e: any) {
       console.error(e);
       await toastFunctionError(e, "No pudimos generar tu viaje. Tu resumen sigue aquí: intenta de nuevo.");
+      // Cotización directa (sin resumen en pantalla): el texto y lo entendido quedan en el resumen para
+      // reintentar o corregir; nunca se pierde lo escrito.
+      if (!reviewRef.current) openReview({ spec, aviso: null, fp });
       setAnalizando(false);
     } finally {
       inFlightRef.current = false;
     }
+  };
+
+  // Lo que sigue tras entender el texto (como antes del 28-oct): varias ciudades → la ruta con el globo;
+  // una → la cotización; con preguntas pendientes, un paso corto solo con ellas (src/lib/planDirect.ts).
+  const proceed = (spec: TripSpec, fp: string | undefined, aviso: string | null, nota: string | null = null) => {
+    const next = nextPlanStep(spec, { presupuesto });
+    if (next.kind === "preguntar") { openReview({ spec, aviso, fp, quick: true, nota }); return; }
+    if (next.kind === "revisar") { openReview({ spec, aviso, fp, nota }); return; }
+    if (next.kind === "ruta") {
+      const r = routeOfSpec(spec);
+      if (r.kind === "multi") stashRouteConsulta(spec, r.destinos, r.notas);
+      if (fp) releaseIntent(fp);
+      openReview(null);
+      navigate(`/dashboard/ruta?${next.qs}`, { replace: true });
+      return;
+    }
+    void runSpec(spec, fp);
   };
 
   const analizar = () => {
@@ -720,10 +754,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           return;
         }
 
-        // Nada se genera solo: la persona revisa "Entendí…" y confirma (ahí se avisa el costo). La
-        // intención queda reservada hasta que confirme (un remontaje no la vuelve a interpretar).
-        openReview({ spec: r.spec, aviso: r.aviso, fp });
+        // Directo, como antes del 28-oct: sin preguntas pendientes, a la ruta con el globo (varias
+        // ciudades) o a la cotización (una); con preguntas, un paso corto solo con ellas. La intención
+        // queda reservada hasta que se genere el viaje (un remontaje no la vuelve a interpretar).
         setInterpretando(false);
+        proceed(r.spec, fp, r.aviso);
       } catch (e: any) {
         if (cancelled) return;
         pendingInterpretations.delete(fp);
@@ -838,6 +873,20 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   if (review) {
     // "Editar lo que escribí" y "Cancelar" vuelven al campo con el texto intacto (antes Cancelar lo borraba).
     const backToText = () => { const t = review.spec.consulta_original; if (review.fp) releaseIntent(review.fp); openReview(null); setDestino(t); };
+    if (review.quick && !review.draft) {
+      const said = review.spec.consulta_original;
+      const saidNights = parseMultiCityText(said).nights;
+      return (
+        <DashboardLayout>
+          <div className="mx-auto max-w-xl px-4 py-8 sm:py-12">
+            <PlanQuickQuestions spec={review.spec} aviso={review.aviso} month={monthOfText(said)} nights={saidNights}
+              onChange={(sp) => openReview({ ...(reviewRef.current ?? review), spec: sp })}
+              onContinue={() => proceed(review.spec, review.fp, null)}
+              onSeeAll={() => openReview({ ...review, quick: false })} onBack={backToText} />
+          </div>
+        </DashboardLayout>
+      );
+    }
     return (
       <DashboardLayout>
         <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12" data-testid="plan-revision">
@@ -850,7 +899,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
           <FreeAnalysisNotice />
           <TripSpecReview spec={review.spec} aviso={review.aviso} draft={!!review.draft} nota={review.nota ?? null}
             onChange={(sp) => openReview({ ...(reviewRef.current ?? review), spec: sp })}
-            onConfirm={() => runSpec(review.spec, review.fp)} onCancel={backToText} />
+            onConfirm={() => proceed(review.spec, review.fp, review.aviso, review.nota ?? null)} onCancel={backToText} />
         </div>
       </DashboardLayout>
     );

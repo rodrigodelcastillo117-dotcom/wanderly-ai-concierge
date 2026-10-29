@@ -29,10 +29,39 @@ export function isSafeStockUrl(u: unknown): u is string {
   } catch { return false; }
 }
 
+// Fotos encontradas: también en este dispositivo por 7 días (Carlo, 29-oct-2026: "no salen las imágenes";
+// en cada sesión nueva cada tarjeta de Mis viajes esperaba ~3 s a pexels-image). Solo URLs de Pexels;
+// un "sin foto" no se guarda aquí (se vuelve a intentar en otra sesión).
+const LOCAL_KEY = "iatos_stock_photo_ls_v1:";
+const LOCAL_TTL_MS = 7 * 86_400_000;
+const LOCAL_MAX = 300;
+function readLocal(k: string): StockPhoto | undefined {
+  try {
+    const v = localStorage.getItem(LOCAL_KEY + k);
+    if (!v) return undefined;
+    const o = JSON.parse(v) as StockPhoto & { at?: number };
+    if (!isSafeStockUrl(o?.image) || !(Date.now() - Number(o.at) < LOCAL_TTL_MS)) return undefined;
+    return { image: o.image, photographer: o.photographer ?? null, page_url: o.page_url ?? null };
+  } catch { return undefined; }
+}
+function writeLocal(k: string, v: StockPhoto | null) {
+  if (!v) return;
+  try {
+    localStorage.setItem(LOCAL_KEY + k, JSON.stringify({ ...v, at: Date.now() }));
+    // Tope: como mucho LOCAL_MAX fotos guardadas; se quitan las más viejas.
+    const mine: Array<[string, number]> = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(LOCAL_KEY)) { try { mine.push([key, Number(JSON.parse(localStorage.getItem(key) ?? "{}").at) || 0]); } catch { mine.push([key, 0]); } }
+    }
+    if (mine.length > LOCAL_MAX) mine.sort((a, b) => a[1] - b[1]).slice(0, mine.length - LOCAL_MAX).forEach(([key]) => localStorage.removeItem(key));
+  } catch { /* sin almacenamiento */ }
+}
+
 function readSession(k: string): StockPhoto | null | undefined {
   try {
     const v = sessionStorage.getItem(KEY + k);
-    if (v == null) return undefined;
+    if (v == null) return readLocal(k);
     if (v === "") return null;
     const o = JSON.parse(v) as StockPhoto;
     return isSafeStockUrl(o?.image) ? o : null;
@@ -89,6 +118,7 @@ export function loadStockPhoto(query: string): Promise<StockPhotoLoad> {
     if (r === PAUSED) return { photo: null, transient: true };
     memory.set(k, r);
     writeSession(k, r);
+    writeLocal(k, r);
     return { photo: r, transient: false };
   });
   inflight.set(k, p);
@@ -109,6 +139,10 @@ export function __resetStockPhotos() {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const key = sessionStorage.key(i);
       if (key?.startsWith(KEY)) sessionStorage.removeItem(key);
+    }
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(LOCAL_KEY)) localStorage.removeItem(key);
     }
   } catch { /* sin almacenamiento */ }
 }

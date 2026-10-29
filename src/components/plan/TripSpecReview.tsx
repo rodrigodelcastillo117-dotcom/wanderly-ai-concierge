@@ -116,7 +116,7 @@ function AnswerChips({ q, spec, onChange }: { q: Question; spec: TripSpec; onCha
   );
 }
 
-function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onChange: (s: TripSpec) => void }) {
+export function QuestionRow({ q, spec, onChange }: { q: Question; spec: TripSpec; onChange: (s: TripSpec) => void }) {
   const [text, setText] = useState("");
   const kind = answerKindOf(q);
   const stop = q.parada ? spec.paradas.find((s) => s.id === q.parada) ?? null : null;

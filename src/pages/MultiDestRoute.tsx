@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { clearRouteConsulta, routeConsultaFor } from "@/lib/planDirect";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -335,6 +336,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
       : pIn;
     setConfigOpen(false);
     setGenerating(true);
+    // Llegó desde el texto de Planear (como antes del 28-oct): el texto original y lo entendido se
+    // guardan en el viaje (¿No entendimos bien tu viaje?) y sus preferencias van al plan.
+    const fromText = routeConsultaFor(validStops);
     try {
       // Logística real (logistics-plan), filas del viaje y trips.insert: lib compartida con el planeador
       // normal (una ruta escrita en "Planear" sale igual que una armada aquí).
@@ -350,7 +354,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
         nightsPerCity: nightsPerCity,
         regionBases: regionBasesSent,
         telemetry: { autonomous },
+        ...(fromText ? { consulta: fromText.consulta, travelerNotes: fromText.notas || null } : {}),
       });
+      if (fromText) clearRouteConsulta();
 
       setGenerated({ logistics, autonomous, tripId });
       toast.success("Travesía lista. Abriendo tu viaje completo…");

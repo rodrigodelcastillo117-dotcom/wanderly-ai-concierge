@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tripDayDate } from "@/lib/tripDayDate";
 import { calendarDays } from "@/lib/itineraryCalendar";
-import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
+import { destinationCoverUrl, isGooglePhotoUrl } from "../../supabase/functions/_shared/tripCover.ts";
+import { savedCoverUrl, tripPhotoQuery, tripVideoQuery } from "@/lib/tripImagery";
 import { expansionLine, type RegionExpansion } from "../../supabase/functions/_shared/regions.ts";
 import { useBookingExitNotice } from "@/lib/bookingExit";
 import { useParams, useNavigate } from "react-router-dom";
@@ -15,7 +16,6 @@ import { ReadonlyBudget } from "@/components/ReadonlyBudget";
 import { CityCollapsible } from "@/components/CityCollapsible";
 import { citySubtitle } from "@/lib/cityHeader";
 import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
-import { destinationQuery } from "@/lib/categoryImagery";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
 import { EditWithAIDialog } from "@/components/EditWithAIDialog";
@@ -581,7 +581,7 @@ const TripDetail = () => {
     const below = els.find((e) => e.getBoundingClientRect().top > 160);
     scrollToSection((below ?? els[0])?.id ?? "paso-listo");
   };
-  const heroCover = destinationCoverUrl(trip.cover_image_url);
+  const heroCover = savedCoverUrl(trip.cover_image_url);
   const placeNames = tripPlaceNames(trip);
   const tourSteps = tripTourSteps({ ...helpCtx, sections: sections.map((x) => x.id) });
   const showSection = (id: TripSection) => {
@@ -601,19 +601,23 @@ const TripDetail = () => {
       {/* Portada más baja en móvil (antes ocupaba la pantalla completa y el total quedaba dos
           pantallas abajo). */}
       <div className="relative h-[36vh] min-h-[300px] max-h-[420px] md:h-[44vh] md:min-h-[360px] md:max-h-[520px] overflow-hidden">
-        {/* La portada es el destino (R4 viajes P2-2): una foto de Google de un lugar no se usa como portada. */}
+        {/* Portada guardada del viaje, como antes de la ronda 4 (Carlo, 29-oct-2026: "no salen las
+            imágenes"); si no carga, la foto del destino. En un viaje de varias ciudades, la primera. */}
         {heroCover ? (
-          <img src={heroCover} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+          <SmartImage alt={trip.destino} imageUrl={heroCover} stockQuery={tripPhotoQuery(trip)} size="hero" eager className="!absolute inset-0" googleCredit={false} captionClassName="bottom-3 right-3" />
         ) : (
           // Sin video (p. ej. buscar-video con tope por minuto): la foto de Pexels del destino, nunca la de
           // Santorini (R3 viajes P2-1: Lima mostraba Santorini). La leyenda la pone IllustrativeCaption.
-          <SmartImage alt={trip.destino} stockQuery={destinationQuery(trip.destino, trip.pais_destino)} size="hero" eager className="!absolute inset-0" captionClassName="hidden">
-            <DestinationVideo query={`${trip.destino} ${trip.pais_destino ?? ""} travel`} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
+          <SmartImage alt={trip.destino} stockQuery={tripPhotoQuery(trip)} size="hero" eager className="!absolute inset-0" captionClassName="hidden">
+            <DestinationVideo query={tripVideoQuery(trip) ?? `${trip.destino} travel`} alt={trip.destino} className="absolute inset-0 w-full h-full object-cover" />
           </SmartImage>
         )}
         <div className="absolute inset-0 bg-gradient-overlay" />
         {/* El video/foto de stock muestra el destino, no un lugar del viaje: se marca. */}
         {!heroCover && <IllustrativeCaption className="bottom-3 right-3" />}
+        {heroCover && isGooglePhotoUrl(heroCover) && (
+          <span className="absolute bottom-3 right-3 z-[2] text-[9px] text-white/70 drop-shadow pointer-events-none">Foto: Google</span>
+        )}
 
 
         <div className="absolute top-4 inset-x-4 z-20 flex flex-wrap items-start justify-end gap-2 md:top-6 md:right-6 md:left-auto md:flex-nowrap">

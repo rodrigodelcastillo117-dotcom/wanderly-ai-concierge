@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { SmartImage } from "@/components/media/SmartImage";
-import { destinationQuery } from "@/lib/categoryImagery";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -34,12 +33,17 @@ import { isBroughtTrip } from "@/lib/broughtTrip";
 import { displayedTripTotal } from "@/lib/tripPageTotal";
 import { invalidQuoteReason, REQUOTE_LABEL } from "@/lib/budgetSanity";
 import { shortTripName } from "@/lib/tripName";
-import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
+import { savedCoverUrl, tripPhotoQuery, tripVideoQuery } from "@/lib/tripImagery";
+
+/** Tarjetas cuya foto se pide sin esperar a que se vean (una pantalla y media en el celular). */
+const EAGER_CARDS = 4;
 
 // "Ya tengo vuelos y hotel": la misma ventana de Planear, abierta en ese modo (solo se descarga al pulsar).
 const PlanTripDialog = lazy(() => import("@/components/plan/PlanTripDialog"));
 
-const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = false }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[]; dupN?: number; showCreated?: boolean }) => {
+const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = false, eager = false }: { t: any; userId: string; onDeleted: (id: string) => void; bookings?: BookingLike[]; dupN?: number; showCreated?: boolean;
+  /** Primeras tarjetas: la foto se pide en cuanto llega la lista, sin esperar a que se vean. */
+  eager?: boolean }) => {
   const [deleting, setDeleting] = useState(false);
   // Un viaje compartido conmigo no es mío: no puedo borrarlo, solo salir de él.
   const isShared = !!t.shared;
@@ -110,12 +114,14 @@ const TripCard = ({ t, userId, onDeleted, bookings = [], dupN, showCreated = fal
       </div>
 
       <Link to={`/dashboard/viajes/${t.id}`} className="block">
-        {/* Portada real del viaje (foto de Google guardada al cotizar); si no hay, una foto
-            ilustrativa del destino marcada como tal. Se pide solo cuando la tarjeta se ve. */}
+        {/* Portada guardada del viaje (como antes de la ronda 4); si no hay, una foto ilustrativa del
+            destino marcada como tal: en un viaje de varias ciudades, la de la PRIMERA (Carlo, 29-oct-2026:
+            con la ruta completa Pexels no regresaba foto). Las primeras tarjetas la piden de inmediato. */}
         <SmartImage
           alt={name}
-          imageUrl={destinationCoverUrl(t.cover_image_url)}
-          stockQuery={destinationQuery(name, t.pais_destino)}
+          imageUrl={savedCoverUrl(t.cover_image_url)}
+          stockQuery={tripPhotoQuery(t)}
+          eager={eager}
           icon={MapPin}
           className="h-44 w-full"
           imgClassName="group-hover:scale-105"
@@ -200,6 +206,10 @@ const Trips = () => {
   const setFilter = (f: TripListFilter) => { setFilterRaw(f); try { localStorage.setItem("iatos_trips_filter", f); } catch { /* sin almacenamiento */ } };
   const dups = useMemo(() => duplicateTripMarks(trips), [trips]);
   const groups = useMemo(() => filterTripGroups(groupTripsForList(trips, localISODate()), filter), [trips, filter]);
+  // El encabezado usa el primer viaje que se ve en la lista (comparte su foto: una sola consulta).
+  const headTrip = groups[0]?.trips[0] ?? trips[0] ?? null;
+  // Las primeras tarjetas de la lista piden su foto en cuanto llega la lista (las demás, al verse).
+  const eagerIds = useMemo(() => new Set(groups.flatMap((g) => g.trips).slice(0, EAGER_CARDS).map((t: any) => t.id)), [groups]);
 
   useEffect(() => {
     if (!user) return;
@@ -261,9 +271,9 @@ const Trips = () => {
         <section className="relative flex flex-col justify-end min-h-[180px] md:min-h-[260px] rounded-[24px] md:rounded-[28px] overflow-hidden ring-1 ring-white/[0.05] premium-shadow" data-testid="trips-header">
           <div className="absolute inset-0">
             {/* Respaldo: la foto del destino de tu viaje (Pexels) o el degradado de la marca; nunca Santorini. */}
-            <SmartImage alt="" stockQuery={trips[0]?.destino ? destinationQuery(trips[0].destino, trips[0].pais_destino) : null} size="hero" eager className="h-full w-full" captionPosition="top-right">
+            <SmartImage alt="" stockQuery={headTrip ? tripPhotoQuery(headTrip) : null} size="hero" eager className="h-full w-full" captionPosition="top-right">
               <DestinationVideo
-                query={trips[0]?.destino ? `${trips[0].destino} cinematic aerial luxury travel` : "luxury travel destinations cinematic aerial"}
+                query={(headTrip && tripVideoQuery(headTrip, "cinematic aerial luxury travel")) || "luxury travel destinations cinematic aerial"}
                 alt="Mis viajes"
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -344,7 +354,7 @@ const Trips = () => {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                 {g.trips.map((t) => (
-                  <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} dupN={dups.n.get(t.id)} showCreated={dups.ids.has(t.id)}
+                  <TripCard key={t.id} t={t} userId={user!.id} bookings={tripBookings.get(t.id)} dupN={dups.n.get(t.id)} showCreated={dups.ids.has(t.id)} eager={eagerIds.has(t.id)}
                     onDeleted={(id) => setTrips((prev) => prev.filter((x) => x.id !== id))} />
                 ))}
               </div>

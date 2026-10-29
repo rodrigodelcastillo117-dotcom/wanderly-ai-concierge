@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DestinationVideo } from "@/components/DestinationVideo";
 import { IllustrativeCaption, SmartImage } from "@/components/media/SmartImage";
-import { destinationQuery } from "@/lib/categoryImagery";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 import { homeCommandTrip, homeTrips } from "@/lib/homeTrips";
@@ -44,7 +43,7 @@ import { DashboardWrappedPromo } from "@/components/wrapped/WrappedPromo";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { afterCritical, beginCritical } from "@/lib/idleGate";
 import { shortTripName } from "@/lib/tripName";
-import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
+import { savedCoverUrl, tripPhotoQuery } from "@/lib/tripImagery";
 
 
 
@@ -563,8 +562,8 @@ const DashboardHome = () => {
                       {/* Portada real del viaje; si no hay, foto ilustrativa del destino (marcada). */}
                       <SmartImage
                         alt={t.destino}
-                        imageUrl={destinationCoverUrl(t.cover_image_url)}
-                        stockQuery={destinationQuery(t.destino, t.pais_destino)}
+                        imageUrl={savedCoverUrl(t.cover_image_url)}
+                        stockQuery={tripPhotoQuery(t)}
                         size="thumb"
                         icon={MapPin}
                         className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex-shrink-0 ring-1 ring-white/[0.06]"

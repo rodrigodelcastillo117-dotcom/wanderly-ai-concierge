@@ -135,9 +135,19 @@ export function venueQuery(category?: string | null): string {
   return VENUE[c] ?? first(CUISINE, norm(c)) ?? "luxury cocktail lounge";
 }
 
-/** Destino (ciudad o país) para portadas de viaje y comparaciones. */
+/**
+ * Primer lugar de una ruta escrita: "Tokio → Kioto → Osaka" → "Tokio"; "Los Cabos (2)" → "Los Cabos".
+ * Caso Carlo (29-oct-2026): con la ruta completa la consulta quedaba «tokio → kioto → osaka japón
+ * travel» y Pexels no regresaba foto (la tarjeta se quedaba con el ícono).
+ */
+export function firstPlaceOf(text?: string | null): string {
+  return String(text ?? "").split(/\s*(?:→|->|\||;)\s*/)[0]
+    .replace(/\s*\(\d+\)\s*$/, "").replace(/[….\s]+$/, "").trim();
+}
+
+/** Destino (ciudad o país) para portadas de viaje y comparaciones. Con una ruta, su primera ciudad. */
 export function destinationQuery(city?: string | null, country?: string | null): string {
-  return [city, country].map((v) => String(v ?? "").trim()).filter(Boolean).join(" ") + " travel";
+  return [firstPlaceOf(city), country].map((v) => String(v ?? "").trim()).filter(Boolean).join(" ") + " travel";
 }
 
 /** Categoría de "Mis reservas" (y similares). */

@@ -11,12 +11,11 @@ import { currentTripCity } from "@/lib/cityLocation";
 import { SmartImage } from "@/components/media/SmartImage";
 import { AirlineLogo } from "@/components/media/AirlineLogo";
 import { airlineCode } from "@/lib/airlines";
-import { destinationQuery } from "@/lib/categoryImagery";
 import { shortTripName } from "@/lib/tripName";
 import { savedTripMissing } from "@/lib/tripMissing";
 import { MARKS_COLUMNS, type TripPurchaseMarkRow } from "@/lib/purchaseMarks";
 import type { PurchaseMarkRow } from "@/lib/purchasePlan";
-import { destinationCoverUrl } from "../../supabase/functions/_shared/tripCover.ts";
+import { savedCoverUrl, tripPhotoQuery } from "@/lib/tripImagery";
 
 type TripSummary = {
   id: string;
@@ -141,8 +140,8 @@ export function TripCommandCenter({ trip, today }: Props) {
           del viaje si existe; si no, una ilustrativa del destino (marcada). */}
       <SmartImage
         alt=""
-        imageUrl={destinationCoverUrl(trip.cover_image_url)}
-        stockQuery={destinationQuery(trip.destino, trip.pais_destino)}
+        imageUrl={savedCoverUrl(trip.cover_image_url)}
+        stockQuery={tripPhotoQuery(trip)}
         size="hero"
         eager
         className="!absolute inset-0"
