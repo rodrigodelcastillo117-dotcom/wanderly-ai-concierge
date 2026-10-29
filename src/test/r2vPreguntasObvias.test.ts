@@ -34,7 +34,7 @@ const PERU_MENCION = [
 
 function serverAndClient(r: unknown, text: string): { server: TripSpec; client: TripSpec } {
   const v = validateTripSpec(r, text, { origen: "Ciudad de México" });
-  if (!v.ok) throw new Error(v.error);
+  if (!v.ok) throw new Error((v as { error: string }).error);
   return { server: v.spec, client: finalizeSpec(v.spec, text, ctx) };
 }
 
