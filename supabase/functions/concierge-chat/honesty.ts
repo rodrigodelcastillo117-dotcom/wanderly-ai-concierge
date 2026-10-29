@@ -316,6 +316,42 @@ export function dropSuperlativeGap(sentence: string): string | null {
   return SUPERLATIVE_GAP.test(sentence) ? sentence.replace(SUPERLATIVE_GAP, "") : null;
 }
 
+// ═══ Ola 9.5 (29-oct-2026): menos relleno, nada de clima sin fuente, todo en español ═══
+
+/**
+ * Frases de trámite que la TARJETA de la acción ya dice ("La atiende una persona del equipo IATOS; verás su
+ * respuesta en la app y por correo", "Primero verás a quién y qué le escribiremos; nada se envía sin tu
+ * confirmación"). En el texto eran relleno repetido: el chofer, la mesa y el robo las decían dos veces.
+ * Se quitan solo si la oración es eso (corta) y el usuario no preguntó justo por eso.
+ */
+const PROCESS_BOILERPLATE = [
+  /\b(te respond\w+|veras (su|la|tu) respuesta|la (solicitud|veras)\b.{0,40}\bmis solicitudes)\b.{0,80}\bcorreo\b/,
+  /\b(en la app|concierge\s*[›>]\s*mis solicitudes)\b.{0,30}\by por correo\b/,
+  /\bprimero veras a quien y que\b/,
+  /^nada se envia sin tu confirmacion\.?$/,
+];
+const ASKED_PROCESS = /\b(donde (veo|reviso|aparece)|mis solicitudes|como me (avisan|entero)|por correo|respuesta|como funciona)\b/;
+export function processBoilerplate(sentence: string, ctx: Pick<HonestyCtx, "userMessage">): boolean {
+  const t = norm(sentence).replace(/\*/g, "");
+  if (t.length > 170 || ASKED_PROCESS.test(norm(ctx.userMessage))) return false;
+  return PROCESS_BOILERPLATE.some((re) => re.test(t));
+}
+
+/** Pronóstico sin get_weather en este turno (ronda 9.5: "El pronóstico marca chubascos para el sábado" sin fuente). */
+const FORECAST_CLAIM = /\b(pronostico|se esperan? (lluvia|chubasc\w*|tormenta\w*|sol|calor|frio)|va a llover|llovera|chubascos?|tormentas? electric\w*)\b/;
+const ASKED_WEATHER = /\b(llov\w*|lluvia|clima|pronostic\w*|temperatura|calor|frio|tormenta)\b/;
+const SAYS_NO_DATA = /\b(no (puedo|tengo|respondio|hay|pude)|sin (datos|pronostico))\b/;
+export function unsourcedForecast(sentence: string, ctx: Pick<HonestyCtx, "toolsWithData" | "userMessage">): boolean {
+  if (ctx.toolsWithData().has("get_weather") || ASKED_WEATHER.test(norm(ctx.userMessage))) return false;
+  const t = norm(sentence);
+  return FORECAST_CLAIM.test(t) && !SAYS_NO_DATA.test(t);
+}
+
+/** "rating 4.7" → "calificación 4.7": la UI es en español. */
+export function spanishRating(sentence: string): string | null {
+  return /\bratings?\b/i.test(sentence) ? sentence.replace(/\bratings?\b/gi, (w) => (w[0] === "R" ? "Calificación" : "calificación")) : null;
+}
+
 // ═══ Una oración ═══
 
 /** null = se queda igual; "" = se quita; otro texto = la reemplaza. */
@@ -326,6 +362,8 @@ export function reviseSentence(sentence: string, ctx: HonestyCtx, prior = ""): s
   if (missing) return missing;
   const superlative = dropSuperlativeGap(sentence);
   if (superlative) return superlative;
+  if (processBoilerplate(sentence, ctx)) return "";
+  if (unsourcedForecast(sentence, ctx)) return "";
   if (falseNoTripClaim(sentence, ctx)) return "";
   if (phantomCardPromise(sentence, ctx)) return "";
   const sent = fixFakeSent(sentence, ctx);
@@ -338,6 +376,8 @@ export function reviseSentence(sentence: string, ctx: HonestyCtx, prior = ""): s
     const a = dropAdapter(sentence);
     if (a !== null) return a;
   }
+  const rating = spanishRating(sentence);
+  if (rating) return rating;
   return null;
 }
 

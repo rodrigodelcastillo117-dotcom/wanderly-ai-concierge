@@ -172,3 +172,6 @@ function looseObject(s: string): Record<string, unknown> | null {
   const m = s.match(/\{[\s\S]*\}/);
   return m ? tryParse(m[0]) : null;
 }
+
+/** Paso en vivo "Revisando tu viaje…" de un turno sin consultas previas (la app lo oculta al llegar el texto). Ola 9.5. */
+export const THINK_STEP_ID = "think";

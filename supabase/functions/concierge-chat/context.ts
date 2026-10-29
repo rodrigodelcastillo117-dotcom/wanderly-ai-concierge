@@ -164,7 +164,7 @@ export function daysUntil(dateISO: string | null | undefined, todayISO: string):
   return Math.round((d - t) / 86400000);
 }
 
-export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
+export function computeTripGaps(trip: any, bookings: any[], todayISO: string, opts: { domestic?: boolean } = {}) {
   if (!trip) return [] as { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[];
   const gaps: { id: string; severidad: string; titulo: string; detalle: string; sugerencia: string }[] = [];
   // Solo los trayectos en avión cuentan como vuelos (un autobús no tiene check-in ni aeropuerto).
@@ -238,8 +238,9 @@ export function computeTripGaps(trip: any, bookings: any[], todayISO: string) {
     });
   }
 
-  // 6. eSIM / conectividad
-  if (!/esim|sim|roaming|datos/.test(catText) && dias !== null && dias <= 21) {
+  // 6. eSIM / conectividad. Ola 9.5: no en un viaje nacional (Valle de Bravo desde CDMX: Iato sugería
+  // "eSIM. Sirve para llegar conectado" con un "plan de datos internacional" que no aplica).
+  if (!opts.domestic && !/esim|sim|roaming|datos/.test(catText) && dias !== null && dias <= 21) {
     gaps.push({
       id: "esim",
       severidad: "baja",

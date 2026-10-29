@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link, useInRouterContext } from "react-router-dom";
 import {
   AlertTriangle, BadgeCheck, BedDouble, Car, ExternalLink, Globe, Landmark, Luggage, MapPin, Navigation, Phone, Plane, Sparkles, Star,
-  Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2, MessageCircle,
+  Utensils, UserRound, CalendarCheck, Link2, Ticket, Navigation2, MessageCircle, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SmartImage } from "@/components/media/SmartImage";
@@ -375,13 +375,26 @@ const SHORT_LABEL: Record<CardLink["kind"], string> = {
 };
 
 /** Nota del servidor ("No toma reservaciones (llega directo)" o la nota oficial del museo). */
+// Ola 9.5: "No toma reservaciones (llega directo)" salía dos veces (en la línea de estado y en la nota).
 const BookingNote = ({ card }: { card: ConciergeCard }) =>
-  typeof card.booking_note === "string" && card.booking_note.trim()
+  typeof card.booking_note === "string" && card.booking_note.trim() && !String(card.meta ?? "").includes(card.booking_note.trim())
     ? <p className="text-[11px] text-primary/90 mt-1" data-testid="card-booking-note">{card.booking_note.slice(0, 200)}</p>
     : null;
 
 /** Etiquetas que dicen a dónde lleva el botón: se muestran completas también en las burbujas compactas. */
 const KEEP_FULL_LABEL = /^(Reservar en |Boletos oficiales|Con guía o sin fila)/;
+
+function LinkChip({ l, onOpen, compact }: { l: CardLink; onOpen?: (url: string) => void; compact?: boolean }) {
+  const Icon = LINK_ICON[l.kind] ?? Link2;
+  return (
+    <a href={l.url} target={l.kind === "call" ? undefined : "_blank"} rel="noopener noreferrer"
+      {...(compact ? { "aria-label": l.label, title: l.label } : {})}
+      onClick={() => l.kind !== "call" && onOpen?.(l.url)}
+      className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2.5 py-1 text-[11px] text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[32px]">
+      <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {compact && !KEEP_FULL_LABEL.test(l.label) ? SHORT_LABEL[l.kind] ?? l.label : l.label}
+    </a>
+  );
+}
 
 export function CardLinks({ card, onOpen, compact = false, children }: { card: ConciergeCard; onOpen?: (url: string) => void; compact?: boolean; children?: ReactNode }) {
   const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
@@ -389,19 +402,47 @@ export function CardLinks({ card, onOpen, compact = false, children }: { card: C
   return (
     <div className="mt-2 flex flex-wrap gap-1.5" data-testid="card-links">
       {children}
-      {links.map((l) => {
-        const Icon = LINK_ICON[l.kind] ?? Link2;
-        return (
-          <a key={`${l.kind}-${l.url}`} href={l.url} target={l.kind === "call" ? undefined : "_blank"} rel="noopener noreferrer"
-            {...(compact ? { "aria-label": l.label, title: l.label } : {})}
-            onClick={() => l.kind !== "call" && onOpen?.(l.url)}
-            className="inline-flex items-center gap-1 rounded-full border border-primary/30 px-2.5 py-1 text-[11px] text-foreground hover:bg-primary/10 hover:border-primary transition min-h-[32px]">
-            <Icon className="w-3.5 h-3.5 text-primary" aria-hidden="true" /> {compact && !KEEP_FULL_LABEL.test(l.label) ? SHORT_LABEL[l.kind] ?? l.label : l.label}
-          </a>
-        );
-      })}
+      {links.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} compact={compact} />)}
     </div>
   );
+}
+
+/**
+ * Ola 9.5 (29-oct-2026): una card de restaurante traía 8–9 botones (Reservar en su sitio, Reservar, Llamar,
+ * Maps, Cómo llegar, Llévame, Pedir mesa con Iato, Pídeselo al equipo) y tres cards llenaban la pantalla
+ * ("demasiado texto", Álvaro). Ahora se ven los botones principales (máximo 3) y el resto, sin quitar
+ * ninguno, va en "Más opciones".
+ */
+export function CardActionRow({ primary, more, moreCount }: { primary: ReactNode; more: ReactNode; moreCount: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-2" data-testid="card-actions">
+      <div className="flex flex-wrap items-center gap-1.5" data-testid="card-primary">
+        {primary}
+        {moreCount > 0 && (
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground min-h-[32px]"
+            data-testid="card-more-toggle">
+            {open ? "Menos opciones" : "Más opciones"}
+            <ChevronDown className={`w-3 h-3 transition ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && moreCount > 0 && <div className="mt-1.5 flex flex-wrap items-center gap-1.5" data-testid="card-more">{more}</div>}
+    </div>
+  );
+}
+
+/** Reparte los enlaces del servidor (ya vienen en orden de confianza) entre principales y "Más opciones". */
+export function splitCardLinks(card: ConciergeCard, primaryKinds: CardLink["kind"][], max: number): { primary: CardLink[]; rest: CardLink[] } {
+  const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
+  const primary: CardLink[] = [];
+  for (const kind of primaryKinds) {
+    if (primary.length >= max) break;
+    const l = links.find((x) => x.kind === kind && !primary.includes(x));
+    if (l) primary.push(l);
+  }
+  return { primary, rest: links.filter((l) => !primary.includes(l)) };
 }
 
 
@@ -477,10 +518,22 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             </div>
           </div>
         </div>
-        <CardLinks card={card} onOpen={onOpen} compact>
-          <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="min-h-[32px] px-3" />
-          <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
-        </CardLinks>
+        {/* Ola 9.5: el botón principal y Llévame a la vista; los demás enlaces en "Más opciones". Los
+            boletos oficiales y "Con guía o sin fila" de un museo sí van al frente (son la decisión). */}
+        {(() => {
+          const { primary, rest } = splitCardLinks(card, ["tickets", "booking"], 2);
+          return (
+            <CardActionRow
+              moreCount={rest.length}
+              primary={<>
+                <ExternalCta card={card} label={card.cta_label ?? (card.type === "hotel" ? "Ver y reservar" : "Ver detalles")} onOpen={onOpen} className="min-h-[32px] px-3" />
+                {primary.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} compact />)}
+                <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
+              </>}
+              more={<>{rest.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} compact />)}</>}
+            />
+          );
+        })()}
         <BookingNote card={card} />
       </div>
     );
@@ -512,9 +565,23 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.fuente && <p className="text-[10px] text-muted-foreground mt-1">Fuente: {SOURCE_NAME[String(card.fuente).toLowerCase()] ?? card.fuente}</p>}
           </div>
         </div>
-        <CardLinks card={card} onOpen={onOpen}>
-          {canTakeMeThere(takeMeTarget(card)) && <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />}
-        </CardLinks>
+        {/* Ola 9.5: Llévame y Llamar a la vista (en una emergencia es lo que se usa); Uber, sitio, Maps y
+            cómo llegar en "Más opciones". Sin Llévame posible, el primer enlace del servidor pasa al frente. */}
+        {(() => {
+          const take = canTakeMeThere(takeMeTarget(card));
+          const { primary, rest } = splitCardLinks(card, take ? ["call"] : ["directions", "call"], take ? 1 : 2);
+          if (!take && !primary.length && !rest.length) return null;
+          return (
+            <CardActionRow
+              moreCount={rest.length}
+              primary={<>
+                {take && <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />}
+                {primary.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} />)}
+              </>}
+              more={<>{rest.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} />)}</>}
+            />
+          );
+        })()}
         {!card.links?.length && <div className="mt-2"><ExternalCta card={card} label={card.cta_label ?? "Ver en Google Maps"} onOpen={onOpen} /></div>}
         <BookingNote card={card} />
       </div>
@@ -641,30 +708,34 @@ export function RichCard({ card, tripId }: { card: ConciergeCard; tripId?: strin
             {card.meta && <p className="text-xs text-primary mt-0.5">{card.meta}</p>}
           </div>
         </div>
-        {/* Con botones de reserva reales (su sitio, TheFork…): van primero, en orden de confianza, y luego
-            Llévame y el Fixer. Sin ellos: un solo renglón (reservar o Fixer + cómo llegar, Uber, Maps). */}
-        {(card.links ?? []).some((l) => l.kind === "website" || l.kind === "booking") && !url ? (
-          <>
-            <CardLinks card={card} onOpen={onOpen} compact />
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
-              <AskIatoTable placeId={card.place_id} name={card.title} tripId={tripId ?? null} />
-              <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
-                onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
-            </div>
-          </>
-        ) : (
-        <CardLinks card={card} onOpen={onOpen} compact>
-          {url ? (
-            <ExternalCta card={card} label={card.cta_label ?? "Reservar"} onOpen={onOpen} className="min-h-[32px] px-3" />
-          ) : (
-            <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
-              onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
-          )}
-          <AskIatoTable placeId={card.place_id} name={card.title} tripId={tripId ?? null} />
-          <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
-        </CardLinks>
-        )}
+        {/* Ola 9.5: a la vista, reservar (su sitio o TheFork, el primero que manda el servidor) y Llévame
+            (o Llamar si no hay reserva en línea); lo demás (otros enlaces, Pedir mesa con Iato, Pídeselo al
+            equipo) en "Más opciones". Ningún botón se quita. */}
+        {(() => {
+          const links = (card.links ?? []).map(safeCardLink).filter(Boolean) as CardLink[];
+          const reserveL = url ? null : links.find((l) => l.kind === "website" || l.kind === "booking") ?? null;
+          const callL = url || reserveL ? null : links.find((l) => l.kind === "call") ?? null;
+          const rest = links.filter((l) => l !== reserveL && l !== callL);
+          return (
+            <CardActionRow
+              moreCount={rest.length + 2}
+              primary={<>
+                {url ? <ExternalCta card={card} label={card.cta_label ?? "Reservar"} onOpen={onOpen} className="min-h-[32px] px-3" />
+                  : reserveL ? <LinkChip l={reserveL} onOpen={onOpen} compact /> : null}
+                <TakeMeThereButton target={takeMeTarget(card)} onOpen={onOpen} />
+                {callL && <LinkChip l={callL} onOpen={onOpen} compact />}
+              </>}
+              more={<>
+                <AskIatoTable placeId={card.place_id} name={card.title} tripId={tripId ?? null} />
+                {!url && (
+                  <RequestButton state={req.state} label="Pídeselo al equipo" className="h-8 px-3 text-[11px] rounded-full"
+                    onClick={() => req.run({ type: "reservation", title: card.title, payload: { subtitle: card.subtitle, meta: card.meta } })} />
+                )}
+                {rest.map((l) => <LinkChip key={`${l.kind}-${l.url}`} l={l} onOpen={onOpen} compact />)}
+              </>}
+            />
+          );
+        })()}
         {!url && req.state !== "idle" && <RequestNote {...req} />}
         <BookingNote card={card} />
         <p className="text-[10px] text-muted-foreground mt-1" title="Los enlaces abren la reserva o una búsqueda prellenada; pedírselo al equipo es una solicitud a una persona.">Aún no está reservado.</p>

@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic, Send, Sparkles, MapPin, Utensils, Car, Siren,
-  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X, Inbox,
+  Plane, Luggage, Crown, RefreshCw, Check, AlertCircle, Loader2, Info, Compass, Zap, X, Inbox, CalendarDays, CloudSun, Wallet,
 } from "lucide-react";
 import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
@@ -48,6 +48,7 @@ import { scrubProviders } from "../../supabase/functions/_shared/providerNames.t
 import { reverseGeocode } from "@/lib/reverseGeocode";
 import { nextFollowTrip } from "@/lib/conciergeFollowTrip";
 import { HistoryNotice } from "@/components/concierge/HistoryNotice";
+import { THINK_STEP_ID } from "../../supabase/functions/concierge-chat/stream.ts";
 
 type LiveAction = "transport" | "dining" | "emergency" | null;
 
@@ -89,6 +90,7 @@ const browserTimeZone = () => {
 
 const CHIP_ICONS: Record<ChipIcon, typeof Utensils> = {
   dining: Utensils, transport: Car, emergency: Siren, flight: Plane, luggage: Luggage, trip: Compass,
+  plan: CalendarDays, weather: CloudSun, expenses: Wallet,
 };
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/concierge-chat`;
 const PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -521,10 +523,11 @@ const Concierge = () => {
     <DashboardLayout>
       {/* concierge-shell: alto de la pantalla menos el aviso de cookies si está abierto (N-P2-6: tapaba la caja de escritura). */}
       <div className="concierge-shell flex flex-col h-[calc(100vh-4rem)] md:h-screen">
-        {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar):
-            título en una línea y, debajo, ubicación · viaje en contexto · actualizar · memoria, todo en
-            un renglón que se recorta en vez de desbordarse. */}
-        <div className={`px-3 md:px-6 lg:pr-28 pt-2 pb-2 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab !== "chat" ? "hidden" : ""}`}>
+        {/* ENCABEZADO compacto del chat (en Members Only se oculta para que la curaduría quepa sin bajar).
+            Ola 9.5 (29-oct-2026): en el celular ocupaba ~190 px de 844 (4 renglones) y la conversación se
+            veía en una franja de ~300 px. Ahora: título y botones; el viaje en contexto con quién lo
+            eligió, actualizar y memoria en un renglón; la ubicación en letra chica al final. */}
+        <div className={`px-3 md:px-6 lg:pr-28 pt-1.5 pb-1.5 sm:pt-2 sm:pb-2 border-b border-border bg-gradient-to-b from-surface/80 to-transparent backdrop-blur ${tab !== "chat" ? "hidden" : ""}`} data-testid="concierge-header">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               {/* Encabezado según el plan real: a cuentas gratis ya no les dice "Concierge PRO". */}
@@ -535,19 +538,14 @@ const Concierge = () => {
               <FixerButton
                 trip={trip}
                 ultimosTurnos={messages.slice(-6).map((m) => ({ role: m.role, content: m.text }))}
+                className="!px-2.5 !py-1 sm:!px-4 sm:!py-2"
               />
             </div>
           </div>
-          {/* En el celular, ubicación y viaje se acomodan en dos renglones en vez de cortarse en "Ciud…" y "V…"
-              (auditoría 10 #20); en pantallas anchas siguen en uno. */}
-          <div className="mt-1.5 flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 min-w-0 text-[11px] text-muted-foreground" data-testid="concierge-context">
-            <span className="flex min-w-0 basis-full sm:basis-auto sm:max-w-[40%] items-center gap-1" title={conciergeLocationLabel(geoState, weather)}>
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
-              <span className="truncate">{conciergeLocationLabel(geoState, weather)}</span>
-              {/* MET Norway (CC BY 4.0) pide atribución donde se muestra su clima. */}
-              {weather && <a href={MET_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[10px] underline underline-offset-2">Datos: MET Norway</a>}
-            </span>
-            {/* Viaje, actualizar y memoria juntos en un renglón (en el celular, debajo de la ubicación). */}
+          {/* Viaje en contexto, actualizar y memoria en UN renglón; la ubicación (una sola vez) va debajo en
+              el celular, en letra chica, y delante del viaje en pantallas anchas. */}
+          <div className="mt-1 sm:mt-1.5 flex flex-col sm:flex-row sm:items-center gap-x-3 min-w-0">
+          <div className="flex flex-nowrap items-center gap-x-2 min-w-0 sm:flex-1 text-[11px] text-muted-foreground" data-testid="concierge-context">
             <div className="flex min-w-0 flex-1 items-center gap-2">
             <TripContextSelector
               trips={trips}
@@ -572,13 +570,14 @@ const Concierge = () => {
             {user && <IatoMemoryPanel compact userId={user.id} trips={trips} />}
             </div>
           </div>
+          <LocationLine geoState={geoState} weather={weather} className="mt-0.5 sm:mt-0 text-[10px] sm:text-[11px] sm:order-first sm:max-w-[40%] sm:shrink-0" />
+          </div>
         </div>
-
         {/* TABS: Chat / Members Only */}
         <div className="px-2 sm:px-3 md:px-6 border-b border-border bg-background/60 backdrop-blur flex gap-1">
           <button
             onClick={() => switchTab("chat")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-1.5 sm:py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "chat" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -587,7 +586,7 @@ const Concierge = () => {
           </button>
           <button
             onClick={() => switchTab("members")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-1.5 sm:py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "members" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -596,7 +595,7 @@ const Concierge = () => {
           </button>
           <button
             onClick={() => switchTab("solicitudes")}
-            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
+            className={`relative shrink-0 whitespace-nowrap px-2 sm:px-3 py-1.5 sm:py-2 text-[13px] sm:text-sm sm:tracking-wide transition ${
               tab === "solicitudes" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -640,7 +639,7 @@ const Concierge = () => {
           ))}
           {chatEmpty && (
             <div className="flex justify-start">
-              <div className="w-full max-w-[85%] sm:max-w-sm">
+              <div className="w-full sm:max-w-md">
                 <ShortcutList chips={chips} onChip={onChip} sending={sending} title="Atajos" />
               </div>
             </div>
@@ -734,6 +733,18 @@ const Concierge = () => {
   );
 };
 
+/** Ubicación y clima en vivo (MET Norway, CC BY 4.0: la atribución va donde se muestra su clima). */
+function LocationLine({ geoState, weather, className = "" }: { geoState: LocationState; weather: { temp: number; place: string } | null; className?: string }) {
+  const label = conciergeLocationLabel(geoState, weather);
+  return (
+    <span className={`flex min-w-0 items-center gap-1 text-muted-foreground ${className}`} title={label} data-testid="concierge-location">
+      <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="truncate">{label}</span>
+      {weather && <a href={MET_ATTRIBUTION.href} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[10px] underline underline-offset-2">Datos: MET Norway</a>}
+    </span>
+  );
+}
+
 /** Atajos en lista vertical, de arriba hacia abajo: nada queda cortado en el celular. */
 function ShortcutList({ chips, onChip, sending, title, onClose }: {
   chips: Chip[]; onChip: (c: Chip) => void; sending: boolean; title: string; onClose?: () => void;
@@ -748,7 +759,8 @@ function ShortcutList({ chips, onChip, sending, title, onClose }: {
           </button>
         )}
       </div>
-      <ul className="flex flex-col gap-1" aria-label={title}>
+      {/* Ola 9.5: en dos columnas (con 8–9 atajos la lista vertical ocupaba toda la pantalla). */}
+      <ul className="grid grid-cols-2 gap-1" aria-label={title}>
         {chips.map((c) => {
           const Icon = CHIP_ICONS[c.icon];
           return (
@@ -757,7 +769,7 @@ function ShortcutList({ chips, onChip, sending, title, onClose }: {
                 type="button"
                 onClick={() => onChip(c)}
                 disabled={sending && !c.opens}
-                className="flex w-full items-center gap-2.5 px-3 min-h-[40px] rounded-xl border border-primary/20 text-left text-xs text-foreground hover:bg-primary/10 hover:border-primary transition disabled:opacity-50"
+                className="flex h-full w-full items-center gap-2 px-2.5 min-h-[40px] rounded-xl border border-primary/20 text-left text-xs leading-tight text-foreground hover:bg-primary/10 hover:border-primary transition disabled:opacity-50"
               >
                 <Icon className="w-3.5 h-3.5 shrink-0 text-primary" aria-hidden="true" />
                 <span className="min-w-0 break-words">{c.label}</span>
@@ -770,7 +782,10 @@ function ShortcutList({ chips, onChip, sending, title, onClose }: {
   );
 }
 
-function StepList({ steps, streaming, hasText }: { steps: Step[]; streaming?: boolean; hasText: boolean }) {
+function StepList({ steps: allSteps, streaming, hasText }: { steps: Step[]; streaming?: boolean; hasText: boolean }) {
+  // Ola 9.5: "Revisando tu viaje a…" (id "think", turno sin consultas) solo acompaña la espera; con el
+  // texto ya en pantalla no se queda como "· listo" encima de la respuesta.
+  const steps = hasText ? allSteps.filter((st) => st.id !== THINK_STEP_ID) : allSteps;
   // Iato tarda más de 5 s en empezar a responder → globo IATOS con el paso en curso como texto.
   const slow = useSlowLoading(!!streaming && !hasText);
   if (!steps.length && !(streaming && !hasText)) return null;
@@ -807,14 +822,14 @@ const MessageBubble = ({ msg, trips, onChooseTrip, disabled, onOpenEmergency }: 
   // Respuestas de Iato: "consultado 02:54 (hora CDMX)" (N4-P2-2); las del usuario, solo la hora.
   // El saludo y los avisos no son consultas: solo la hora.
   const time = bubbleFooterParts(msg.ts, { assistant: !isUser && msg.id !== "welcome", tz: browserTimeZone() });
-  const showSteps = !isUser && ((msg.steps?.length ?? 0) > 0 || (msg.streaming && !msg.text.trim()));
+  const showSteps = !isUser && ((msg.steps ?? []).some((st) => st.id !== THINK_STEP_ID || !msg.text.trim()) || (msg.streaming && !msg.text.trim()));
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
       data-testid={isUser ? "bubble-user" : "bubble-iato"}
     >
-      <div className={`flex min-w-0 flex-col gap-1.5 max-w-[85%] md:max-w-[70%] ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex min-w-0 flex-col gap-1.5 md:max-w-[70%] ${isUser ? "max-w-[85%] items-end" : "max-w-[94%] items-start"}`}>
         {(msg.text || showSteps) && (
           <div className={
             isUser

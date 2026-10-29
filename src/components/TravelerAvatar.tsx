@@ -111,7 +111,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
 
   const AvatarCircle = ({ size = "md" }: { size?: "sm" | "md" }) => (
     <div className="relative shrink-0">
-      <div className={`${size === "sm" ? "w-9 h-9" : "w-16 h-16 md:w-20 md:h-20"} rounded-full bg-gradient-gold flex items-center justify-center shadow-[0_4px_16px_-4px_hsl(var(--primary)/0.6)] overflow-hidden`}>
+      <div className={`${size === "sm" ? "w-8 h-8 sm:w-9 sm:h-9" : "w-16 h-16 md:w-20 md:h-20"} rounded-full bg-gradient-gold flex items-center justify-center shadow-[0_4px_16px_-4px_hsl(var(--primary)/0.6)] overflow-hidden`}>
         {avatarUrl ? (
           <img src={avatarUrl} alt={nombre} className="w-full h-full object-cover" />
         ) : (
@@ -173,7 +173,7 @@ export const TravelerAvatar = ({ compact = false }: { compact?: boolean }) => {
           ref={triggerRef}
           type="button"
           onClick={() => setOpen(o => !o)}
-          className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-1 rounded-full border border-primary/30 bg-white/5 hover:bg-primary/10 transition"
+          className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-primary/30 bg-white/5 hover:bg-primary/10 transition"
           title={`Tu avatar de viajero: ${nombre} — ${estilo}`}
           aria-label={`Tu avatar de viajero: ${nombre}, ${estilo}`}
           aria-haspopup="dialog"

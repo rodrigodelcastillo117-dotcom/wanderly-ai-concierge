@@ -2,7 +2,7 @@
 // real (Concierge.tsx) con el historial guardado (cards incluidas) y se revisa que las tarjetas
 // vuelvan con sus botones y que el precio de hace horas salga como "precio guardado", no "en vivo".
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { VIAJE } from "./fixtures/conciergeHuixquilucan";
 import { localISODate } from "@/lib/localDate";
@@ -77,6 +77,9 @@ describe("Concierge: al recargar vuelven las tarjetas", () => {
     expect(within(cards).getByText("Contramar")).toBeInTheDocument();
     expect(within(cards).getByText(/Precio guardado/)).toBeInTheDocument();
     expect(cards.textContent).not.toMatch(/en vivo/i);
+    // Ola 9.5: Reservar en su sitio a la vista; Llamar y los demás en "Más opciones" (ninguno se quita).
+    expect(within(cards).getByRole("link", { name: "Reservar en su sitio" })).toHaveAttribute("href", "https://contramar.com.mx/");
+    for (const b of within(cards).getAllByRole("button", { name: "Más opciones" })) fireEvent.click(b);
     const hrefs = [...cards.querySelectorAll("a")].map((a) => a.getAttribute("href"));
     expect(hrefs).toEqual(expect.arrayContaining(["tel:+525555143169", "https://contramar.com.mx/"]));
     // El texto del turno también sigue ahí.

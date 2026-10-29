@@ -45,11 +45,20 @@ export type Intent =
   // "Resérvame mesa en X": con Reservas IA disponible, Iato propone pedirla por correo (ai_reservation_request).
   | "book_table"
   // "¿Qué hora es en Tokio?": reloj de IATOS (get_local_time), auditoría 10 ronda 3, N-P1-6.
-  | "time";
+  | "time"
+  // Ola 9.5 (29-oct-2026): "¿cuánto llevo gastado?" (Iato decía "no tengo registro de gastos" con 6 gastos
+  // registrados) y "ármame el plan del sábado" (sin datos consultados: 7 s en blanco y clima sin fuente).
+  | "expense_query" | "day_plan";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
+  "weather", "expense_query", "day_plan",
 ];
+
+/** "¿Cuánto llevo gastado?", "mis gastos del viaje", "¿cuánto hemos gastado?" (consultar, no registrar). */
+export const EXPENSE_QUERY = /\b(cuanto|que tanto)\b.{0,30}\b(gastad[oa]s?|gaste|gastamos|hemos gastado|he gastado|llevo|llevamos)\b.{0,30}\b(gast\w*|viaje)?|\b(mis|nuestros|los) gastos\b|\bresumen de (mis |los )?gastos\b|\ben que (he )?gast(e|ado)\b/;
+/** "Ármame el plan del sábado", "¿qué hago mañana?", "mi itinerario de hoy", "plan para el 31". */
+export const DAY_PLAN = /\b(plan|planea\w*|agenda|itinerario|programa)\b.{0,25}\b(hoy|manana|pasado manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo|dia \d{1,2}|el \d{1,2})\b|\bque (hago|hacemos|tengo|tenemos)\b.{0,15}\b(hoy|manana|el (lunes|martes|miercoles|jueves|viernes|sabado|domingo))\b|\barma(me)? (el|mi) dia\b/;
 
 const RULES: Array<[Intent, RegExp]> = [
   ["human", /\b(hablar|habla|quiero|necesito|pasame|comunicame|conectame)\b.{0,25}\b(humano|persona real|fixer|agente)\b/],
@@ -66,6 +75,8 @@ const RULES: Array<[Intent, RegExp]> = [
   ["trip_overview", /\b(ayudame|ayuda|organiza|planea|arma|revisa)\b.{0,30}\b(viaje|itinerario)\b/],
   ["place_fact", /\b(donde (esta|queda|se encuentra|estan)|en que (terminal|puerta|piso|nivel)|horario\w*|a que hora (abre|cierra)|telefono|lounge|centurion|priority pass|sala (de )?(espera|premier|centurion|vip))\b/],
   ["expense", /\b(gaste|pague|anota|registra|apunta)\b.{0,40}(\$|\d|peso|dolar|euro|usd|mxn|eur)/],
+  ["expense_query", EXPENSE_QUERY],
+  ["day_plan", DAY_PLAN],
   ["packing", /\b(empacar|maleta|que llevo|packing|que (debo|tengo que) llevar)\b/],
   ["price_alert", /\b(alerta|avisame|vigila)\b.{0,30}\b(precio|baje|tarifa)\b/],
   ["create_trip", /\b(quiero|planear|planeo|nuevo|crear|crea|armar|organizar)\b.{0,25}\bviaje a\b/],
@@ -120,6 +131,11 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   // Auditoría 10 #16: "registra un gasto de 150 pesos en comida" no es buscar restaurantes, y "¿cuánta
   // propina se deja en restaurantes en Japón?" es una costumbre, no una búsqueda de lugares.
   if (out.has("expense") || out.has("packing") || out.has("itinerary_add")) { out.delete("dining"); out.delete("dining_near_hotel"); }
+  // "Registra 120 pesos… ¿cuánto llevo?": registrar manda (la acción ya trae el gasto); consultar es aparte.
+  if (out.has("expense")) out.delete("expense_query");
+  if (out.has("expense_query")) { out.delete("dining"); out.delete("dining_near_hotel"); }
+  // Un plan de luna de miel / "lo TOP" ya arma días completos con búsquedas.
+  if (out.has("honeymoon_plan")) out.delete("day_plan");
   if (CUSTOM_QUESTION.test(m) && !RECOMMEND.test(m)) { out.delete("dining"); out.delete("dining_near_hotel"); }
   // Privé con plan / noche → planeación.
   if (out.has("prive_night") && /\b(noche|plan|arma|hazme|espectacular)\b/.test(m)) out.add("plan");
@@ -220,6 +236,11 @@ export interface TurnPlan {
    * "vuelo" = consejos de check-in o de a qué hora salir cuando pidió una cena (caso 22-oct-2026).
    */
   avoidTopics?: Array<"vuelo">;
+  /**
+   * Ola 9.5: paso en vivo cuando el turno no consulta nada antes del modelo ("Revisando tu viaje a
+   * Valle de Bravo…"). Antes se veían 4–7 s de "Iato está escribiendo…" sin decir qué pasaba.
+   */
+  thinking?: string | null;
 }
 
 export interface PlanInput {
@@ -243,7 +264,7 @@ export interface PlanInput {
 }
 
 /** Nota del turno cuando pide mesa y Reservas IA está disponible para el usuario. */
-export const AI_RESERVATION_NOTE = "Reservas IA está disponible para este usuario: si pide mesa en un restaurante concreto, búscalo con search_places (nombre y ciudad) y propón la acción ai_reservation_request {place_id (el id del resultado), nombre (exacto del resultado), fecha YYYY-MM-DD, hora HH:MM, personas, notas?, trip_id?} en lugar de fixer_request. Si falta la fecha, la hora o cuántas personas, pregúntalo en una línea. Di que primero verá a quién y qué le escribiremos y que nada se envía sin su confirmación. Nunca digas que está reservado ni confirmado: solo lo está cuando el restaurante lo confirma por escrito.";
+export const AI_RESERVATION_NOTE = "Reservas IA está disponible para este usuario: si pide mesa en un restaurante concreto, búscalo con search_places (nombre y ciudad) y propón la acción ai_reservation_request {place_id (el id del resultado), nombre (exacto del resultado), fecha YYYY-MM-DD, hora HH:MM, personas, notas?, trip_id?} en lugar de fixer_request. Si falta la fecha, la hora o cuántas personas, pregúntalo en una línea. La tarjeta de la acción ya dice que primero verá a quién y qué le escribiremos y que nada se envía sin su confirmación: no lo repitas. Nunca digas que está reservado ni confirmado: solo lo está cuando el restaurante lo confirma por escrito.";
 
 /**
  * Peticiones concretas que no tienen que ver con el vuelo: en ellas no se agregan consejos del vuelo
@@ -492,6 +513,22 @@ export function planTurn(i: PlanInput): TurnPlan {
     }
   }
 
+  if (has("day_plan")) {
+    const day = requestedWhen(i.message, i.todayISO).fecha ?? (/\bhoy\b/.test(normText(i.message)) ? i.todayISO : null);
+    const dcity = requested ?? city;
+    const inForecast = !!day && day >= i.todayISO && day <= addDays(i.todayISO, 9);
+    if (dcity && day && inForecast && !plan.prefetch.some((p) => p.name === "get_weather")) {
+      plan.prefetch.push({ name: "get_weather", args: { city: dcity, date_from: day, date_to: day }, reason: "clima del día" });
+      plan.toolHints.push("get_weather");
+    }
+    plan.notes.push(dayPlanNote(day, tripId));
+  }
+
+  if (has("expense_query")) {
+    plan.prefetch.push({ name: "get_trip_expenses", args: tripId ? { trip_id: tripId } : {}, reason: "gastos registrados" });
+    plan.notes.push(EXPENSE_QUERY_NOTE);
+  }
+
   if (has("events")) {
     plan.toolHints.push("search_events");
     plan.notes.push("Pidió eventos: usa search_events con la ciudad y el rango de fechas (las del viaje si habla de su viaje). Solo eventos que devuelva la herramienta; si no hay, dilo. Los boletos se compran en el sitio de boletos: nunca digas que están comprados.");
@@ -503,12 +540,23 @@ export function planTurn(i: PlanInput): TurnPlan {
   }
 
   if (has("emergency")) {
+    // Ola 9.5 (robo de cartera en la calle): se buscaba el hospital y la respuesta abría con "Busco el
+    // hospital más cercano… Si estás herida, el Hospital de Jesús". Un robo o una pérdida sin heridas pide
+    // la policía o el Ministerio Público más cercano y los pasos (tarjetas, denuncia, documentos).
+    const theft = isTheftOrLoss(i.message);
     plan.cards.push({
       type: "alert", title: "Ayuda inmediata",
-      body: "Si hay riesgo para tu vida, llama al número de emergencias local ahora. En la pantalla 'Emergencia local' tienes los números y el hospital más cercano.",
+      body: theft
+        ? "Si estás en peligro, llama al número de emergencias local ahora (911 en México). En la pantalla 'Emergencia local' tienes los números y la policía más cercana."
+        : "Si hay riesgo para tu vida, llama al número de emergencias local ahora. En la pantalla 'Emergencia local' tienes los números y el hospital más cercano.",
     });
-    if (i.coords) plan.prefetch.push({ name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "hospital" }, reason: "hospital más cercano" });
-    plan.notes.push("La tarjeta 'Ayuda inmediata' ya le dice que llame al número de emergencias local: NO lo repitas en el texto; da el dato útil (el hospital, cómo llegar, su teléfono).");
+    if (i.coords) plan.prefetch.push(theft
+      ? { name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "police" }, reason: "policía más cercana" }
+      : { name: "search_nearby", args: { lat: i.coords.lat, lng: i.coords.lng, kind: "hospital" }, reason: "hospital más cercano" });
+    if (theft) plan.notes.push(THEFT_NOTE);
+    plan.notes.push(theft
+      ? "La tarjeta 'Ayuda inmediata' ya le dice que llame al número de emergencias local: NO lo repitas en el texto; da los pasos y la policía más cercana (cómo llegar, su teléfono)."
+      : "La tarjeta 'Ayuda inmediata' ya le dice que llame al número de emergencias local: NO lo repitas en el texto; da el dato útil (el hospital, cómo llegar, su teléfono).");
     plan.suggestedActions.unshift({ type: "open_emergency", params: {} });
     plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Ayuda urgente", detalle: i.message.slice(0, 400), ...(tripId ? { trip_id: tripId } : {}) } });
   }
@@ -600,6 +648,8 @@ export function planTurn(i: PlanInput): TurnPlan {
 
   plan.prefetch = dedupeSpecs(plan.prefetch).slice(0, i.exigente ? 5 : 3);
   plan.suggestedActions = plan.suggestedActions.slice(0, 3);
+  // Paso en vivo cuando no hay nada que consultar antes del modelo (ola 9.5).
+  if (!plan.prefetch.length) plan.thinking = thinkingText(plan.intents, trip, i.message);
   return plan;
 }
 
@@ -726,6 +776,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_prive": return "Revisando el catálogo Privé…";
     case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
     case "get_travel_advisory": return `Revisando avisos oficiales de ${clip(args.pais ?? args.destino, 30)}…`;
+    case "get_trip_expenses": return "Revisando tus gastos registrados…";
     default: return "Consultando…";
   }
 }
@@ -771,7 +822,8 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">, opts:
   if (has("emergency")) {
     // N4-P2-5 (ronda 4): el aviso "llama al número de emergencias" va UNA vez, en la tarjeta "Ayuda
     // inmediata"; antes salía también aquí y en el texto del modelo (tres veces en un globo).
-    return nearby?.args.kind === "hospital" ? "Busco el hospital más cercano a tu ubicación." : "Reviso cómo ayudarte.";
+    return nearby?.args.kind === "hospital" ? "Busco el hospital más cercano a tu ubicación."
+      : nearby?.args.kind === "police" ? "Busco la policía más cercana a tu ubicación." : "Reviso cómo ayudarte.";
   }
   if (has("flight_disruption") || has("missed_connection")) {
     const what = has("missed_connection") ? "tu conexión" : code ? `tu vuelo ${code}` : "tu vuelo";
@@ -810,4 +862,44 @@ export function joinLead(lead: string, text: string): string {
 
 export function leadSeparator(nextText: string): string {
   return /^([-*•#>|]|\d+[.)]\s)/.test(nextText.replace(/^\s+/, "")) ? "\n\n" : " ";
+}
+
+
+// ═══ Ola 9.5 (29-oct-2026): robo o pérdida, plan del día, gastos y paso en vivo ═══
+
+const THEFT = /\b(me robaron|nos robaron|robo|robaron|asalt\w*|carterista\w*|perdi (mi|la|el|mis)|extravi\w*|pasaporte (robado|perdido))\b/;
+const INJURY = /\b(herid[oa]s?|me siento mal|sangr\w*|golpe\w*|dolor|accidente|me lastim\w*|desmay\w*|hospital|medico|ambulancia)\b/;
+
+/** Robo o pérdida SIN heridas ni síntomas: policía y pasos, no hospital. */
+export function isTheftOrLoss(message: string): boolean {
+  const m = normText(message);
+  return THEFT.test(m) && !INJURY.test(m);
+}
+
+export const THEFT_NOTE = "Robo o pérdida sin heridas: NO hables de hospitales. Responde en 4 viñetas cortas, en este orden: 1) ponte a salvo; 2) bloquea tus tarjetas (si <perfil_usuario>.boveda trae sus tarjetas, nómbralas: 'desde la app o el teléfono al reverso'); 3) denuncia ante el Ministerio Público o la policía más cercana (usa el resultado de search_nearby con su fuente); 4) documentos (pasaporte: SRE en México o el consulado en el extranjero; INE: módulo del INE), como información general. Termina con una línea: si quiere, una persona del equipo IATOS lo acompaña (la acción ya va en la tarjeta).";
+
+export const EXPENSE_QUERY_NOTE = "Pregunta por sus gastos: usa SOLO get_trip_expenses de <datos_consultados> (sus gastos registrados en IATOS). Di el total por moneda (no sumes monedas distintas ni conviertas sin una tasa), cuántos gastos son y la categoría principal, en 2–3 líneas, con la fuente 'según tus gastos registrados en IATOS'. Si no hay gastos, dilo y ofrece registrar uno (add_expense). Nunca digas que no tienes acceso a sus gastos si la herramienta trajo datos. No los confundas con el costo estimado del viaje (eso es cotización, no gasto). Para verlos o editarlos está la pantalla Gastos.";
+
+/** Nota del plan de un día concreto (itinerario guardado + clima consultado). */
+export function dayPlanNote(day: string | null, tripId: string | null): string {
+  const label = day ? whenLabel(day) : null;
+  return [
+    `Plan del día${label ? ` (${label})` : ""}: arma el día con lo que ya trae su itinerario para esa fecha en <viaje_en_contexto>; si ese día no tiene actividades, dilo en una línea y ofrece buscar opciones.`,
+    "Formato para celular: una viñeta por momento ('Mañana:', '11:00:', 'Comida:', 'Tarde:', 'Noche:'), máximo 6 viñetas de una línea; no inventes horas que el itinerario no trae y no repitas 'agregado en tu itinerario' en cada viñeta.",
+    "Clima: solo si get_weather trajo ese día, en UNA línea al final con su fuente y hora de consulta; si no se consultó, no hables del clima ni del pronóstico.",
+    tripId && day ? `Ofrece la acción export_calendar {trip_id: "${tripId}", fecha: "${day}"} para llevar el día a su calendario.` : "",
+  ].filter(Boolean).join(" ");
+}
+
+/** Texto del paso en vivo para un turno sin consultas previas (nunca afirma un resultado). */
+export function thinkingText(intents: Intent[], trip: { destino?: unknown } | null, message = ""): string {
+  const has = (x: Intent) => intents.includes(x);
+  const dest = String(trip?.destino ?? "").split(/→|->|,|;/)[0]?.trim();
+  if (has("day_plan") && dest) return `Revisando tu itinerario de ${clip(dest, 30)}…`;
+  const aboutTrip = /\b(mi viaje|viaje a|itinerario|me falta|nos falta|reservad\w*|hotel)\b/.test(normText(message));
+  if ((has("trip_overview") || has("packing") || has("plan") || aboutTrip) && dest) return `Revisando tu viaje a ${clip(dest, 30)}…`;
+  if (has("expense")) return "Preparando el gasto para que lo confirmes…";
+  if (has("book_table")) return "Revisando tus solicitudes y reservas…";
+  if (has("itinerary_add")) return "Preparando el cambio para que lo confirmes…";
+  return "Preparando tu respuesta…";
 }

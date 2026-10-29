@@ -13,7 +13,7 @@ import type { TripPosition, UserLocation } from "./location.ts";
 import { joinLead, leadSentence, leadSeparator, toolOutcome, toolStatusText, type TurnPlan } from "./planner.ts";
 import { type CircuitBreaker, type ConciergeModelConfig, providerChain, type Route } from "./router.ts";
 import { compactHistory, prefetchBlock } from "./prompt.ts";
-import type { ConciergeStreamEvent } from "./stream.ts";
+import { type ConciergeStreamEvent, THINK_STEP_ID } from "./stream.ts";
 import { TOOL_DEFS } from "./toolDefs.ts";
 import { withTimeout } from "./tools.ts";
 import { LiveAdviceFilter } from "./brevity.ts";
@@ -72,6 +72,7 @@ export interface TurnDeps {
  */
 export const TURN_BUDGET_MS = 120_000;
 
+
 export interface TurnOutput { final: FinalTurn; agent: AgentResult; prefetched: ToolRun[]; prefetchMs: number; totalMs: number; lead: string | null; leadMs: number | null }
 
 /** Mensajes para el modelo: [CONTEXTO] [historial]; el último mensaje lleva los datos ya consultados. */
@@ -95,6 +96,16 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
   const now = d.now ?? Date.now;
   const t0 = now();
   d.send({ type: "meta", data: d.meta });
+  // Ola 9.5: sin consultas previas, un paso en vivo dice qué hace Iato mientras el modelo lee el contexto
+  // (antes: 4–7 s de "Iato está escribiendo…"). Se cierra con el primer texto o la primera herramienta;
+  // la app lo quita del globo en cuanto hay texto (id "think").
+  let thinking = !d.plan.prefetch.length && d.plan.thinking ? d.plan.thinking : null;
+  if (thinking) d.send({ type: "status", data: { id: THINK_STEP_ID, text: thinking, state: "running" } });
+  const endThinking = () => {
+    if (!thinking) return;
+    d.send({ type: "status", data: { id: THINK_STEP_ID, text: thinking.replace(/…$/, ""), state: "done" } });
+    thinking = null;
+  };
 
   // 0) Frase de inicio: solo si las herramientas tardan (nunca afirma un dato; ver leadSentence).
   const leadText = d.leadAfterMs !== undefined ? leadSentence(d.plan, { exigente: d.exigente, message: d.userMessage }) : null;
@@ -141,6 +152,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     : d.dynamicSystem;
   const show = (text: string) => {
     if (!text) return;
+    endThinking();
     if (sepPending) {
       const trimmed = text.replace(/^\s+/, "");
       if (!trimmed) return;
@@ -167,7 +179,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
     execTool, prepare: prepareToolResultForModel, toolTimeoutMs: d.toolTimeout, prefetched,
     deadlineMs: d.exigente ? 50_000 : 30_000, hardBudgetMs: Math.max(0, TURN_BUDGET_MS - prefetchMs), now: d.now,
     emit: {
-      status: (id, text, state) => d.send({ type: "status", data: { id, text, state } }),
+      status: (id, text, state) => { endThinking(); d.send({ type: "status", data: { id, text, state } }); },
       delta: sendText,
       reset: () => {
         live = newLive();
@@ -183,6 +195,7 @@ export async function runConciergeTurn(d: TurnDeps): Promise<TurnOutput> {
 
   // Lo que quedó retenido al final de la última oración.
   show(honest.push(live.flush()) + honest.flush());
+  endThinking();
 
   // 3) Respuesta validada.
   const final = finalizeTurn({

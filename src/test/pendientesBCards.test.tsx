@@ -3,7 +3,7 @@
 // ya validadas junto al turno (concierge_conversations.messages, jsonb, sin migración) y el cliente
 // las vuelve a pintar; un precio viejo sale como "precio guardado" con su hora, nunca "en vivo".
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({}), functions: { invoke: vi.fn() } } }));
@@ -134,6 +134,8 @@ describe("al recargar: se repintan y los precios viejos se marcan con su hora de
   it("RichCard repintada: el restaurante conserva sus botones (sitio, llamar, cómo llegar)", () => {
     const r = restoreConversation(stored, 20, NOW)[1].cards![1];
     const { container } = render(<RichCard card={r} />);
+    // Ola 9.5: los botones secundarios están en "Más opciones" (no se quita ninguno).
+    fireEvent.click(within(container).getByRole("button", { name: "Más opciones" }));
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
     expect(hrefs).toEqual(expect.arrayContaining(["https://contramar.com.mx/", "tel:+525555143169"]));
     expect(within(container).getByText("Contramar")).toBeInTheDocument();

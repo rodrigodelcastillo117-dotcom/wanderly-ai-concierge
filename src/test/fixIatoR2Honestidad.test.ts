@@ -80,7 +80,8 @@ describe("N3 · no prometer tarjetas o enlaces que no existen", () => {
   it("'el enlace de Booking que te dejo en la card' sin búsqueda de hoteles se quita; lo demás queda igual", async () => {
     const { final, shown } = await liveTurn(C6, { trips: TRIPS, userMessage: "Mi viaje a Valle de Bravo", todayISO: HOY, planCardTypes: ["alert"] });
     expect(shown).not.toMatch(/Booking/);
-    expect(shown).toMatch(/Mi recomendación es Múbú, boutique con rating 4\.7\. Tu Platinum te sirve/);
+    // Ola 9.5: "rating" se escribe en español ("calificación").
+    expect(shown).toMatch(/Mi recomendación es Múbú, boutique con calificación 4\.7\. Tu Platinum te sirve/);
     expect(final.text).toBe(shown.trim());
   });
   it("con la búsqueda de hoteles en el turno, sí puede mencionarla", () => {
