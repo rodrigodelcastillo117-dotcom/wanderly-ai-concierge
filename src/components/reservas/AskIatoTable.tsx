@@ -64,7 +64,7 @@ export function AskIatoTable({ placeId, name, city, tripId, defaultParty }: {
     <>
       <button type="button" onClick={() => setOpen(true)} data-testid="pedir-mesa-iato"
         className="inline-flex min-h-[36px] items-center gap-1 rounded-full border border-primary/60 px-3 text-[11px] text-primary transition hover:bg-primary/10">
-        <Mail className="h-3.5 w-3.5" aria-hidden="true" /> Pedir mesa con <IatoName />
+        <Mail className="h-3.5 w-3.5" aria-hidden="true" /> <span>Pedir mesa con <IatoName /></span>
       </button>
       <Dialog open={open} onOpenChange={close}>
         <DialogContent className="w-[calc(100%-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl border-primary/30 p-4">

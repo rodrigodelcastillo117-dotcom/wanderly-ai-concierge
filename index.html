@@ -17,10 +17,10 @@
     <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
     <!-- Tipografías propias (mismo dominio): se piden junto con el JS, no después del CSS. -->
     <link rel="preload" href="/fonts/manrope-latin-v20.woff2" as="font" type="font/woff2" crossorigin />
-    <!-- Fraunces (titulares y la marca "Iato") se precarga en todas las pantallas MENOS las de texto (Ayuda y
-         legales): ahí no hay titular con serifa y sus 67 KB competían con el JS de la primera pintura
-         (ronda 2, P2-4: /ayuda pasó de ~2.4 s a ~2.1 s de LCP con 4G lento simulado). Ahí carga normal, con swap. -->
-    <script>(function(){try{if(/^\/(ayuda|terminos|privacidad|cookies|reembolsos)\/?$/.test(location.pathname))return;var l=document.createElement("link");l.rel="preload";l.as="font";l.type="font/woff2";l.crossOrigin="anonymous";l.href="/fonts/fraunces-latin-v38.woff2";document.head.appendChild(l);}catch(e){}})();</script>
+    <!-- Fraunces (titulares y la marca "Iato") se precarga en todas las pantallas; en las de texto (Ayuda y
+         legales) con prioridad baja: ahí lo que pinta primero es el párrafo, y sus 67 KB competían con el JS de
+         la primera pintura (ronda 2, P2-4). Sin precargarla, el titular cambiaba de fuente al llegar (CLS 0.03). -->
+    <script>(function(){try{var l=document.createElement("link");l.rel="preload";l.as="font";l.type="font/woff2";l.crossOrigin="anonymous";l.href="/fonts/fraunces-latin-v38.woff2";if(/^\/(ayuda|terminos|privacidad|cookies|reembolsos)\/?$/.test(location.pathname))l.fetchPriority="low";document.head.appendChild(l);}catch(e){}})();</script>
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

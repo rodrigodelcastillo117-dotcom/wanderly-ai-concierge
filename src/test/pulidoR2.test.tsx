@@ -159,7 +159,7 @@ describe("P2-3 · \"Iato\" ya no se lee \"lato\"", () => {
     expect(bareIato(t.container)).toEqual([]);
   });
 
-  it("Equipaje en español y con la marca; landing y pantallas de alto tráfico con la marca", () => {
+  it("P2-7 · Equipaje en español y con la marca; landing y pantallas de alto tráfico con la marca", () => {
     const packing = src("src/pages/TripPacking.tsx");
     expect(packing).not.toMatch(/Iato Packing/i);
     expect(packing).toMatch(/Equipaje con Iato/);
@@ -315,7 +315,7 @@ describe("P2-5 · el paquete público no lleva la lista blanca del servidor", ()
   });
 });
 
-describe("P2-6 · Beneficios sin \"(JSON)\" · P2-7 · /onboarding/deep en español", () => {
+describe("P2-6 · Beneficios sin \"(JSON)\" · P2-8 · /onboarding/deep en español", () => {
   it("el botón de descarga no muestra el formato técnico", () => {
     const b = src("src/pages/Benefits.tsx");
     expect(b).not.toMatch(/\(JSON\)/);

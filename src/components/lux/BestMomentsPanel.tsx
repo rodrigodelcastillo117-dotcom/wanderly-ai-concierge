@@ -273,7 +273,7 @@ export const BestMomentsPanel = () => {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3 text-primary" /> <IatoName /> usa tus momentos para entender lo que te encanta.
+            <Sparkles className="w-3 h-3 text-primary" /> <span><IatoName /> usa tus momentos para entender lo que te encanta.</span>
           </p>
         </>
       )}

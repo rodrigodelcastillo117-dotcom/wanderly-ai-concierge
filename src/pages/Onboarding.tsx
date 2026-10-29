@@ -275,7 +275,7 @@ const Onboarding = () => {
                   }}
                   className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:opacity-95 shadow-[var(--shadow-gold)]"
                 >
-                  Conoce a <IatoName />
+                  <span>Conoce a <IatoName /></span>
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
@@ -476,7 +476,7 @@ const Onboarding = () => {
                 {dnaLoading ? (
                   <>
                     <span className="h-4 w-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin mr-2" />
-                    <IatoName /> está aprendiendo de ti…
+                    <span><IatoName /> está aprendiendo de ti…</span>
                   </>
                 ) : (
                   <>

@@ -218,7 +218,7 @@ const Benefits = () => {
           </div>
           <div className="grid grid-cols-2 md:flex gap-2">
             <Button variant="outline" onClick={() => setSummaryOpen(true)} aria-label="Iato, resúmeme" className="h-11 rounded-xl border-primary/40 hover:bg-primary/10">
-              <Sparkles className="w-4 h-4 mr-2 text-primary" aria-hidden="true" /> <IatoName />, resúmeme
+              <Sparkles className="w-4 h-4 mr-2 text-primary" aria-hidden="true" /> <span><IatoName />, resúmeme</span>
             </Button>
             <Button onClick={() => openNew()} className="h-11 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 font-semibold">
               <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> Agregar
@@ -295,7 +295,7 @@ const Benefits = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 text-[11px] text-muted-foreground">
           <p className="flex items-start gap-1.5"><Lock className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
-            Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA: para resúmenes y promociones, <IatoName /> solo usa el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</p>
+            <span>Números ocultos por defecto y fotos protegidas. Tus documentos y números nunca se envían a la IA: para resúmenes y promociones, <IatoName /> solo usa el nombre, el nivel y los beneficios de tus membresías, tarjetas y seguros.</span></p>
           {items.length > 0 && (
             <button type="button" onClick={exportJson} className="inline-flex items-center gap-1 hover:text-foreground self-start sm:self-auto">
               <Download className="w-3 h-3" aria-hidden="true" /> Descargar una copia de mis documentos y tarjetas

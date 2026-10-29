@@ -231,7 +231,7 @@ const TripPacking = () => {
               className="bg-[#C9A961] text-black hover:bg-[#C9A961]/90 px-6"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Generar lista con <IatoName />
+              <span>Generar lista con <IatoName /></span>
             </Button>
           </div>
         )}
@@ -366,7 +366,7 @@ const TripPacking = () => {
                                       className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-foreground/50 hover:text-[#C9A961] transition"
                                     >
                                       <Info className="w-3 h-3" />
-                                      {noteOpen ? "Ocultar nota" : <>Ver nota de <IatoName /></>}
+                                      {noteOpen ? "Ocultar nota" : <span>Ver nota de <IatoName /></span>}
                                     </button>
                                   )}
                                   {it.nota && noteOpen && (

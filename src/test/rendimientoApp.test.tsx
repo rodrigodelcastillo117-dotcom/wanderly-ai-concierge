@@ -75,17 +75,21 @@ describe("tipografías", () => {
     }
     const html = read("index.html");
     expect(html).toMatch(/<link rel="preload" href="\/fonts\/manrope-latin-v20\.woff2" as="font" type="font\/woff2" crossorigin \/>/);
-    // Fraunces se precarga desde un script en línea en todas las pantallas salvo Ayuda y legales (ronda 2, P2-4).
+    // Fraunces se precarga desde un script en línea en todas las pantallas; en Ayuda y legales con prioridad
+    // baja (ronda 2, P2-4).
     const fr = /<script>(\(function\(\)\{[^<]*fraunces-latin-v38\.woff2[^<]*)<\/script>/.exec(html);
     expect(fr, "precarga de Fraunces").not.toBeNull();
-    const preloaded = (path: string) => {
+    const preload = (path: string) => {
       const head = { children: [] as Record<string, string>[], appendChild(l: Record<string, string>) { this.children.push(l); } };
       const doc = { head, createElement: () => ({}) as Record<string, string> };
       new Function("document", "location", fr![1])(doc, { pathname: path });
-      return head.children.some((l) => l.rel === "preload" && l.as === "font" && l.href === "/fonts/fraunces-latin-v38.woff2" && l.crossOrigin === "anonymous");
+      return head.children.find((l) => l.rel === "preload" && l.as === "font" && l.href === "/fonts/fraunces-latin-v38.woff2" && l.crossOrigin === "anonymous");
     };
-    for (const p of ["/", "/dashboard", "/auth", "/dashboard/viajes/x", "/prive"]) expect(preloaded(p), p).toBe(true);
-    for (const p of ["/ayuda", "/terminos", "/privacidad/", "/cookies", "/reembolsos"]) expect(preloaded(p), p).toBe(false);
+    for (const p of ["/", "/dashboard", "/auth", "/dashboard/viajes/x", "/prive"]) {
+      expect(preload(p), p).toBeDefined();
+      expect(preload(p)!.fetchPriority, p).toBeUndefined();
+    }
+    for (const p of ["/ayuda", "/terminos", "/privacidad/", "/cookies", "/reembolsos"]) expect(preload(p)?.fetchPriority, p).toBe("low");
   });
 });
 
