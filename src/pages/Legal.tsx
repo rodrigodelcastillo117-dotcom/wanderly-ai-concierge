@@ -98,7 +98,8 @@ const Shell = ({ title, description, children, updated = UPDATED }: { title: str
         <Link to="/reembolsos" className="hover:text-foreground transition">Reembolsos y Cancelación</Link>
         <Link to="/cookies" className="hover:text-foreground transition">Cookies</Link>
         <Link to="/ayuda" className="hover:text-foreground transition">Ayuda</Link>
-        <span>·</span>
+        {/* En el celular los enlaces bajan de renglón y el "·" quedaba suelto al final de una línea (ronda 4). */}
+        <span aria-hidden="true" className="hidden sm:inline" data-testid="legal-footer-sep">·</span>
         <a href={`mailto:${CONTACT}`} className="hover:text-foreground transition">{CONTACT}</a>
       </footer>
     </main>
@@ -297,7 +298,7 @@ const ContactOpinion = () => {
     <>
       <p>
         <strong>¿Algo no se entiende o no funciona?</strong> Dentro de la app toca <strong>«{OPINION_CTA}»</strong>: está en el menú
-        {" "}<strong>«Más»</strong> (en el celular), en el menú lateral (en la computadora) y al pie de cada pantalla. Lo lee una persona
+        {" "}<strong>«Más»</strong> (en el celular), en el menú lateral (en la computadora) y al pie de las pantallas principales. Lo lee una persona
         del equipo IATOS y, si te responde, lo verás en Concierge › Mis solicitudes.{user ? "" : " Necesitas haber iniciado sesión."}
       </p>
       {user ? (

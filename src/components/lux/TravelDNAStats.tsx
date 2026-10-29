@@ -4,7 +4,7 @@ import { FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { localISODate } from "@/lib/localDate";
-import { computeTravelDna, dnaBasisText, type DnaInputs, type DnaKey, type DnaResultCore, type DnaStat } from "@/lib/travelDna";
+import { computeTravelDna, dnaBasisText, resolveVisitCount, type DnaInputs, type DnaKey, type DnaResultCore, type DnaStat } from "@/lib/travelDna";
 
 export type { DnaStat as DNAStat } from "@/lib/travelDna";
 
@@ -50,7 +50,7 @@ export function useTravelDNA(): { dna: DNAResult | null; loading: boolean; reloa
         setDna({
           ...core,
           tripCount: core.viajesHechos + core.viajesPlaneados,
-          visitCount: (prefs as any)?.visit_count ?? core.lugares,
+          visitCount: resolveVisitCount((prefs as any)?.visit_count, core.lugares),
           perfil: (prefs?.perfil_ia as any) ?? (tp?.perfil_ia as any) ?? null,
         });
         setLoading(false);

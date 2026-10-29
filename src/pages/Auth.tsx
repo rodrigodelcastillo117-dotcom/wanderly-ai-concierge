@@ -177,7 +177,9 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="container mx-auto py-6">
+      {/* Celular: espaciado compacto para que «Crear cuenta» quede ENCIMA del aviso de cookies al llegar
+          (ronda 4, P2-1). Mismo enfoque que la landing: la acción principal se ve sin cerrar el aviso. */}
+      <header className="container mx-auto py-3 sm:py-6" data-testid="auth-header">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition">
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm">Volver</span>
@@ -191,11 +193,11 @@ const Auth = () => {
           transition={{ duration: 0.6 }}
           className="w-full max-w-md"
         >
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-gold mb-6">
+          <div className="text-center mb-5 sm:mb-10">
+            <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-gold mb-3 sm:mb-6">
               <Compass className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h1 className="font-display text-4xl mb-2">
+            <h1 className="font-display text-3xl sm:text-4xl mb-2">
               {mode === "signup" ? "Crea tu cuenta" : "Bienvenido de vuelta"}
             </h1>
             <p className="text-muted-foreground text-sm">
@@ -203,7 +205,7 @@ const Auth = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5 glass-card rounded-2xl p-8">
+          <form onSubmit={handleSubmit} data-testid="auth-form" className="space-y-4 sm:space-y-5 glass-card rounded-2xl p-5 sm:p-8">
             {showGoogle && (
               <>
                 <Button

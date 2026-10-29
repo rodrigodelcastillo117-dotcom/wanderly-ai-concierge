@@ -30,7 +30,8 @@ export function WrappedPromoCard({ promo, className = "" }: { promo: WrappedProm
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"><Sparkles className="h-4 w-4" aria-hidden="true" /></span>
       <span className="min-w-0 flex-1">
         <span className="block font-display text-base leading-tight text-foreground">{promo.title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{promo.subtitle}</span>
+        {/* 2 líneas en vez de cortar: a 390 px se leía "viajes, lugares y mome…" (ronda 4, P2-6). */}
+        <span className="block line-clamp-2 break-words text-xs text-muted-foreground" data-testid="wrapped-promo-subtitle">{promo.subtitle}</span>
       </span>
       <ChevronRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>

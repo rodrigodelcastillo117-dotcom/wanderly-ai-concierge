@@ -31,7 +31,7 @@ import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
 import { PriveSeal } from "@/components/PriveSeal";
 import { notifyAvatarUpdated, useMyAvatar } from "@/hooks/useMyAvatar";
 import { usePriveSeal } from "@/hooks/usePriveSeal";
-import { DNA_ARCHETYPES } from "@/lib/travelDna";
+import { DNA_ARCHETYPES, profileCountsText } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
 import { ProfileWrappedLink } from "@/components/wrapped/WrappedPromo";
 import { localISODate } from "@/lib/localDate";
@@ -237,9 +237,9 @@ const Profile = () => {
               </div>
               {/* Avatar, recuerdos de viaje y tu tarjeta de rango: una sola vez, aquí. */}
               <TravelAvatarCinematic dna={dna} onEditAvatar={() => setOpenAvatar(true)} />
-              <p className="text-xs text-muted-foreground px-1">
+              <p className="text-xs text-muted-foreground px-1" data-testid="profile-counts">
                 {dna
-                  ? `${dna.tripCount} viajes · ${dna.visitCount} lugares · tu perfil evoluciona con cada experiencia`
+                  ? `${profileCountsText(dna)} · tu perfil evoluciona con cada experiencia`
                   : "Cargando tu identidad..."}
               </p>
             </section>

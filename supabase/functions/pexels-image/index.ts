@@ -1,11 +1,12 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { cacheGet, cacheKey, cachePut, freshnessOf } from "../_shared/serpCache.ts";
+import { cacheGet, cacheKey, cachePut, freshnessOf, PEXELS_EMPTY_TTL_SECONDS } from "../_shared/serpCache.ts";
 import { dbCacheStore, logUsage } from "../_shared/serpRuntime.ts";
 
 // Pexels permite 20,000 solicitudes al mes: la foto de cada destino se guarda 7 días en la caché
 // compartida (public.serp_cache), así todos los usuarios que ven "Roma" usan una sola consulta.
+// Una respuesta "sin foto" se guarda solo 1 h (PEXELS_EMPTY_TTL_SECONDS).
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -44,9 +45,10 @@ Deno.serve(async (req) => {
     if (hit && freshnessOf(hit).fresh) {
       const rlHit = await enforceRateLimit(req, "pexels-image-hit", __user.id, { perMinute: 120, perHour: 1200, ipPerMinute: 240 });
       if (!rlHit.allowed) return rateLimitResponse(rlHit, corsHeaders);
+      const hitHasImage = !!(hit.response as { image?: unknown } | null)?.image;
       return new Response(JSON.stringify({ ...(hit.response as Record<string, unknown>), cached: true }), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': hitHasImage ? 'public, max-age=86400' : `public, max-age=${PEXELS_EMPTY_TTL_SECONDS}` },
       });
     }
 
@@ -88,7 +90,8 @@ Deno.serve(async (req) => {
       page_url: safe(photo?.url),
       alt: typeof photo?.alt === 'string' ? photo.alt.slice(0, 200) : null,
     };
-    // Solo se guarda una respuesta válida de Pexels (también "sin foto": evita repetir la consulta).
+    // Solo se guarda una respuesta válida de Pexels. "Sin foto" también se guarda, pero solo 1 h
+    // (responseTtlSeconds en serpCache.ts): antes quedaba 7 días y Madrid se quedó sin foto (ronda 4, P2-4).
     if (data && Array.isArray(data.photos)) {
       await cachePut(store, key, 'pexels_photo', result);
       await logUsage({ user_id: __user.id, function: 'pexels-image', provider: 'pexels', searches: 0 });
@@ -99,7 +102,8 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=86400',
+        // "Sin foto" tampoco se queda un día en el navegador: el mismo plazo corto que en la caché.
+        'Cache-Control': image ? 'public, max-age=86400' : `public, max-age=${PEXELS_EMPTY_TTL_SECONDS}`,
       },
     });
   } catch (e) {

@@ -9,6 +9,7 @@ import { logInsight } from "@/lib/insights";
 import { motion } from "framer-motion";
 import { SmartImage } from "@/components/media/SmartImage";
 import { destinationQuery } from "@/lib/categoryImagery";
+import { destinationPhotoFallbackQuery } from "@/lib/compareCost";
 import { isSafeStockUrl } from "@/lib/stockPhoto";
 import { IatoName } from "@/lib/iatoMark";
 
@@ -80,6 +81,8 @@ const Favoritos = () => {
                     imageUrl={it.imagen_url}
                     imageKind={isSafeStockUrl(it.imagen_url) ? "stock" : "real"}
                     stockQuery={it.titulo ? destinationQuery(it.titulo) : null}
+                    // Segunda búsqueda si la primera no trae foto (ronda 4, P2-4: Madrid se quedaba sin foto).
+                    stockFallbackQuery={it.titulo ? destinationPhotoFallbackQuery(it.titulo) : null}
                     icon={Heart}
                     className="!absolute inset-0"
                     imgClassName="group-hover:scale-105"

@@ -53,9 +53,9 @@ const DASHBOARD_SCREEN: Record<string, string> = {
   "": "Inicio", viajes: "Mis viajes", planear: "Planear viaje", concierge: "Concierge", perfil: "Mi perfil",
   cercanos: "Cerca de ti", favoritos: "Favoritos", recuerdos: "Recuerdos", social: "Social", gastos: "Gastos",
   reservas: "Mis reservas", beneficios: "Documentos y tarjetas", pro: "Plan IATOS PRO", vuelos: "Vuelos", hoteles: "Hoteles",
-  restaurantes: "Restaurantes", actividades: "Actividades", autos: "Autos", trenes: "Trenes", ferries: "Ferris", cruceros: "Cruceros",
+  restaurantes: "Restaurantes", actividades: "Actividades", autos: "Autos", trenes: "Trenes", ferries: "Ferries", cruceros: "Cruceros",
   seguros: "Seguros", esim: "eSIM", convertidor: "Convertidor de moneda", comparar: "Comparar", descubre: "Descubre", explorar: "Explorar",
-  members: "Members Only", ruta: "Ruta", "smart-spend": "Smart Spend", admin: "Administración",
+  members: "Solo para miembros", ruta: "Ruta", "smart-spend": "Smart Spend", admin: "Administración",
 };
 const TRIP_SCREEN: Record<string, string> = {
   "": "Detalle del viaje", mapa: "Mapa del viaje", clima: "Clima del viaje", diario: "Diario del viaje", editar: "Editar viaje",

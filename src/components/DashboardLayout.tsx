@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
@@ -43,6 +43,16 @@ export function useIsLgUp(): boolean {
   return up;
 }
 
+/**
+ * ¿Queda contenido por ver debajo en un contenedor con desplazamiento? En una laptop de 768 o 720 px de
+ * alto, "Documentos y tarjetas" y "Concierge" quedaban fuera de vista en el menú lateral sin ninguna
+ * señal (ronda 4, P2-3): con esto se muestra el degradado con "Más secciones".
+ */
+export function hasMoreBelow(el: Pick<HTMLElement, "scrollHeight" | "clientHeight" | "scrollTop"> | null | undefined): boolean {
+  if (!el) return false;
+  return el.scrollHeight - el.clientHeight - el.scrollTop > 4;
+}
+
 /** Clic normal → abre la ventana; con modificadores o botón central se deja el enlace. */
 export function shouldOpenPlanDialog(e: React.MouseEvent): boolean {
   return !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
@@ -82,7 +92,8 @@ export const mobileMoreNav = [
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos y ahorro" },
+  // Mismo nombre que el lateral, el título de la pantalla, la pestaña y el buzón (ronda 4, P2-5).
+  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
   { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
@@ -119,6 +130,25 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   // de la barra inferior y del área segura para que no quede oculta debajo.
   const isChatRoute = location.pathname.startsWith("/dashboard/concierge");
   const lgUp = useIsLgUp();
+  // Menú lateral: ¿hay secciones debajo de lo visible? (indicador "Más secciones", ronda 4 P2-3)
+  const navRef = useRef<HTMLElement>(null);
+  const [navMore, setNavMore] = useState(false);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const check = () => setNavMore(hasMoreBelow(el));
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    const RO = (window as Window & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+    const ro = RO ? new RO(check) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+      ro?.disconnect();
+    };
+  }, [lgUp]);
 
   useEffect(() => {
     if (!user) return;
@@ -147,7 +177,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <aside className="hidden lg:flex flex-col w-[200px] border-r border-white/[0.04] bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen z-30">
 
         {/* Brand */}
-        <Link to="/dashboard" className="flex items-center justify-center px-4 pt-6 pb-5 border-b border-white/[0.04]">
+        <Link to="/dashboard" className="shrink-0 flex items-center justify-center px-4 pt-6 pb-5 [@media(max-height:820px)]:pt-4 [@media(max-height:820px)]:pb-3 border-b border-white/[0.04]">
           <img src={iatosLogo} alt="IATOS" className="w-full max-w-[130px] h-auto object-contain drop-shadow-[0_0_24px_rgba(201,169,97,0.18)]" />
         </Link>
 
@@ -157,22 +187,25 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onClick={openPlan}
           aria-haspopup="dialog"
           className={({ isActive }) =>
-            `mx-2 mt-3 mb-1 flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-gold text-primary-foreground text-[13px] font-medium tracking-wide shadow-[0_8px_24px_-8px_hsl(41_47%_59%/0.6)] hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive ? "ring-1 ring-primary/60" : ""}`
+            `shrink-0 mx-2 mt-3 [@media(max-height:820px)]:mt-2 mb-1 flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-gradient-gold text-primary-foreground text-[13px] font-medium tracking-wide shadow-[0_8px_24px_-8px_hsl(41_47%_59%/0.6)] hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive ? "ring-1 ring-primary/60" : ""}`
           }
         >
           <Plus className="w-4 h-4" strokeWidth={2.25} aria-hidden="true" />
           Planear viaje
         </NavLink>
 
-        {/* Nav */}
-        <nav aria-label="Secciones" className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        {/* Nav. En pantallas bajas (laptop de 768 o 720 px) el espaciado se compacta para que quepan todas las
+            secciones; si aun así no caben, el degradado con "Más secciones" avisa que hay más abajo y la
+            tarjeta ya no parece montada sobre los enlaces (ronda 4, P2-3). */}
+        <div className="relative flex-1 min-h-0 flex flex-col">
+        <nav ref={navRef} aria-label="Secciones" data-testid="sidebar-nav" className="flex-1 min-h-0 p-2 [@media(max-height:820px)]:py-1 space-y-0.5 overflow-y-auto">
           {links.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               end={l.end}
               className={({ isActive }) =>
-                `group relative flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] transition-all duration-300 ${
+                `group relative flex items-center gap-2 px-3 py-2.5 [@media(min-height:741px)_and_(max-height:820px)]:py-1.5 [@media(max-height:740px)]:py-1 rounded-xl text-[13px] transition-all duration-300 ${
                   isActive
                     ? "text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.03]"
@@ -194,10 +227,24 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </NavLink>
           ))}
         </nav>
+        {navMore ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            data-testid="sidebar-more-hint"
+            onClick={() => navRef.current?.scrollBy?.({ top: 160, behavior: "smooth" })}
+            className="absolute inset-x-0 bottom-0 flex h-11 items-end justify-center gap-1 pb-1 bg-gradient-to-t from-background via-background/90 to-transparent text-[10px] tracking-[0.18em] uppercase text-primary/90 hover:text-primary transition-colors"
+          >
+            <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+            Más secciones
+          </button>
+        ) : null}
+        </div>
 
         {/* Tu tarjeta de rango, chica para no tapar el menú: al tocarla se abre grande con el detalle. */}
         {card || cardLoading ? (
-          <div className="mx-3 mb-2 flex items-center gap-2.5" data-testid="sidebar-member-card">
+          <div className="shrink-0 mx-3 mt-1 mb-2 [@media(max-height:820px)]:mb-1 flex items-center gap-2.5" data-testid="sidebar-member-card">
             <div className="w-[76px] shrink-0">
               <MemberCardButton card={card} loading={cardLoading} testId="sidebar-card" />
             </div>
@@ -213,7 +260,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* Estado de membresía */}
         <Link
           to="/dashboard/pro"
-          className="mx-2 mb-2 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 text-[11px] hover:bg-primary/[0.1] transition"
+          className="shrink-0 mx-2 mb-2 [@media(max-height:820px)]:mb-1 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2 [@media(max-height:820px)]:py-1.5 text-[11px] hover:bg-primary/[0.1] transition"
         >
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="truncate text-muted-foreground">
@@ -230,7 +277,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         </Link>
         <Link
           to="/prive"
-          className="mx-2 mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] tracking-[0.18em] uppercase text-muted-foreground hover:text-primary transition"
+          className="shrink-0 mx-2 mb-2 [@media(max-height:820px)]:mb-0 flex items-center gap-2 rounded-xl px-3 py-2 [@media(max-height:820px)]:py-1.5 text-[11px] tracking-[0.18em] uppercase text-muted-foreground hover:text-primary transition"
         >
           <Gem className="w-3.5 h-3.5 text-primary/80 shrink-0" aria-hidden="true" />
           <span className="truncate">IATOS Privé</span>
@@ -239,7 +286,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         {/* User */}
         <button
           onClick={() => navigate("/dashboard/perfil")}
-          className="flex items-center gap-2 px-3 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
+          className="shrink-0 flex items-center gap-2 px-3 py-3 [@media(max-height:820px)]:py-2 border-t border-white/[0.04] hover:bg-white/[0.03] transition"
         >
           <AvatarCircle url={avatarUrl} name={firstName} size="sm" prive={prive} glow={false} />
           <div className="flex-1 text-left min-w-0">
@@ -254,13 +301,13 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onClick={openOpinion}
           aria-haspopup="dialog"
           data-testid="sidebar-opinion"
-          className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide text-left"
+          className="shrink-0 flex items-center gap-2 px-3 py-2.5 [@media(max-height:820px)]:py-2 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide text-left"
         >
           <MessageSquare className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           {OPINION_CTA}
         </button>
         {/* Ayuda y Cerrar sesión en una sola fila: el menú lateral no crece (en 900 px de alto ya no cabe más). */}
-        <div className="flex items-stretch border-t border-white/[0.04]">
+        <div className="shrink-0 flex items-stretch border-t border-white/[0.04]">
           <Link
             to="/ayuda"
             state={{ from: location.pathname + location.search }}

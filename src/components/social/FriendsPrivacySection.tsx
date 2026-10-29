@@ -184,7 +184,7 @@ export function FriendsPrivacySection() {
           <Input value={reco.ciudad} onChange={(e) => setReco({ ...reco, ciudad: e.target.value.slice(0, 80) })} placeholder="Ciudad" aria-label="Ciudad" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1" role="group" aria-label="Tipo de lugar">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Tipo de lugar">
             {CATEGORIAS.map((c) => (
               <button key={c.id} type="button" aria-pressed={reco.categoria === c.id} onClick={() => setReco({ ...reco, categoria: c.id })}
                 className={`px-3 py-1.5 rounded-full text-xs border ${reco.categoria === c.id ? "bg-primary text-primary-foreground border-primary" : "border-white/10 text-muted-foreground"}`}>{c.label}</button>
@@ -219,7 +219,7 @@ export function FriendsPrivacySection() {
               <li key={i.clave} className="rounded-xl border border-white/[0.06] px-3 py-2.5">
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{activityHeadline(i)} {i.estrellas ? <span className="text-xs">{stars(i.estrellas)}</span> : null}</p>
+                    <p className="text-sm line-clamp-2 break-words" data-testid="own-activity-headline">{activityHeadline(i)} {i.estrellas ? <span className="text-xs">{stars(i.estrellas)}</span> : null}</p>
                     <p className="text-[11px] text-muted-foreground">{TIPO_LABEL[i.tipo]} · {relativeDay(i.fecha, today)} · {status}</p>
                     {total > 0 && (
                       <p className="text-xs mt-0.5" aria-label="Reacciones de tus amigos">
@@ -260,7 +260,7 @@ export function FriendsPrivacySection() {
               return (
                 <li key={t.clave} className="flex items-center gap-2 rounded-xl border border-white/[0.06] px-3 py-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate" title={t.destino}>{t.nombre}{t.repetidos > 1 ? <span className="text-muted-foreground"> · {t.repetidos} viajes</span> : null}</p>
+                    <p className="text-sm line-clamp-2 break-words" title={t.destino} data-testid="own-trip-name">{t.nombre}{t.repetidos > 1 ? <span className="text-muted-foreground"> · {t.repetidos} viajes</span> : null}</p>
                     <p className="text-[11px] text-muted-foreground">{tripDates({ ...t, fechaSalida: settings.fechas_completas ? t.fechaSalida : null })} · {!shared ? "Apagado" : t.oculto ? "Escondido" : "Lo ven tus amigos"}</p>
                   </div>
                   {t.id && (

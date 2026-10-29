@@ -152,6 +152,31 @@ export function computeTravelDna(input: DnaInputs): DnaResultCore {
   return { stats, dominant, fuente, viajesHechos, viajesPlaneados, lugares: input.visits.length };
 }
 
+/**
+ * Lugares visitados para el perfil: la columna ai_user_preferences.visit_count vale 0 por defecto, así que
+ * `visit_count ?? lugares` nunca usaba el conteo real de user_visits (ronda 4, P2-7). Se usa la columna
+ * solo si trae un número positivo; si vale 0, falta o no es número, el conteo real.
+ */
+export function resolveVisitCount(column: unknown, lugares: number): number {
+  const n = typeof column === "number" ? column : typeof column === "string" && column.trim() ? Number(column) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : Math.max(0, lugares || 0);
+}
+
+/**
+ * Conteos del perfil separados (ronda 4, P2-7): "24 viajes · 0 lugares" mezclaba planeados con hechos.
+ * Ahora: "0 viajes hechos · 24 planeados · 0 lugares visitados".
+ */
+export function profileCountsText(r: { viajesHechos?: number | null; viajesPlaneados?: number | null; tripCount?: number | null; visitCount?: number | null; lugares?: number | null }): string {
+  const hechos = Math.max(0, r.viajesHechos ?? 0);
+  const planeados = Math.max(0, r.viajesPlaneados ?? Math.max(0, (r.tripCount ?? 0) - hechos));
+  const lugares = Math.max(0, r.visitCount ?? r.lugares ?? 0);
+  return [
+    `${hechos} ${hechos === 1 ? "viaje hecho" : "viajes hechos"}`,
+    `${planeados} ${planeados === 1 ? "planeado" : "planeados"}`,
+    `${lugares} ${lugares === 1 ? "lugar visitado" : "lugares visitados"}`,
+  ].join(" · ");
+}
+
 /** Texto de "de dónde sale esto" bajo las barras. */
 export function dnaBasisText(r: Pick<DnaResultCore, "fuente" | "viajesHechos" | "viajesPlaneados" | "lugares">): string {
   if (r.fuente === "ninguna") return "Aún no hay datos.";

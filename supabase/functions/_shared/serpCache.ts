@@ -30,6 +30,23 @@ export const CACHE_TTL_SECONDS: Record<string, number> = {
   viator_products: 6 * HOUR, // Viator Partner API: caché corta y privada, solo para la misma consulta (términos de Viator)
 };
 
+/**
+ * "Sin foto" de Pexels (image: null) vale solo 1 h, no 7 días: una búsqueda que un día no trajo foto
+ * (o un tropiezo de Pexels con 200 vacío) dejaba la tarjeta sin imagen una semana para todos (ronda 4,
+ * P2-4: "madrid travel" en Favoritos, con 26 aciertos de la misma respuesta vacía).
+ */
+export const PEXELS_EMPTY_TTL_SECONDS = HOUR;
+
+/** TTL de una respuesta concreta: el del motor, salvo una foto de Pexels vacía (TTL corto). */
+export function responseTtlSeconds(engine: string, response: unknown): number {
+  const base = CACHE_TTL_SECONDS[engine] ?? DAY;
+  if (engine === "pexels_photo" && response && typeof response === "object" && !Array.isArray(response)) {
+    const image = (response as { image?: unknown }).image;
+    if (image === null || image === undefined || image === "") return Math.min(base, PEXELS_EMPTY_TTL_SECONDS);
+  }
+  return base;
+}
+
 /** Ofertas por proveedor de un hotel (google_hotels con property_token). */
 export const HOTEL_OFFERS_TTL_SECONDS = 3 * HOUR;
 
@@ -401,7 +418,7 @@ export async function cachePut(
 ) {
   if (!store) return;
   try {
-    await store.put(key, engine, response, CACHE_TTL_SECONDS[engine] ?? DAY);
+    await store.put(key, engine, response, responseTtlSeconds(engine, response));
   } catch (e) {
     log("cache put falló:", (e as Error)?.message);
   }
