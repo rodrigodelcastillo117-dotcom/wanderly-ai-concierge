@@ -17,6 +17,8 @@ export const OPS_TYPE_LABEL: Record<string, string> = {
   rebooking: "Cambio de vuelo",
   booking_assist: "Ayuda para reservar",
   ai_reservation: "Reserva IA",
+  // "¿Algo no se entiende? Cuéntanos" (función enviar-opinion, migración 20261029060000_opiniones).
+  opinion: "Opinión",
 };
 
 export const opsTypeLabel = (type: string) =>
@@ -44,6 +46,15 @@ export const OPS_STAGE_LABEL: Record<OpsStage, string> = {
  * "resuelta por el equipo" (con su comprobante, si lo dejó).
  */
 export function userStageText(stage: string | null | undefined, type?: string | null): string {
+  // Una opinión no la "atiende" nadie como un pedido: la lee el equipo y, si hace falta, la resuelve.
+  if (type === "opinion") {
+    switch (stage) {
+      case "en_proceso": return "Leída por el equipo IATOS";
+      case "resuelta": return "Resuelta por el equipo IATOS";
+      case "no_se_pudo": case "cancelada": case "vencida": return "Cerrada por el equipo IATOS";
+      default: return "Recibida · la leerá el equipo IATOS";
+    }
+  }
   switch (stage) {
     case "nueva": return "Recibida · la atenderá una persona del equipo IATOS";
     case "en_proceso": return "En proceso · una persona del equipo IATOS la está atendiendo";

@@ -13,6 +13,7 @@ import {
 import { escapeHtml, firstNameOf, oneLine, safeUrl } from "./email-format.ts";
 import { conciergeRequestOpsEmail, type OpsRequestInput, requestedTimes } from "./email-ops.ts";
 import { folioOf, opsTypeLabel, userStageText } from "./ops-labels.ts";
+import { opinionTeamEmail } from "./opinion.ts";
 
 /** Lo que devuelven _ops_request_json / _ops_ai_json (SQL). */
 export type OpsItem = {
@@ -75,8 +76,13 @@ export function ownerAlertInput(a: OpsItem, siteUrl?: string | null): OpsRequest
   };
 }
 
-/** Correo al dueño (FIXER_EMAIL) para una solicitud nueva. */
-export const ownerAlertEmail = (a: OpsItem, siteUrl?: string | null): Email => conciergeRequestOpsEmail(ownerAlertInput(a, siteUrl));
+/** Correo al dueño (FIXER_EMAIL) para una solicitud nueva. Las opiniones llevan su propio correo. */
+export const ownerAlertEmail = (a: OpsItem, siteUrl?: string | null): Email =>
+  a.type === "opinion" ? opinionTeamEmail(a, siteUrl) : conciergeRequestOpsEmail(ownerAlertInput(a, siteUrl));
+
+/** Una opinión de alguien que NO quiere correo no lleva "responder a" con su dirección. */
+const ownerReplyTo = (a: OpsItem, replyTo: string | null) =>
+  a.type === "opinion" && a.payload && (a.payload as Record<string, unknown>).contactar === false ? null : replyTo;
 
 // ───────────────────────────── respuesta del equipo al usuario ─────────────────────────────
 
@@ -112,7 +118,8 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const party = Number(it.party_size) > 0 ? Math.round(Number(it.party_size)) : null;
   const folio = it.ref_code || folioOf(it.id);
   const stage = userStageText(it.stage, it.type);
-  const open = it.stage === "nueva" || it.stage === "en_proceso";
+  // "Aún no es una reserva" solo donde podría confundirse con una (una opinión no lo es).
+  const open = (it.stage === "nueva" || it.stage === "en_proceso") && it.type !== "opinion";
   const body = oneLine(c.reply.body.replace(/\s*\n\s*/g, " ¶ "), 2000).replace(/ ¶ /g, "\n");
   const evidence = oneLine(c.reply.evidence, 500) || null;
   const evidenceUrl = evidence && /^https:\/\//i.test(evidence) ? safeUrl(evidence) : null;
@@ -120,10 +127,13 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const subject = oneLine(`${title}: ${what}`, 150);
   const preheader = oneLine(body, 120);
   const url = myRequestsUrl(site);
+  const reason = it.type === "opinion"
+    ? "Recibes este correo porque nos mandaste tu opinión desde la app y aceptaste que te escribiéramos."
+    : "Recibes este correo porque le pediste a Iato algo que atiende una persona del equipo IATOS.";
 
   const html = shell({
     title: subject, preheader, siteUrl: site, supportEmail,
-    reason: "Recibes este correo porque le pediste a Iato algo que atiende una persona del equipo IATOS.",
+    reason,
     body: [
       masthead(`Folio ${folio}`),
       gap(40),
@@ -135,7 +145,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
       `<tr><td class="ek-pad" style="padding:0 56px;font-family:${SERIF};font-size:19px;line-height:29px;color:${EK.ivory};white-space:pre-line;">${escapeHtml(body)}</td></tr>`,
       gap(26),
       kvTable([
-        { k: "Tu solicitud", v: escapeHtml(what) },
+        { k: it.type === "opinion" ? "Tu opinión" : "Tu solicitud", v: escapeHtml(what) },
         times.venue ? { k: "Fecha y hora", v: escapeHtml(times.venue) } : null,
         party ? { k: "Personas", v: String(party) } : null,
         { k: "Estado", v: escapeHtml(stage + (open ? " · aún no es una reserva" : "")) },
@@ -160,7 +170,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
     "",
     body,
     "",
-    `Tu solicitud: ${what}`,
+    `${it.type === "opinion" ? "Tu opinión" : "Tu solicitud"}: ${what}`,
     times.venue ? `Fecha y hora: ${times.venue}` : null,
     party ? `Personas: ${party}` : null,
     `Estado: ${stage}${open ? " · aún no es una reserva" : ""}`,
@@ -169,7 +179,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
     "Lo escribió una persona del equipo IATOS. También lo ves en la app, en Concierge › Mis solicitudes.",
     `Ver mis solicitudes: ${url}`,
     "",
-    ...textFooter({ reason: "Recibes este correo porque le pediste a Iato algo que atiende una persona del equipo IATOS.", siteUrl: site, supportEmail }),
+    ...textFooter({ reason, siteUrl: site, supportEmail }),
   ]);
   return { subject, preheader, html, text };
 }
@@ -216,7 +226,8 @@ async function deliverOwnerAlert(d: OpsMailDeps, a: OpsItem, replyTo: string | n
   let ok = false, id: string | undefined, err: string | undefined;
   try {
     const m = ownerAlertEmail(a, d.siteUrl);
-    const r = await d.send({ to: d.ownerEmail, from: d.ownerFrom, subject: m.subject, html: m.html, text: m.text, ...(replyTo ? { replyTo } : {}) });
+    const to = ownerReplyTo(a, replyTo);
+    const r = await d.send({ to: d.ownerEmail, from: d.ownerFrom, subject: m.subject, html: m.html, text: m.text, ...(to ? { replyTo: to } : {}) });
     ok = !!r.ok; id = r.id; err = r.error;
   } catch (e) {
     err = errText(e);

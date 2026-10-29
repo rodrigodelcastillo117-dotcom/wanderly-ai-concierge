@@ -6,14 +6,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, Check, ChevronDown, Clock, Hand, Loader2, Mail, MailWarning, MessageSquare, RefreshCw, ShieldAlert, X,
+  ArrowLeft, Check, ChevronDown, Clock, Eye, Hand, Loader2, Mail, MailWarning, MessageSquare, RefreshCw, ShieldAlert, X,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminDenied } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { actOps, formatRequested, listOps, whenText, type OpsAction, type OpsFilter, type OpsItem, type OpsList } from "@/lib/opsDesk";
+import { actOps, formatRequested, listOps, markOpinion, whenText, type OpsAction, type OpsFilter, type OpsItem, type OpsList } from "@/lib/opsDesk";
+import { opinionFields, stars } from "../../supabase/functions/_shared/opinion.ts";
 import { folioOf, OPS_STAGE_LABEL, opsTypeLabel, type OpsStage } from "../../supabase/functions/_shared/ops-labels.ts";
 import { detailRows } from "../../supabase/functions/_shared/email-ops.ts";
 
@@ -99,6 +100,16 @@ function OpsCard({ it, highlight, onDone }: { it: OpsItem; highlight: boolean; o
     ? String((it.evidence as Record<string, unknown>).evidence ?? (it.evidence as Record<string, unknown>).confirmation_code ?? (it.evidence as Record<string, unknown>).quote ?? "") || null
     : null;
   const folio = it.ref_code || folioOf(it.id);
+  // Opiniones ("¿Algo no se entiende? Cuéntanos"): su texto y contexto, y acciones de opinión.
+  const opinion = it.type === "opinion" ? opinionFields(it.payload) : null;
+
+  const mark = async (m: "leida" | "resuelta") => {
+    setBusy(true); setError(null);
+    const r = await markOpinion(it.id, m);
+    setBusy(false);
+    if ("message" in r) { setError(r.message); return; }
+    onDone(m === "leida" ? "Marcada como leída: queda en proceso a tu nombre." : "Opinión marcada como resuelta.");
+  };
 
   const run = async (action: OpsAction, message?: string, ev?: string) => {
     setBusy(true); setError(null);
@@ -129,6 +140,21 @@ function OpsCard({ it, highlight, onDone }: { it: OpsItem; highlight: boolean; o
         </div>
       </header>
 
+      {opinion ? (
+        <dl className="space-y-1.5" data-testid="opinion-detail">
+          <Row k="Quién" v={<>{who}{email ? <> · <a className="text-primary hover:underline break-all" href={`mailto:${email}`}>{email}</a></> : null}</>} />
+          <Row k="Tipo" v={opinion.tipoLabel} />
+          <Row k="Opinión" v={<span className="whitespace-pre-line">{opinion.texto}</span>} />
+          <Row k="Calificación" v={stars(opinion.calificacion)} />
+          <Row k="Pantalla" v={[opinion.pantalla, opinion.ruta].filter(Boolean).join(" · ") || null} />
+          <Row k="Dispositivo" v={[opinion.dispositivo, opinion.version ? `versión ${opinion.version}` : null].filter(Boolean).join(" · ") || null} />
+          <Row k="Viaje" v={trip} />
+          <Row k="Contacto" v={opinion.contactar ? "Acepta que le escriban por correo" : "No quiere correo: la respuesta la verá solo en la app"} />
+          {it.alert?.status === "fallido" ? (
+            <Row k="Aviso" v={<span className="inline-flex items-center gap-1 text-amber-300"><MailWarning className="w-3.5 h-3.5" aria-hidden="true" />El correo al equipo falló; se reintenta solo</span>} />
+          ) : null}
+        </dl>
+      ) : (
       <dl className="space-y-1.5">
         <Row k="Quién" v={<>{who}{email ? <> · <a className="text-primary hover:underline break-all" href={`mailto:${email}`}>{email}</a></> : null}
           {it.user?.customer_phone ? <> · {it.user.customer_phone}</> : null}</>} />
@@ -153,6 +179,7 @@ function OpsCard({ it, highlight, onDone }: { it: OpsItem; highlight: boolean; o
           <Row k="Aviso" v={<span className="inline-flex items-center gap-1 text-amber-300"><MailWarning className="w-3.5 h-3.5" aria-hidden="true" />El correo de aviso falló; se reintenta solo</span>} />
         ) : null}
       </dl>
+      )}
 
       {it.replies && it.replies.length > 0 && (
         <div className="space-y-2">
@@ -175,6 +202,9 @@ function OpsCard({ it, highlight, onDone }: { it: OpsItem; highlight: boolean; o
       {form ? (
         <div className="space-y-2 rounded-xl border border-white/10 p-3">
           <label className="block text-[11px] uppercase tracking-wide text-muted-foreground" htmlFor={`m-${it.id}`}>{formTitle}</label>
+          {opinion && form.action === "responder" && !opinion.contactar ? (
+            <p className="text-xs text-amber-200">No quiere correo: tu respuesta la verá solo en la app (Concierge › Mis solicitudes).</p>
+          ) : null}
           <Textarea id={`m-${it.id}`} value={form.message} rows={3} maxLength={2000} autoFocus
             onChange={(e) => setForm({ ...form, message: e.target.value })}
             placeholder={form.action === "no_se_pudo" ? "Ej.: El restaurante no tiene mesa ese día; te propongo…" : "Escribe como se lo dirías a la persona"} />
@@ -195,6 +225,22 @@ function OpsCard({ it, highlight, onDone }: { it: OpsItem; highlight: boolean; o
             </Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setForm(null); setError(null); }}>Cancelar</Button>
           </div>
+        </div>
+      ) : opinion ? (
+        <div className="flex flex-wrap gap-2" data-testid="opinion-actions">
+          {it.stage === "nueva" && (
+            <Button size="sm" className="bg-gradient-gold text-primary-foreground hover:opacity-90" disabled={busy} onClick={() => mark("leida")}>
+              <Eye className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Marcar leída
+            </Button>
+          )}
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setForm({ action: "responder", message: "", evidence: "" })}>
+            <Mail className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Responder
+          </Button>
+          {(it.stage === "nueva" || it.stage === "en_proceso") && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => mark("resuelta")}>
+              <Check className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Marcar resuelta
+            </Button>
+          )}
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -245,6 +291,8 @@ const AdminOperations = () => {
   const [list, setList] = useState<OpsList | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "forbidden" | "error">("loading");
   const [notice, setNotice] = useState<string | null>(null);
+  // "Opiniones": las que mandaron los usuarios desde la app (se combina con el filtro de estado).
+  const [onlyOpinions, setOnlyOpinions] = useState(() => params.get("tipo") === "opinion");
 
   const load = useCallback(async (f: OpsFilter = filter) => {
     const r = await listOps(f);
@@ -258,7 +306,9 @@ const AdminOperations = () => {
   const counts = list?.counts ?? {};
   const countOf = (k: OpsFilter) => k === null ? Object.values(counts).reduce((a, b) => a + (b ?? 0), 0)
     : k === "abiertas" ? (counts.nueva ?? 0) + (counts.en_proceso ?? 0) : counts[k] ?? 0;
-  const items = useMemo(() => list?.items ?? [], [list]);
+  const allItems = useMemo(() => list?.items ?? [], [list]);
+  const items = useMemo(() => (onlyOpinions ? allItems.filter((i) => i.type === "opinion") : allItems), [allItems, onlyOpinions]);
+  const opinionCount = allItems.filter((i) => i.type === "opinion").length;
 
   if (state === "loading" && !list) {
     return <DashboardLayout><div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></DashboardLayout>;
@@ -301,13 +351,19 @@ const AdminOperations = () => {
               {f.label} <span className="opacity-70">{countOf(f.key)}</span>
             </button>
           ))}
+          <span aria-hidden="true" className="shrink-0 w-px my-1 bg-white/10" />
+          <button type="button" aria-pressed={onlyOpinions} data-testid="filter-opinions"
+            onClick={() => setOnlyOpinions((v) => !v)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition inline-flex items-center gap-1 ${onlyOpinions ? "border-primary bg-primary/15 text-primary" : "border-white/10 text-muted-foreground hover:text-foreground"}`}>
+            <MessageSquare className="w-3 h-3" aria-hidden="true" />Opiniones <span className="opacity-70">{opinionCount}</span>
+          </button>
         </div>
 
         {notice && <p role="status" className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">{notice}</p>}
 
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center" role="status">
-            {filter === "abiertas" ? "No hay solicitudes abiertas. Todo atendido." : "No hay solicitudes con este estado."}
+            {onlyOpinions ? "No hay opiniones con este estado." : filter === "abiertas" ? "No hay solicitudes abiertas. Todo atendido." : "No hay solicitudes con este estado."}
           </p>
         ) : (
           <div className="space-y-3">

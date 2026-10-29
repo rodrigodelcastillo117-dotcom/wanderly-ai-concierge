@@ -88,6 +88,18 @@ export async function actOps(item: Pick<OpsItem, "source" | "id">, action: OpsAc
   return { ok: true, item: r.item, email };
 }
 
+/**
+ * Opiniones (type 'opinion'): el equipo las marca leídas o resueltas sin avisos de "reserva"
+ * (admin_opinion_mark, migración 20261029060000_opiniones). Para escribirle al usuario: actOps "responder".
+ */
+export async function markOpinion(id: string, mark: "leida" | "resuelta"): Promise<ActResult> {
+  const { data, error } = await supabase.rpc("admin_opinion_mark" as any, { _id: id, _mark: mark } as any);
+  if (error) return { ok: false, code: isForbidden(error) ? "FORBIDDEN" : "ERROR", message: isForbidden(error) ? "Acceso solo para administradores." : "No se pudo guardar. Intenta de nuevo." };
+  const r = (data ?? {}) as { ok?: boolean; code?: string; item?: OpsItem };
+  if (!r.ok) return { ok: false, code: r.code, message: ERROR_TEXT[r.code ?? ""] ?? "No se pudo completar." };
+  return { ok: true, item: r.item, email: null };
+}
+
 // ───────────────────────────── lo que ve el usuario ─────────────────────────────
 
 export type MyTeamRequest = {
