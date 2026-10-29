@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { recoPlanHref, sortRecosByMatch } from "@/lib/homeRecos";
 import { useSavedDestinations } from "@/hooks/useSavedDestinations";
 
 import santorini from "@/assets/hero-santorini.jpg";
@@ -55,7 +56,9 @@ const Discover = () => {
 
         {recos && recos.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
-            {recos.map((d, i) => {
+            {/* Mismo orden que Inicio (de mayor a menor match): las 4 de Inicio son las primeras aquí (R2: «Ver
+                todos» mostraba otra lista). Y la misma ruta a Planear (con el país). */}
+            {sortRecosByMatch(recos).map((d, i) => {
               const isSaved = saved.has(d.name);
               return (
                 <motion.div
@@ -66,7 +69,7 @@ const Discover = () => {
                   whileHover={{ y: -4 }}
                   className="cursor-pointer group relative"
                 >
-                  <div onClick={() => navigate(`/dashboard/planear?destino=${encodeURIComponent(d.name)}`)}
+                  <div onClick={() => navigate(recoPlanHref(d))}
                     className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-3">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-overlay" />

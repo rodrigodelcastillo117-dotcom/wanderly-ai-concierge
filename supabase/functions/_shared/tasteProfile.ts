@@ -53,7 +53,7 @@ export const DIARY_MAX_LIKES = 8;
 export const DIARY_MAX_DISLIKES = 6;
 
 /** explicito = viene de una foto en Mejores momentos o de un favorito (lo que de verdad te encantó). */
-export type TasteItem = { label: string; score: number; por_que: string; explicito?: boolean };
+export type TasteItem = { label: string; score: number; por_que: string; explicito?: boolean; solo_cotizado?: boolean };
 export type PastTrip = {
   destino: string; fecha: string | null; noches: number | null; viajeros: number | null;
   hotel: string | null; precio_noche: number | null; gasto_real: string | null;
@@ -321,9 +321,24 @@ function phrase(b: Bucket): string {
   return parts.join("; ");
 }
 
+/**
+ * Un viaje solo cotizado que ya pasó, sin fotos, gastos, visitas ni nada más (no hay evidencia de que se
+ * hizo): pesa poco y NUNCA es algo que «te encantó» (R2: Descubre decía «Porque te encantó Budapest», un
+ * viaje creado por accidente).
+ */
+const onlyQuoted = (b: Bucket) => b.cotizados.length > 0 && !b.viajes.length && !b.fotos && !b.favoritos && !b.diario && !b.visitas && !b.declarado;
+
 const item = (b: Bucket): TasteItem => ({
   label: b.label, score: Math.round(b.score * 10) / 10, por_que: phrase(b), ...(b.fotos || b.favoritos || b.diario ? { explicito: true } : {}),
+  ...(onlyQuoted(b) ? { solo_cotizado: true } : {}),
 });
+
+/** Lo que se puede citar como «te encantó» / «te gustó»: todo menos lo que solo se cotizó. */
+export const lovedLabels = (p: { encanta?: TasteItem[]; lugares?: TasteItem[] } | null | undefined): string[] =>
+  [...(p?.encanta ?? []), ...(p?.lugares ?? [])]
+    // `por_que` también lo delata en un perfil guardado antes de la marca (la caché se recalcula a diario).
+    .filter((x) => !x.solo_cotizado && !/^lo cotizaste para /.test(x.por_que ?? ""))
+    .map((x) => x.label);
 
 // ═══ construcción ═══
 
@@ -683,4 +698,19 @@ export function personalizeRestaurants<T extends Record<string, unknown>>(list: 
     return { r: out, score, i };
   });
   return scored.sort((a, b) => b.score - a.score || a.i - b.i).map((x) => x.r);
+}
+
+/**
+ * Quita de una razón de la IA «Porque te encantó X…» cuando X no está en lo que de verdad le gustó a la
+ * persona (`loved`, normalmente perfil.encanta): la IA no puede afirmar un gusto sin evidencia.
+ */
+export function stripUnfoundedLove(reason: string, loved: string[]): string {
+  const r = String(reason ?? "");
+  const m = /^\s*porque te encant(?:ó|o|aron)\s+([^:,.;—–-]+)[:,.;—–-]?\s*/i.exec(r);
+  if (!m) return r;
+  const said = normKey(m[1]);
+  const ok = loved.some((l) => { const k = normKey(l); return !!k && (said.includes(k) || k.includes(said)); });
+  if (ok) return r;
+  const rest = r.slice(m[0].length).trim();
+  return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : r;
 }
