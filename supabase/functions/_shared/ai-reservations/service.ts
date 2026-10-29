@@ -12,6 +12,7 @@ import { ClassifierUnavailable, classifyReply, decideReply, type ModelCall, type
 import { ambiguousReasonEs, quotedRequestLinked } from "./evidence.ts";
 import { type ContactDeps, discoverVenueContact } from "./contact.ts";
 import { signLink, verifyLink, verifySvixSignature } from "./signature.ts";
+import { esCorreoDeReclamos } from "../derechos/rutas.ts";
 import {
   type Mail, reservationIcs, userConfirmedEmail, userUpdateEmail, venueAlternativeEmail, venueCancellationEmail,
   venueReminderEmail, venueRequestEmail,
@@ -501,6 +502,13 @@ export async function handleInbound(deps: ServiceDeps, headers: Headers, rawBody
   let event: InboundEvent;
   try { event = JSON.parse(rawBody); } catch { return fail(400, "BAD_JSON"); }
   if (event?.type !== "email.received" || !event.data?.email_id) return ok({ ignored: "event_type" });
+  // Reclamos comparten dominio de recepción: reclamos+<token>@ y casos(+<token>)@ los procesa
+  // reclamos-inbound (su propio webhook). Aquí se acusa recibo sin tocar nada de Reservas IA.
+  {
+    const dest = [...(event.data.to ?? []), ...(event.data.received_for ?? []), ...(event.data.cc ?? [])];
+    const dom = deps.config.replyDomain ?? DEFAULT_REPLY_DOMAIN;
+    if (!extractReplyToken(dest, dom) && esCorreoDeReclamos(dest, dom)) return ok({ ignored: "reclamos" });
+  }
   // 2) Bandera apagada: se acusa recibo, pero no se procesa ni se gasta Claude.
   if (!(await flagEnabled(deps.db))) return ok({ ignored: "disabled" });
 

@@ -1,0 +1,393 @@
+// Punta a punta del envío y seguimiento de reclamos, con dobles (sin red, sin correos reales):
+// preparar → consentimiento → envío → respuesta firmada del proveedor (IA con salida estructurada) →
+// siguiente paso → recordatorio único → escalamiento al organismo → reenvío del usuario → quejas.
+// La base real (RPC y CHECK) se prueba aparte en supabase/tests/reclamos.
+import { describe, expect, it } from "vitest";
+import { signSvix } from "../../supabase/functions/_shared/ai-reservations/signature";
+import { handleInbound as reservasInbound, type ServiceDeps } from "../../supabase/functions/_shared/ai-reservations/service";
+import {
+  confirmarEnvio, escalarReclamo, estadoReclamos, handleInbound, marcarEnviadoPorUsuario, prepararReclamoServicio, prepararReclamoVuelo,
+  type ReclamosDeps, registrarQueja, runSeguimiento,
+} from "../../supabase/functions/_shared/derechos/servicio";
+import type { NucleoIncidentes } from "../../supabase/functions/_shared/derechos/nucleo";
+import { RESPUESTA_TOOL_NAME } from "../../supabase/functions/_shared/derechos/respuesta";
+
+const USER = "0c000000-0000-0000-0000-00000000000a";
+const SECRET = "whsec_" + btoa("secreto-de-prueba-reclamos-1234567890");
+const NOW = new Date("2026-10-29T18:00:00Z");
+
+type Row = Record<string, any>;
+const TRANS: Record<string, string[]> = {
+  esperando_ok: ["enviando", "enviado", "cancelado"], enviando: ["enviado", "fallido", "esperando_ok"], fallido: ["esperando_ok", "enviando", "cancelado"],
+  enviado: ["recordado", "respondido", "necesita_usuario", "escalable", "resuelto", "cerrado", "cancelado"],
+  recordado: ["respondido", "necesita_usuario", "escalable", "resuelto", "cerrado", "cancelado"],
+  respondido: ["necesita_usuario", "escalable", "resuelto", "cerrado", "enviado"],
+  necesita_usuario: ["enviado", "respondido", "escalable", "resuelto", "cerrado", "cancelado"],
+  escalable: ["escalado", "resuelto", "cerrado", "necesita_usuario"], escalado: ["resuelto", "cerrado"],
+};
+
+/** Doble en memoria de las RPC de 20261029090000_reclamos.sql (misma forma de respuesta). */
+function fakeDb(state: { flag: boolean; now: () => Date }) {
+  const claims = new Map<string, Row>();
+  const inbound = new Map<string, Row>();
+  const events: Row[] = [];
+  const forward: Row[] = [];
+  const tokens = new Map<string, string>();
+  let seq = 0;
+  const pub = (c: Row) => { const { reply_token: _t, send_lock_at: _l, ...r } = c; return { ...r }; };
+  const move = (c: Row, to: string, actor: string, note = "") => {
+    if (c.status === to) return true;
+    if (!TRANS[c.status]?.includes(to)) return false;
+    events.push({ claim_id: c.id, from: c.status, to, actor, note });
+    c.status = to;
+    return true;
+  };
+  const days = (n: number) => new Date(state.now().getTime() + n * 86_400_000).toISOString();
+  const rpc = async (fn: string, a: Row = {}): Promise<{ data: any; error: null | { message: string } }> => {
+    switch (fn) {
+      case "claim_create": {
+        const p = a._p;
+        if (p.recipient_email && !p.recipient_source?.kind) return { data: { ok: false, code: "INVALID" }, error: null };
+        if (p.channel === "correo" && !p.recipient_email) return { data: { ok: false, code: "INVALID" }, error: null };
+        const id = `00000000-0000-0000-0000-${String(++seq).padStart(12, "0")}`;
+        const c: Row = { id, user_id: a._user_id, status: "esperando_ok", ref_code: `C-TEST${String(seq).padStart(2, "0")}`, reply_token: String(seq).padStart(24, "a"),
+          reminders_sent: 0, sent_at: null, reply: null, incident_id: null, created_at: state.now().toISOString(), ...p };
+        claims.set(id, c);
+        events.push({ claim_id: id, to: "esperando_ok" });
+        return { data: { ok: true, claim: pub(c) }, error: null };
+      }
+      case "claim_set_text": {
+        const c = claims.get(a._id);
+        if (!c || c.user_id !== a._user_id || c.status !== "esperando_ok") return { data: { ok: false, code: "ALREADY_SENT" }, error: null };
+        Object.assign(c, { subject: a._subject, body_text: a._body_text, body_html: a._body_html });
+        return { data: { ok: true, claim: pub(c) }, error: null };
+      }
+      case "claim_set_incident": { const c = claims.get(a._id); if (c && !c.incident_id) c.incident_id = a._incident_id; return { data: null, error: null }; }
+      case "claim_claim_send": {
+        if (!state.flag) return { data: { ok: false, code: "FEATURE_DISABLED" }, error: null };
+        if (a._consent?.confirmed !== true) return { data: { ok: false, code: "CONSENT_REQUIRED" }, error: null };
+        const c = claims.get(a._id);
+        if (!c || c.user_id !== a._user_id) return { data: { ok: false, code: "NOT_FOUND" }, error: null };
+        if (c.channel !== "correo") return { data: { ok: false, code: "NO_EMAIL" }, error: null };
+        if (!["esperando_ok", "fallido"].includes(c.status)) return { data: { ok: false, code: "ALREADY_SENT" }, error: null };
+        move(c, "enviando", "usuario");
+        c.consent = { ...a._consent, via: "iatos", at: state.now().toISOString() };
+        return { data: { ok: true, claim: pub(c), reply_token: c.reply_token }, error: null };
+      }
+      case "claim_mark_sent": {
+        const c = claims.get(a._id)!;
+        if (a._kind === "envio") {
+          if (a._ok) { move(c, "enviado", "sistema"); c.sent_at = state.now().toISOString(); c.followup_at = days(c.response_days + 2); c.escalate_after = days(c.escalate_days); }
+          else move(c, "fallido", "sistema");
+        } else events.push({ claim_id: c.id, kind: a._kind, ok: a._ok });
+        return { data: { ok: true, claim: pub(c) }, error: null };
+      }
+      case "claim_mark_user_sent": {
+        const c = claims.get(a._id);
+        if (!c || c.user_id !== a._user_id) return { data: { ok: false, code: "NOT_FOUND" }, error: null };
+        if (!move(c, "enviado", "usuario")) return { data: { ok: false, code: "ILLEGAL_TRANSITION" }, error: null };
+        c.sent_at = state.now().toISOString(); c.consent = { via: "usuario", case_number: a._case_number }; c.escalate_after = days(c.escalate_days);
+        return { data: { ok: true, claim: pub(c) }, error: null };
+      }
+      case "claim_transition": {
+        const c = claims.get(a._id);
+        if (!c || (a._user_id && c.user_id !== a._user_id)) return { data: { ok: false, code: "NOT_FOUND" }, error: null };
+        if (c.status === a._to) return { data: { ok: true, noop: true, claim: pub(c) }, error: null };
+        const prev = c.status;
+        if (!move(c, a._to, a._actor, a._note)) return { data: { ok: false, code: "ILLEGAL_TRANSITION" }, error: null };
+        return { data: { ok: true, prev_status: prev, claim: pub(c) }, error: null };
+      }
+      case "claim_list_for_user":
+        return { data: [...claims.values()].filter((c) => c.user_id === a._user_id && (!a._id || c.id === a._id)).map(pub), error: null };
+      case "claim_due": {
+        const now = state.now().toISOString();
+        return { data: [...claims.values()].filter((c) => ["enviado", "recordado"].includes(c.status) && ((c.channel === "correo" && c.reminders_sent === 0 && c.followup_at <= now) || c.escalate_after <= now))
+          .map((c) => ({ ...pub(c), reply_token: c.reply_token, due: c.escalate_after <= now ? "escalar" : "recordar" })), error: null };
+      }
+      case "claim_claim_reminder": {
+        const c = claims.get(a._id);
+        if (!state.flag || !c || c.status !== "enviado" || c.reminders_sent !== 0 || c.followup_at > state.now().toISOString()) return { data: null, error: null };
+        c.reminders_sent = 1; move(c, "recordado", "sistema");
+        return { data: { ...pub(c), reply_token: c.reply_token }, error: null };
+      }
+      case "claim_inbound_claim": {
+        const prev = inbound.get(a._event_id);
+        if (prev && prev.status !== "failed") return { data: { state: "duplicate" }, error: null };
+        let user: string | null = null; let c: Row | null = null;
+        if (a._kind === "reclamo") { c = [...claims.values()].find((x) => x.reply_token === a._token) ?? null; user = c?.user_id ?? null; }
+        else user = [...tokens.entries()].find(([, t]) => t === a._token)?.[0] ?? null;
+        if (!user) return { data: { state: "unmatched" }, error: null };
+        const id = `in-${inbound.size + 1}`;
+        inbound.set(a._event_id, { id, status: "processing", claim_id: c?.id ?? null });
+        return { data: { state: "new", inbound_id: id, user_id: user, claim: c ? { ...pub(c), recipient_email: c.recipient_email } : null }, error: null };
+      }
+      case "claim_inbound_attach": {
+        const mid = a._e?.message_id;
+        if (mid && [...inbound.values()].some((x) => x.message_id === mid && x.id !== a._inbound_id)) return { data: { ok: true, duplicate: true }, error: null };
+        const r = [...inbound.values()].find((x) => x.id === a._inbound_id)!; r.message_id = mid; r.evidence = a._e;
+        return { data: { ok: true }, error: null };
+      }
+      case "claim_inbound_finish": { const r = [...inbound.values()].find((x) => x.id === a._inbound_id); if (r) Object.assign(r, { status: a._status, outcome: a._outcome }); return { data: null, error: null }; }
+      case "claim_apply_reply": {
+        const c = claims.get(a._id)!;
+        const to = ["respondido", "necesita_usuario", "escalable"].includes(a._d.estado_sugerido) ? a._d.estado_sugerido : "necesita_usuario";
+        if (["enviado", "recordado", "respondido", "necesita_usuario"].includes(c.status)) move(c, to, "proveedor");
+        c.reply = a._d; c.last_reply_at = state.now().toISOString();
+        const r = [...inbound.values()].find((x) => x.id === a._inbound_id); if (r) r.status = "done";
+        return { data: { ok: true, claim: pub(c) }, error: null };
+      }
+      case "claim_forward_token": { if (!tokens.has(a._user_id)) tokens.set(a._user_id, "f".repeat(24)); return { data: tokens.get(a._user_id), error: null }; }
+      case "claim_store_forward": {
+        const ref = /C-[A-Z0-9]{6}/.exec(`${a._p.subject} ${a._p.text}`)?.[0];
+        const c = ref ? [...claims.values()].find((x) => x.ref_code === ref && x.user_id === a._user_id) : null;
+        forward.push({ user_id: a._user_id, claim_id: c?.id ?? null, ...a._p });
+        return { data: { ok: true, claim_id: c?.id ?? null, ref }, error: null };
+      }
+      default: throw new Error(`RPC sin doble: ${fn}`);
+    }
+  };
+  return { rpc, claims, inbound, events, forward, tokens };
+}
+
+type Sent = { to: string | string[]; subject: string; text: string; from?: string; replyTo?: string };
+
+function setup(opts: { flag?: boolean; modelo?: (payload: any) => any } = {}) {
+  const state = { flag: opts.flag ?? true, now: () => clock.now };
+  const clock = { now: NOW };
+  const db = fakeDb(state);
+  const sent: Sent[] = [];
+  const correos = new Map<string, any>();
+  const incidentes: Array<{ tipo: string; datos?: any }> = [];
+  const nucleo: NucleoIncidentes = {
+    crear: async (i) => { incidentes.push({ tipo: i.tipo, datos: i }); return { id: `inc-${incidentes.length}` }; },
+    evento: async (id, e) => { incidentes.push({ tipo: `evento:${id}:${e.tipo}` }); },
+    estado: async (id, s) => { incidentes.push({ tipo: `estado:${id}:${s}` }); },
+  };
+  const llamadasModelo: any[] = [];
+  const deps: ReclamosDeps = {
+    db: { rpc: db.rpc as never },
+    sendEmail: async (m) => { sent.push(m); return { ok: true, id: `re_${sent.length}` }; },
+    callModel: async (payload) => { llamadasModelo.push(payload); return { ok: true, status: 200, data: opts.modelo ? opts.modelo(payload) : null }; },
+    receivedEmail: async (id) => correos.get(id) ?? null,
+    profile: async () => ({ name: "Rodrigo del Castillo", email: "rodrigo@cliente.example" }),
+    nucleo,
+    config: { replyDomain: "reply.traveliatos.life", inboundSecret: SECRET, appUrl: "https://traveliatos.life/dashboard" },
+    now: () => clock.now,
+  };
+  return { deps, db, sent, correos, incidentes, clock, state, llamadasModelo };
+}
+
+async function webhook(deps: ReclamosDeps | ServiceDeps, eventId: string, data: Record<string, unknown>, secret = SECRET) {
+  const body = JSON.stringify({ type: "email.received", data });
+  const ts = Math.floor(NOW.getTime() / 1000);
+  const headers = new Headers({ "svix-id": eventId, "svix-timestamp": String(ts), "svix-signature": `v1,${await signSvix(secret, eventId, ts, body)}` });
+  return (handleInbound as any)(deps, headers, body);
+}
+
+const toolUse = (input: Record<string, unknown>) => ({ model: "claude-test", stop_reason: "tool_use", content: [{ type: "tool_use", name: RESPUESTA_TOOL_NAME, input }] });
+const CASO = { evento: "cancelacion" as const, origen: "MAD", destino: "MEX", aerolinea: "IB", vuelo: "IB6403", fecha: "2026-10-26", aviso_dias: 3, reubicacion: { ofrecida: false }, motivo: "razones operativas" };
+
+describe("reclamo por correo de punta a punta (con dobles)", () => {
+  it("preparar → sin consentimiento no sale nada → con bandera apagada tampoco → con ok se envía con Reply-To propio", async () => {
+    const t = setup({ flag: false });
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO, pasajero: { reserva: "ABC123" }, correo_proveedor: { email: "Customer.Relations@iberia.example", fuente: "usuario_confirmado", detalle: "Se lo dio la aerolínea por escrito" } });
+    expect(prep.status).toBe(200);
+    const claim = prep.body.claim as Row;
+    expect(claim.ref_code).toBe("C-TEST01");
+    expect(String(claim.subject)).toContain("Ref. C-TEST01"); // el folio real reemplazó al provisional
+    expect(String(claim.body_text)).not.toContain("C-PENDIENTE");
+    expect(prep.body.siguiente).toBe("confirmar_envio");
+    expect(String(prep.body.confirmacion)).toContain("customer.relations@iberia.example");
+    expect(claim.incident_id).toBe("inc-1"); // caso abierto en el núcleo
+    expect(t.incidentes[0].tipo).toBe("reclamo_vuelo");
+
+    expect((await confirmarEnvio(t.deps, USER, { id: claim.id })).body.code).toBe("CONSENT_REQUIRED");
+    expect((await confirmarEnvio(t.deps, USER, { id: claim.id, confirm: true })).body.code).toBe("FEATURE_DISABLED");
+    expect(t.sent).toHaveLength(0);
+
+    t.state.flag = true;
+    const env = await confirmarEnvio(t.deps, USER, { id: claim.id, confirm: true, cc_me: true });
+    expect(env.status).toBe(200);
+    expect(t.sent[0]).toMatchObject({ to: "customer.relations@iberia.example", replyTo: `reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`, from: "Rodrigo del Castillo vía IATOS <reclamos@traveliatos.life>" });
+    expect(t.sent[0].subject).toContain("Reclamación formal");
+    expect(t.sent[1]).toMatchObject({ to: "rodrigo@cliente.example" }); // copia al usuario
+    expect(t.db.claims.get(claim.id)!.status).toBe("enviado");
+    expect(t.incidentes.map((i) => i.tipo)).toContain("evento:inc-1:reclamo_enviado");
+    // Una segunda confirmación no vuelve a enviar.
+    expect((await confirmarEnvio(t.deps, USER, { id: claim.id, confirm: true })).body.code).toBe("ALREADY_SENT");
+    expect(t.sent).toHaveLength(2);
+  });
+
+  it("sin correo verificado: la carta se prepara para el formulario oficial y el usuario marca que lo envió", async () => {
+    const t = setup();
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO });
+    expect(prep.body.siguiente).toBe("enviar_tu_mismo");
+    expect((prep.body.carta as Row).url).toBe("https://www.iberia.com/us/claims-receipts/");
+    expect((prep.body.carta as Row).para).toBeNull();
+    const id = (prep.body.claim as Row).id;
+    expect((await confirmarEnvio(t.deps, USER, { id, confirm: true })).body.code).toBe("NO_EMAIL");
+    const yo = await marcarEnviadoPorUsuario(t.deps, USER, { id, numero_caso: "IB-99812" });
+    expect(yo.body.ok).toBe(true);
+    expect(t.db.claims.get(id)!.consent).toMatchObject({ via: "usuario", case_number: "IB-99812" });
+    expect(t.sent).toHaveLength(0);
+  });
+
+  it("respuesta firmada del proveedor que ofrece un vale → no se da por aceptado; se propone exigir dinero (art. 7(3))", async () => {
+    const t = setup({ modelo: () => toolUse({ resultado: "ofrece_vale", monto_ofrecido: null, moneda: null, vale: { valor: 600, moneda: "EUR", vigencia: "12 meses" }, datos_pedidos: null, motivo_rechazo: null, alega_circunstancias_extraordinarias: false, numero_caso_proveedor: "IB-5551", citas: ["we can offer you a travel voucher of 600 EUR"], idioma: "en", resumen_es: "Iberia ofrece un vale de 600 EUR." }) });
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO, correo_proveedor: { email: "customer.relations@iberia.example", fuente: "usuario_confirmado" } });
+    const id = (prep.body.claim as Row).id;
+    await confirmarEnvio(t.deps, USER, { id, confirm: true });
+    t.correos.set("em-1", { from: "Iberia Customer Relations <customer.relations@iberia.example>", subject: "RE: Reclamación formal · Ref. C-TEST01", text: "Dear customer, we can offer you a travel voucher of 600 EUR valid for 12 months.", created_at: NOW.toISOString(), message_id: "<m1@iberia.example>", authentication: { spf: "pass", dkim: "pass", dmarc: "pass" } });
+
+    // Sin firma válida no se lee nada.
+    const malo = await webhook(t.deps, "evt_1", { email_id: "em-1", from: "customer.relations@iberia.example", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] }, "whsec_" + btoa("otro-secreto-cualquiera-0000000000"));
+    expect(malo.status).toBe(401);
+    expect(t.llamadasModelo).toHaveLength(0);
+
+    const r = await webhook(t.deps, "evt_1", { email_id: "em-1", from: "customer.relations@iberia.example", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] });
+    expect(r.body).toMatchObject({ ok: true, resultado: "ofrece_vale", siguiente: "rechazar_vale", status: "necesita_usuario" });
+    const c = t.db.claims.get(id)!;
+    expect(c.reply.remitente_verificado).toBe(true);
+    expect(c.reply.siguiente.borrador).toContain("artículo 7(3) del Reglamento (CE) 261/2004");
+    // El usuario recibe la noticia por correo.
+    expect(t.sent.at(-1)).toMatchObject({ to: "rodrigo@cliente.example" });
+    expect(t.sent.at(-1)!.text).toContain("No estás obligado a aceptarlo");
+    // El mismo evento otra vez no se procesa dos veces.
+    expect((await webhook(t.deps, "evt_1", { email_id: "em-1", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] })).body.duplicate).toBe(true);
+    expect(t.llamadasModelo).toHaveLength(1);
+  });
+
+  it("un «aceptamos» con una cita que no está en el correo, o de un remitente no verificado, NO se da por aceptado", async () => {
+    const t = setup({ modelo: () => toolUse({ resultado: "acepto", monto_ofrecido: 600, moneda: "EUR", vale: null, datos_pedidos: null, motivo_rechazo: null, alega_circunstancias_extraordinarias: false, numero_caso_proveedor: null, citas: ["We will pay 600 EUR"], idioma: "en", resumen_es: "Aceptan pagar 600 EUR." }) });
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO, correo_proveedor: { email: "customer.relations@iberia.example", fuente: "usuario_confirmado" } });
+    const id = (prep.body.claim as Row).id;
+    await confirmarEnvio(t.deps, USER, { id, confirm: true });
+    t.correos.set("em-2", { from: "customer.relations@iberia.example", subject: "Re", text: "Thank you, your request is under review.", created_at: NOW.toISOString(), message_id: "<m2@x>", authentication: { spf: "pass", dkim: "pass", dmarc: "pass" } });
+    const r = await webhook(t.deps, "evt_2", { email_id: "em-2", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] });
+    expect(r.body.resultado).toBe("otro");
+    expect(t.db.claims.get(id)!.reply.por_que).toBe("sin_cita_verificable");
+    // Remitente falso (DMARC fail) con la cita correcta → tampoco.
+    t.correos.set("em-3", { from: "customer.relations@iberia.example", subject: "Re", text: "We will pay 600 EUR within 7 days.", created_at: NOW.toISOString(), message_id: "<m3@x>", authentication: { spf: "fail", dkim: "fail", dmarc: "fail" } });
+    const r2 = await webhook(t.deps, "evt_3", { email_id: "em-3", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] });
+    expect(r2.body.resultado).toBe("otro");
+    expect(t.db.claims.get(id)!.reply.por_que).toBe("remitente_no_verificado");
+  });
+
+  it("rechazo → listo para escalar, con la carta para la autoridad del país (AESA) que se crea solo si el usuario lo pide", async () => {
+    const t = setup({ modelo: () => toolUse({ resultado: "rechazo", monto_ofrecido: null, moneda: null, vale: null, datos_pedidos: null, motivo_rechazo: "Circunstancias extraordinarias", alega_circunstancias_extraordinarias: true, numero_caso_proveedor: null, citas: ["the cancellation was due to extraordinary circumstances"], idioma: "en", resumen_es: "Iberia rechaza por circunstancias extraordinarias." }) });
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO, correo_proveedor: { email: "customer.relations@iberia.example", fuente: "usuario_confirmado" } });
+    const id = (prep.body.claim as Row).id;
+    await confirmarEnvio(t.deps, USER, { id, confirm: true });
+    t.correos.set("em-4", { from: "customer.relations@iberia.example", subject: "Re", text: "We regret that the cancellation was due to extraordinary circumstances.", created_at: NOW.toISOString(), message_id: "<m4@x>", authentication: { dkim: "pass", dmarc: "pass" } });
+    const r = await webhook(t.deps, "evt_4", { email_id: "em-4", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] });
+    expect(r.body).toMatchObject({ resultado: "rechazo", siguiente: "escalar", status: "escalable" });
+    const esc = await escalarReclamo(t.deps, USER, { id });
+    expect(esc.status).toBe(200);
+    const hijo = esc.body.claim as Row;
+    expect(hijo).toMatchObject({ target: "organismo", provider_name: "Agencia Estatal de Seguridad Aérea (AESA) — División de Derechos de los Pasajeros", channel: "formulario", parent_id: id });
+    expect(String(hijo.body_text)).toContain("Iberia rechaza por circunstancias extraordinarias.");
+    expect(t.db.claims.get(id)!.status).toBe("escalado");
+    expect(esc.body.siguiente).toBe("enviar_tu_mismo");
+  });
+
+  it("seguimiento: UN recordatorio al vencer el plazo, en el mismo hilo; al vencer el de escalar pasa a escalable y avisa al usuario", async () => {
+    const t = setup();
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: { ...CASO, aerolinea: "KL", origen: "AMS" }, correo_proveedor: { email: "claims@klm.example", fuente: "usuario_confirmado" } });
+    const id = (prep.body.claim as Row).id;
+    await confirmarEnvio(t.deps, USER, { id, confirm: true });
+    expect(t.sent).toHaveLength(1);
+    t.clock.now = new Date(NOW.getTime() + 10 * 86_400_000);
+    expect((await runSeguimiento(t.deps)).body).toMatchObject({ recordados: 0 });
+    t.clock.now = new Date(NOW.getTime() + 17 * 86_400_000); // 14 + 2 días
+    expect((await runSeguimiento(t.deps)).body).toMatchObject({ recordados: 1, escalables: 0 });
+    expect(t.sent[1]).toMatchObject({ to: "claims@klm.example", replyTo: `reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life` });
+    expect(t.sent[1].subject).toMatch(/^Re: /);
+    expect(t.sent[1].text).toContain("17 days have passed without a reply"); // KLM → inglés
+    expect((await runSeguimiento(t.deps)).body).toMatchObject({ recordados: 0 }); // nunca dos
+    t.clock.now = new Date(NOW.getTime() + 61 * 86_400_000); // UE: 2 meses
+    expect((await runSeguimiento(t.deps)).body).toMatchObject({ escalables: 1 });
+    expect(t.db.claims.get(id)!.status).toBe("escalable");
+    expect(t.sent.at(-1)).toMatchObject({ to: "rodrigo@cliente.example" });
+    expect(t.sent.at(-1)!.text).toContain("solo se envía si tú lo autorizas");
+  });
+
+  it("con la bandera apagada el seguimiento no manda recordatorios", async () => {
+    const t = setup();
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO, correo_proveedor: { email: "x@iberia.example", fuente: "usuario_confirmado" } });
+    await confirmarEnvio(t.deps, USER, { id: (prep.body.claim as Row).id, confirm: true });
+    t.state.flag = false;
+    t.clock.now = new Date(NOW.getTime() + 20 * 86_400_000);
+    expect((await runSeguimiento(t.deps)).body).toMatchObject({ recordados: 0 });
+    expect(t.sent).toHaveLength(1);
+  });
+});
+
+describe("correos que reenvía el usuario (casos+<token>@)", () => {
+  it("de su propia cuenta y autenticado → se guarda y, con folio, se lee como respuesta (sin dar por verificado al proveedor)", async () => {
+    const t = setup({ modelo: () => toolUse({ resultado: "acepto", monto_ofrecido: 600, moneda: "EUR", vale: null, datos_pedidos: null, motivo_rechazo: null, alega_circunstancias_extraordinarias: false, numero_caso_proveedor: null, citas: ["We have approved your compensation of EUR 600"], idioma: "en", resumen_es: "La aerolínea aprobó 600 EUR." }) });
+    const prep = await prepararReclamoVuelo(t.deps, USER, { caso: CASO });
+    const id = (prep.body.claim as Row).id;
+    await marcarEnviadoPorUsuario(t.deps, USER, { id });
+    const st = await estadoReclamos(t.deps, USER);
+    expect(st.body.direccion_casos).toBe(`casos+${"f".repeat(24)}@reply.traveliatos.life`);
+    t.correos.set("fw-1", { from: "Rodrigo <rodrigo@cliente.example>", subject: "Fwd: Your claim C-TEST01", text: "---------- Forwarded message ----------\nWe have approved your compensation of EUR 600.", created_at: NOW.toISOString(), message_id: "<fw1@cliente>", authentication: { dkim: "pass", dmarc: "pass" } });
+    const r = await webhook(t.deps, "evt_f1", { email_id: "fw-1", to: [`casos+${"f".repeat(24)}@reply.traveliatos.life`] });
+    expect(t.db.forward).toHaveLength(1);
+    expect(t.db.forward[0]).toMatchObject({ claim_id: id, sender_verified: true });
+    // "Aceptó" no se da por hecho: el remitente original (la aerolínea) no se puede verificar en un reenvío.
+    expect(r.body.resultado).toBe("otro");
+  });
+  it("de otra dirección → se ignora sin guardar el contenido", async () => {
+    const t = setup();
+    await estadoReclamos(t.deps, USER);
+    t.correos.set("fw-2", { from: "alguien@otro.example", subject: "hola", text: "x", created_at: NOW.toISOString(), message_id: "<fw2@x>", authentication: { dkim: "pass", dmarc: "pass" } });
+    const r = await webhook(t.deps, "evt_f2", { email_id: "fw-2", to: [`casos+${"f".repeat(24)}@reply.traveliatos.life`] });
+    expect(r.body.ignored).toBe("remitente_no_verificado");
+    expect(t.db.forward).toHaveLength(0);
+  });
+  it("un correo a reservas+ no lo toca Reclamos, y Reservas IA no toca reclamos+/casos", async () => {
+    const t = setup();
+    const r = await webhook(t.deps, "evt_r", { email_id: "em-9", to: [`reservas+${"b".repeat(24)}@reply.traveliatos.life`] });
+    expect(r.body.ignored).toBe("reserva");
+    // Reservas IA (cambio mínimo en su service.ts): acusa recibo sin reclamar nada en su base.
+    const llamadas: string[] = [];
+    const resDeps = { db: { rpc: async (fn: string) => { llamadas.push(fn); return { data: true, error: null }; } }, config: { inboundSecret: SECRET, replyDomain: "reply.traveliatos.life" }, now: () => NOW } as unknown as ServiceDeps;
+    const body = JSON.stringify({ type: "email.received", data: { email_id: "em-10", to: ["casos+" + "f".repeat(24) + "@reply.traveliatos.life"] } });
+    const ts = Math.floor(NOW.getTime() / 1000);
+    const headers = new Headers({ "svix-id": "evt_x", "svix-timestamp": String(ts), "svix-signature": `v1,${await signSvix(SECRET, "evt_x", ts, body)}` });
+    const rr = await reservasInbound(resDeps, headers, body);
+    expect(rr.body).toMatchObject({ ok: true, ignored: "reclamos" });
+    expect(llamadas).toEqual([]);
+  });
+});
+
+describe("hotel / traslado / agencia y quejas", () => {
+  it("sobreventa de hotel: carta con fundamento LFPC, sin correo si no tiene fuente; caso abierto con gravedad alta", async () => {
+    const t = setup();
+    const r = await prepararReclamoServicio(t.deps, USER, { caso: { problema: "sobreventa_hotel", proveedor: { nombre: "Hotel Ejemplo Cancún", tipo: "hotel", pais: "MX" }, monto_pagado: 9000, moneda: "MXN", pagado_con: "tarjeta_credito" } });
+    expect(r.body.siguiente).toBe("enviar_tu_mismo");
+    expect(String((r.body.carta as Row).texto)).toContain("92 Bis y 92 Ter");
+    expect(t.incidentes[0].datos.gravedad).toBe("alta");
+  });
+  it("queja contra IATOS: clasificación, caso abierto y respuesta empática honesta", async () => {
+    const t = setup();
+    const r = await registrarQueja(t.deps, USER, { texto: "La app de IATOS me dijo que mi reserva estaba confirmada y en el hotel no la tenían, estoy en recepción ahorita. Quiero que me devuelvan mi dinero." });
+    const c = r.body.clasificacion as Row;
+    expect(c).toMatchObject({ contra: "iatos", categoria: "hotel", que_espera: "reembolso", gravedad: "alta" });
+    expect(t.incidentes[0].tipo).toBe("queja_iatos");
+    expect(String(r.body.respuesta)).toContain("Abrí tu caso");
+  });
+  it("queja crítica (robo): gravedad crítica, urgente y la respuesta prioriza la seguridad", async () => {
+    const t = setup();
+    const r = await registrarQueja(t.deps, USER, { texto: "Me robaron el pasaporte y la cartera en el metro de Madrid, ¿qué hago?" });
+    expect(r.body.clasificacion).toMatchObject({ gravedad: "critica", urgente: true, categoria: "seguridad" });
+    expect(String(r.body.respuesta)).toMatch(/112/);
+  });
+  it("si el núcleo no está conectado, la respuesta lo dice (no promete que el equipo ya lo tiene)", async () => {
+    const t = setup();
+    t.deps.nucleo = undefined;
+    const r = await registrarQueja(t.deps, USER, { texto: "El chofer no llegó al aeropuerto" });
+    expect(r.body.caso).toBeNull();
+    expect(String(r.body.respuesta)).toContain("No pude abrir el caso");
+  });
+});

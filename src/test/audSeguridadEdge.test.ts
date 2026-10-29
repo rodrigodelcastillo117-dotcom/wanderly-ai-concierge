@@ -25,6 +25,7 @@ const PUBLIC_GATES: Record<string, RegExp> = {
   "reservations-inbound": /handleInbound\([\s\S]*verifySvixSignature\(headers/, // firma Svix (Resend Receiving)
   "booking-go": /verifyRedirect\(/,                             // enlace firmado HMAC
   "ai-reservations": /getAuthUser[\s\S]*icsForLink|icsForLink[\s\S]*getAuthUser/, // JWT en POST, firma en el .ics
+  "reclamos-inbound": /handleInbound\([\s\S]*verifySvixSignature\(headers/, // firma Svix propia (RECLAMOS_INBOUND_SECRET)
 };
 // Consumen APIs de pago (IA, Google, SerpApi, Pexels, Travelpayouts, correo).
 const PAID_CALL = /connector-gateway\.lovable\.dev|aiFetch|ai\.gateway\.lovable|callClaude|serpapi|googleTransportFor|api\.pexels|travelpayouts|sendEmail\(/;
@@ -39,6 +40,7 @@ describe("funciones Edge: autenticación (config.toml vs código)", () => {
     const sinPuerta = functions.filter((f) => verifyJwt(f) === false).filter((f) => {
       const src = sourceOf(f) + (f === "reservations-inbound" || f === "ai-reservations"
         ? readFileSync(join(FN_DIR, "_shared/ai-reservations/service.ts"), "utf8") : "")
+        + (f === "reclamos-inbound" ? readFileSync(join(FN_DIR, "_shared/derechos/servicio.ts"), "utf8") : "")
         + (f === "booking-go" ? readdirSync(join(FN_DIR, "_shared/booking")).map((x) => readFileSync(join(FN_DIR, "_shared/booking", x), "utf8")).join("\n") : "");
       return PUBLIC_GATES[f] ? !PUBLIC_GATES[f].test(src) : !/isAuthorizedCron\(req\)/.test(src);
     });

@@ -125,7 +125,11 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- resolver exige nota (≥ 10) y pasa por admin_ops_act; my_incident_confirm / my_incident_message solo
   -- actúan sobre incidentes de auth.uid() (NOT_FOUND si no). Pruebas en supabase/tests/incidentes (M2–M10, S5–S11).
   ('admin_incident_take'),('admin_incident_escalate'),('admin_incident_resolve'),('admin_incident_next_step'),
-  ('admin_incident_log'),('my_incident_confirm'),('my_incident_message')),
+  ('admin_incident_log'),('my_incident_confirm'),('my_incident_message'),
+  -- Reclamos (20261029090000_reclamos): admin_claims_list / admin_claim_view exigen auth.uid() en public.admins
+  -- (_ops_require_admin, 42501 si no); solo leen (lista y detalle sin token de respuesta; reenvíos solo los
+  -- ligados a ese reclamo). Pruebas en supabase/tests/reclamos (O1–O2).
+  ('admin_claims_list'), ('admin_claim_view')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

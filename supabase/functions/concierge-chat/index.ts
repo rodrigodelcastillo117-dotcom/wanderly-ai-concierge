@@ -20,6 +20,8 @@ import { adminClient, commitQuota, quotaDeniedResponse, releaseQuota, reserveQuo
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { aiFetch } from "../_shared/ai.ts";
 import { runAdvisoryTool } from "../_shared/advisoryTool.ts";
+import { RECLAMOS_TOOL_NAMES, runReclamosTool } from "../_shared/derechos/herramientas.ts";
+import { buildReclamosDeps } from "../_shared/derechos/runtime.ts";
 import { accountBrake, dbCacheStore, liveSearchGateFor, logUsage } from "../_shared/serpRuntime.ts";
 import type { UsageEntry } from "../_shared/usage.ts";
 import { buildTripQuestion, mentionsUntrackedPlace, needsSpecificTrip } from "../_shared/activeTrip.ts";
@@ -105,6 +107,10 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   get_trip_expenses: 3000,
   // Abre el caso (una escritura) y avisa al equipo (hasta 3 s; si tarda, sigue en segundo plano).
   report_incident: 9000,
+  // Derechos y reclamaciones (_shared/derechos): evaluar es local; preparar/registrar escriben en la base;
+  // enviar y registrar_queja pueden llamar a Resend o a Claude.
+  revisar_derechos_vuelo: 1000, revisar_derechos_servicio: 1000, preparar_reclamo: 8000, enviar_reclamo: 15000,
+  seguimiento_reclamo: 8000, registrar_queja: 12000, ver_mi_viaje: 6000,
 };
 /** Frase de inicio (planner.leadSentence) si las herramientas previstas siguen corriendo a los 700 ms. */
 const LEAD_AFTER_MS = 700;
@@ -670,7 +676,7 @@ Deno.serve(async (req) => {
 
     // Eventos "aquí" (turnPlace): la ubicación física con permiso; si pidió otra ciudad, esa ciudad.
     const execTool = makeExecTool({ supabase, authHeader, userId, priveSession, todayISO, coords, nearCoords: turnPlace.scope === "here" ? coords : null, tz: today.tz ?? null,
-      incident: { ...incidentCtx, tripId: trip?.id ?? explicitId } });
+      incident: { ...incidentCtx, tripId: trip?.id ?? explicitId }, lastUserMsg });
 
     const runTurn = async () => {
       const { final, agent, prefetchMs, totalMs, lead, leadMs } = await runConciergeTurn({
@@ -828,13 +834,13 @@ function sseOnce(events: ConciergeStreamEvent[]): Response {
 
 // ═══ Herramientas reales ═══
 
-function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext }) {
+function makeExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext; lastUserMsg?: string }) {
   // Toda herramienta con hora de consulta la entrega también ya escrita en la zona del usuario (N2).
   const run = makeRawExecTool(c);
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => withLocalStamp(await run(name, rawArgs), c.tz);
 }
 
-function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext }) {
+function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string; priveSession: string | null; todayISO: string; coords: { lat: number; lng: number } | null; nearCoords?: { lat: number; lng: number } | null; tz?: string | null; incident?: IatoIncidentContext; lastUserMsg?: string }) {
   return async (name: string, rawArgs: Record<string, unknown>): Promise<unknown> => {
     const args = toolArgs(name, rawArgs ?? {}, { todayISO: c.todayISO, coords: c.coords });
     // Incidentes: abre (o recupera) el caso y avisa al equipo.
@@ -882,6 +888,12 @@ function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string;
         tripLabel = typeof t?.destino === "string" ? t.destino : null;
       }
       return summarizeExpenses(data ?? [], { tripLabel });
+    }
+    // Derechos y reclamaciones: lectura con la sesión del usuario (RLS); el envío exige el folio en SU último mensaje.
+    if (RECLAMOS_TOOL_NAMES.includes(name)) {
+      let deps = null;
+      try { deps = buildReclamosDeps(); } catch { deps = null; }
+      return runReclamosTool(name, rawArgs ?? {}, { userId: c.userId, lector: c.supabase, deps, ultimoMensajeUsuario: c.lastUserMsg ?? null, hoy: c.todayISO });
     }
     if (name === "get_travel_advisory") {
       return runAdvisoryTool(args, { fetchImpl: fetch, store: dbCacheStore(), timeoutMs: 5000 });
