@@ -1,9 +1,11 @@
 // Entradas discretas a "¿Algo no se entiende? Cuéntanos" (pedido del dueño: "no muy llamativo", sin botón
 // flotante): una opción en el menú y un enlace de texto pequeño y gris al pie de las pantallas. El diálogo
 // vive una sola vez (OpinionHost, en DashboardLayout) y su código se descarga solo al abrirlo.
+// Las pantallas que no usan el layout principal (Equipaje, Mapa, Viaje en vivo, Wrapped, preferencias)
+// ponen <StandaloneOpinion />: el mismo enlace con su propio anfitrión (ronda 3, P2-3).
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { onOpenOpinion, openOpinion } from "@/lib/opinion";
+import { onOpenOpinion, openOpinion } from "@/lib/opinionBus";
 
 const OpinionDialog = lazy(() => import("./OpinionDialog"));
 
@@ -31,5 +33,15 @@ export function OpinionFooterLink({ className = "" }: { className?: string }) {
         {OPINION_CTA}
       </button>
     </div>
+  );
+}
+
+/** Enlace al pie + anfitrión del diálogo, para las pantallas que no están dentro de DashboardLayout. */
+export function StandaloneOpinion({ className = "" }: { className?: string }) {
+  return (
+    <>
+      <OpinionFooterLink className={className} />
+      <OpinionHost />
+    </>
   );
 }

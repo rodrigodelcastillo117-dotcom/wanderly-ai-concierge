@@ -59,7 +59,7 @@ export function AvatarCircle({
           {url ? (
             <img
               src={url}
-              alt={name ? `Avatar de ${name}` : "Tu Travel Avatar"}
+              alt={name ? `Avatar de ${name}` : "Tu avatar de viaje"}
               className="w-full h-full object-cover"
               style={{ objectPosition: "50% 18%" }}
               loading="lazy"

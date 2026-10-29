@@ -51,7 +51,7 @@ export function sanitizeRoute(v: unknown): string | null {
 
 const DASHBOARD_SCREEN: Record<string, string> = {
   "": "Inicio", viajes: "Mis viajes", planear: "Planear viaje", concierge: "Concierge", perfil: "Mi perfil",
-  cercanos: "Cercanos", favoritos: "Favoritos", recuerdos: "Recuerdos", social: "Social", gastos: "Gastos",
+  cercanos: "Cerca de ti", favoritos: "Favoritos", recuerdos: "Recuerdos", social: "Social", gastos: "Gastos",
   reservas: "Mis reservas", beneficios: "Documentos y tarjetas", pro: "Plan IATOS PRO", vuelos: "Vuelos", hoteles: "Hoteles",
   restaurantes: "Restaurantes", actividades: "Actividades", autos: "Autos", trenes: "Trenes", ferries: "Ferris", cruceros: "Cruceros",
   seguros: "Seguros", esim: "eSIM", convertidor: "Convertidor de moneda", comparar: "Comparar", descubre: "Descubre", explorar: "Explorar",
@@ -77,7 +77,7 @@ export function screenName(route: string | null | undefined): string | null {
   if (seg[0] === "admin" && seg[1] === "operaciones") return "Mesa de operaciones";
   if (seg[0] === "wrapped") return "IATOS Wrapped";
   if (seg[0] === "ayuda" || seg[0] === "faq") return "Ayuda";
-  if (seg[0] === "onboarding") return "Primeros pasos";
+  if (seg[0] === "onboarding") return seg[1] === "deep" ? "Preferencias de viaje" : "Primeros pasos";
   return null;
 }
 

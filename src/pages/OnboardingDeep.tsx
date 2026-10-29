@@ -10,6 +10,7 @@ import { toast } from "sonner";
 // Logo a 320 px de ancho (se muestra a ~40 px de alto): 27 kB en vez de 191 kB.
 import iatosLogo from "@/assets/iatos-logo-320.png";
 import AvatarCreator from "@/components/AvatarCreator";
+import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
 
 
 type Answers = {
@@ -272,7 +273,7 @@ const OnboardingDeep = () => {
       ]} />,
     },
     {
-      title: "Por último, crea tu Travel Avatar",
+      title: "Por último, crea tu avatar de viaje",
       subtitle: "Tu identidad de viajero estilo Pixar. Aparecerá en tu perfil, en Social y en tus viajes.",
       canNext: () => true,
       render: () => (
@@ -371,6 +372,8 @@ const OnboardingDeep = () => {
 
         </div>
       </main>
+      {/* Buzón de opiniones: esta pantalla no usa el layout principal (ronda 3, P2-3). */}
+      <StandaloneOpinion className="pt-0 pb-6" />
     </div>
   );
 };

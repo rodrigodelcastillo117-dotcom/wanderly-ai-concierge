@@ -70,10 +70,15 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
 
       {/* Barra superior */}
       <div className="relative z-10 flex items-center justify-between gap-2 px-5 pt-5">
-        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: culture.palette.accent }} />
-          <span className="text-[10px] tracking-[0.14em] sm:tracking-[0.25em] uppercase whitespace-nowrap" style={{ color: culture.palette.accent }}>{culture.label}</span>
-        </div>
+        {/* Ambiente del último viaje ("Alma española"). Sin un destino reconocido no se muestra: antes salía
+            "Viajero global", que no le decía nada a nadie (ronda 3, P2-5). */}
+        {culture.key !== "default" ? (
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 min-w-0"
+            title="Ambiente de tu último viaje">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: culture.palette.accent }} />
+            <span className="text-[10px] tracking-[0.14em] sm:tracking-[0.25em] uppercase whitespace-nowrap" style={{ color: culture.palette.accent }}>{culture.label}</span>
+          </div>
+        ) : <span />}
         {version ? (
           <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 text-[10px] tracking-[0.2em] uppercase text-foreground/80 shrink-0">
             Evolución v{version}
@@ -114,8 +119,9 @@ export const TravelAvatarCinematic = ({ dna, onEditAvatar }: Props) => {
       <div className="relative z-10 px-5 pb-5 pt-3 bg-gradient-to-t from-black/85 via-black/50 to-transparent">
         <div className="flex items-end justify-between flex-wrap gap-3">
           <div className="min-w-0">
+            {/* Antes: el lema del arquetipo ("Mente refinada", "Identidad premium"), que confundía (ronda 3, P2-5). */}
             <p className="text-[10px] tracking-[0.3em] uppercase" style={{ color: culture.palette.accent }}>
-              {archetype ? archetype.tag : "Tu identidad de viaje"}
+              Tu perfil de viajero
             </p>
             <h3 className="font-display text-2xl md:text-3xl leading-tight">
               {archetype ? archetype.label : "Por descubrir"}

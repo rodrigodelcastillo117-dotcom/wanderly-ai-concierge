@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare } from "lucide-react";
+import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
@@ -17,7 +17,7 @@ import iatosLogo from "@/assets/iatos-logo-320.png";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 // Opiniones ("¿Algo no se entiende? Cuéntanos"): opción del menú + enlace gris al pie, sin botón flotante.
 import { OPINION_CTA, OpinionFooterLink, OpinionHost } from "@/components/opinion/OpinionEntry";
-import { openOpinion } from "@/lib/opinion";
+import { openOpinion } from "@/lib/opinionBus";
 
 // Ventana "Planear viaje" (la nueva puerta de entrada). Se carga solo al pulsar el botón: hasta
 // entonces no hay ni código ni llamadas de red. /dashboard/planear sigue siendo la ruta del enlace
@@ -51,7 +51,7 @@ export function shouldOpenPlanDialog(e: React.MouseEvent): boolean {
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/viajes", icon: Map, label: "Mis viajes" },
-  { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
+  { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca de ti" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   // Recuerdos: fotos y videos por fecha y viaje (de ahí saca las fotos IATOS Wrapped).
   { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
@@ -65,6 +65,8 @@ const links = [
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
 
+// Nombre de la sección "Cerca de ti" igual en Inicio, el menú y el título de la pestaña (ronda 3, P2-6).
+
 // Barra inferior móvil: máximo 5 elementos (antes eran 7 con etiquetas de 9px y un
 // botón (+) flotante que tapaba "Favoritos"). Lo demás vive en "Más", así que todos
 // los destinos anteriores siguen a un toque de distancia.
@@ -76,7 +78,7 @@ export const mobilePrimaryNav = [
 ];
 
 export const mobileMoreNav = [
-  { to: "/dashboard/cercanos", icon: MapPin, label: "Cercanos" },
+  { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca de ti" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
   { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
@@ -88,6 +90,8 @@ export const mobileMoreNav = [
   // progreso, invitación o candado), así que no se oculta a nadie.
   { to: "/prive", icon: Gem, label: "IATOS Privé" },
   { to: "/dashboard/perfil", icon: User, label: "Mi perfil" },
+  // Ayuda y preguntas frecuentes (ronda 3, P1-1): con la sesión iniciada no había ningún camino a /ayuda.
+  { to: "/ayuda", icon: HelpCircle, label: "Ayuda" },
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -255,13 +259,25 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           <MessageSquare className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           {OPINION_CTA}
         </button>
-        <button
-          onClick={async () => { await signOut(); navigate("/"); }}
-          className="flex items-center gap-2 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-t border-white/[0.04] transition-colors tracking-wide"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Cerrar sesión
-        </button>
+        {/* Ayuda y Cerrar sesión en una sola fila: el menú lateral no crece (en 900 px de alto ya no cabe más). */}
+        <div className="flex items-stretch border-t border-white/[0.04]">
+          <Link
+            to="/ayuda"
+            state={{ from: location.pathname + location.search }}
+            data-testid="sidebar-help"
+            className="flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors tracking-wide whitespace-nowrap"
+          >
+            <HelpCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            Ayuda
+          </Link>
+          <button
+            onClick={async () => { await signOut(); navigate("/"); }}
+            className="flex flex-1 min-w-0 items-center gap-1.5 px-3 py-2.5 text-[11px] text-muted-foreground hover:text-foreground border-l border-white/[0.04] transition-colors whitespace-nowrap"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
@@ -398,6 +414,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               <li key={n.to}>
                 <NavLink
                   to={n.to}
+                  // Ayuda vive fuera de la app: su botón «Volver a la app» regresa a esta pantalla.
+                  state={n.to === "/ayuda" ? { from: location.pathname + location.search } : undefined}
                   onClick={() => setMoreOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 min-h-[48px] px-3 rounded-xl border border-white/[0.06] text-sm ${

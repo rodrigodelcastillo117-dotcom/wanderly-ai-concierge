@@ -10,6 +10,8 @@ import { buildWrappedCards } from "@/lib/wrapped";
 import { loadWrapped, type WrappedClient, type WrappedLoad } from "@/lib/wrappedApi";
 import { defaultWrappedYear } from "@/lib/wrappedPromo";
 import { WrappedStories } from "@/components/wrapped/WrappedStories";
+import { OpinionHost, StandaloneOpinion } from "@/components/opinion/OpinionEntry";
+import { openOpinion } from "@/lib/opinionBus";
 
 const MIN_YEAR = 2000;
 
@@ -27,7 +29,11 @@ const Shell = ({ children, onClose }: { children: React.ReactNode; onClose: () =
       className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
       <X className="h-5 w-5" aria-hidden="true" />
     </button>
-    <div className="mx-auto flex min-h-full max-w-md flex-col justify-center px-6 py-16 text-center">{children}</div>
+    <div className="mx-auto flex min-h-full max-w-md flex-col justify-center px-6 py-16 text-center">
+      {children}
+      {/* Buzón de opiniones: Wrapped no usa el layout principal (ronda 3, P2-3). */}
+      <StandaloneOpinion className="pt-10" />
+    </div>
   </div>
 );
 
@@ -141,5 +147,11 @@ export default function Wrapped() {
     );
   }
 
-  return <WrappedStories key={year} stats={stats} cards={cards} onClose={close} otherYears={years.filter((y) => y !== year)} openVideo={wantsVideo} />;
+  return (
+    <>
+      <WrappedStories key={year} stats={stats} cards={cards} onClose={close} otherYears={years.filter((y) => y !== year)} openVideo={wantsVideo}
+        onOpinion={openOpinion} />
+      <OpinionHost />
+    </>
+  );
 }

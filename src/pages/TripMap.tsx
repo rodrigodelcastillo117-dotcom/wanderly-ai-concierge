@@ -6,6 +6,7 @@ import { BackButton } from "@/components/BackButton";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
+import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
 
@@ -578,6 +579,8 @@ const TripMap = () => {
           <PlaceList icon={Activity} label="Tours" items={trip.tours_json ?? []} destino={trip.destino} />
         </div>
       </div>
+      {/* Buzón de opiniones: esta pantalla no usa el layout principal (ronda 3, P2-3). */}
+      <StandaloneOpinion />
     </div>
   );
 };
