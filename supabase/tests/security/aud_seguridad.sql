@@ -129,7 +129,12 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- Reclamos (20261029090000_reclamos): admin_claims_list / admin_claim_view exigen auth.uid() en public.admins
   -- (_ops_require_admin, 42501 si no); solo leen (lista y detalle sin token de respuesta; reenvíos solo los
   -- ligados a ese reclamo). Pruebas en supabase/tests/reclamos (O1–O2).
-  ('admin_claims_list'), ('admin_claim_view')),
+  ('admin_claims_list'), ('admin_claim_view'),
+  -- Vigilancia proactiva (20261030010000_vigilancia): my_vigilancia_prefs / my_vigilancia_prefs_set solo leen y
+  -- cambian la preferencia de auth.uid() (42501 sin sesión; apagarla deja sin enviar lo programado);
+  -- admin_vigilancia_resumen exige auth.uid() en public.admins (_ops_require_admin) y solo lee. Pruebas en
+  -- supabase/tests/vigilancia (V21–V23, V27, V30–V32).
+  ('my_vigilancia_prefs'), ('my_vigilancia_prefs_set'), ('admin_vigilancia_resumen')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

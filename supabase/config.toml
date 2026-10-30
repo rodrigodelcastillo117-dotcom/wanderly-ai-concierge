@@ -78,6 +78,10 @@ verify_jwt = true
 [functions.flight-watch-cron]
 verify_jwt = false
 
+# cron: vigilancia proactiva (vuelos, confirmaciones previas, avisos de viaje); isAuthorizedCron dentro
+[functions.vigilancia-cron]
+verify_jwt = false
+
 # Tarea programada (x-cron-secret) y llamada con sesión; la función valida ambas.
 [functions.avatar-evolve]
 verify_jwt = false

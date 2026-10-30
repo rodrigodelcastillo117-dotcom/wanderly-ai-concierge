@@ -39,6 +39,8 @@ export type ReclamosDeps = {
   nucleo?: NucleoIncidentes;
   /** Respuesta de un proveedor al Operador IATOS (operador+<token>@): la atiende _shared/operador/entrante.ts. */
   operadorEntrante?: (x: { token: string; emailId: string; eventId: string }) => Promise<Resultado>;
+  /** Respuesta de un proveedor a la reconfirmación previa (confirma+<token>@): _shared/vigilancia/entrante.ts. */
+  confirmacionEntrante?: (x: { token: string; emailId: string; eventId: string }) => Promise<Resultado>;
   config: { replyDomain?: string; fromAddress?: string; inboundSecret?: string; appUrl: string };
   now?: () => Date;
   warn?: (...a: unknown[]) => void;
@@ -344,7 +346,10 @@ export async function handleInbound(d: ReclamosDeps, headers: Headers, raw: stri
   if (ruta.tipo === "operador" && ruta.token) {
     return d.operadorEntrante ? d.operadorEntrante({ token: ruta.token, emailId: String(ev.data.email_id), eventId: sig.id }) : ok({ ignored: "operador_no_conectado" });
   }
-  if (ruta.tipo === "reserva" || ruta.tipo === "ninguna" || !ruta.token) return ok({ ignored: ruta.tipo });
+  if (ruta.tipo === "confirmacion" && ruta.token) {
+    return d.confirmacionEntrante ? d.confirmacionEntrante({ token: ruta.token, emailId: String(ev.data.email_id), eventId: sig.id }) : ok({ ignored: "confirmacion_no_conectada" });
+  }
+  if (ruta.tipo === "reserva" || ruta.tipo === "confirmacion" || ruta.tipo === "ninguna" || !ruta.token) return ok({ ignored: ruta.tipo });
   const kind = ruta.tipo === "reclamo" ? "reclamo" : "caso";
   const claim = await d.db.rpc<Record<string, unknown>>("claim_inbound_claim", { _event_id: sig.id, _email_id: ev.data.email_id, _kind: kind, _token: ruta.token });
   if (claim.error || !claim.data) return { status: 500, body: { ok: false, code: "CLAIM_FAILED" } };

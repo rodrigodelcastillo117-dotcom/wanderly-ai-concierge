@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 // Incidentes: tarjeta propia (severidad, semáforo, tomar/responder/resolver con nota/escalar, bitácora).
 import { IncidentOpsCard } from "@/components/incident/IncidentOpsCard";
+// Vigilancia proactiva: sección mínima plegada (solo si la base responde).
+import { VigilanciaPanel } from "@/components/vigilancia/VigilanciaPanel";
 import { severityRank } from "../../supabase/functions/_shared/incident-labels.ts";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminDenied } from "@/components/AdminGate";
@@ -396,6 +398,7 @@ const AdminOperations = () => {
             ))}
           </div>
         )}
+        <VigilanciaPanel />
       </div>
     </DashboardLayout>
   );

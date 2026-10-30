@@ -1,4 +1,4 @@
-// reclamos-inbound — webhook de Resend Receiving (email.received) para reclamos+<token>@, casos+<token>@ y operador+<token>@
+// reclamos-inbound — webhook de Resend Receiving (email.received) para reclamos+<token>@, casos+<token>@, operador+<token>@ y confirma+<token>@
 // reply.traveliatos.life. Es un SEGUNDO webhook sobre el mismo dominio que Reservas IA, con su propio
 // secreto (RECLAMOS_INBOUND_SECRET): sin secreto → 503; sin firma o firma inválida → 401. Ignora los
 // correos de reservas+ (los procesa reservations-inbound). Idempotente por evento y por Message-ID.
@@ -8,6 +8,8 @@ import { buildReclamosDeps, receivedEmail } from "../_shared/derechos/runtime.ts
 import { respuestaProveedor } from "../_shared/operador/entrante.ts";
 import { adminClient, dbDe, despertarOperador } from "../_shared/operador/runtime.ts";
 import { handleInbound } from "../_shared/derechos/servicio.ts";
+import { respuestaConfirmacion } from "../_shared/vigilancia/entrante.ts";
+import { buildVigilanciaDeps } from "../_shared/vigilancia/runtime.ts";
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("method_not_allowed", { status: 405 });
@@ -17,6 +19,8 @@ Deno.serve(async (req) => {
     const deps = buildReclamosDeps();
     // Respuestas de proveedores al Operador IATOS (operador+<token>@): a la bitácora del caso y despiertan al operador.
     deps.operadorEntrante = (x) => respuestaProveedor({ db: dbDe(adminClient()), receivedEmail, despertar: (id) => despertarOperador(id, "mensaje") }, x);
+    // Respuestas a la reconfirmación previa de la vigilancia (confirma+<token>@): confirmada o incidente preventivo.
+    deps.confirmacionEntrante = (x) => respuestaConfirmacion({ ...buildVigilanciaDeps(), receivedEmail }, x);
     const r = await handleInbound(deps, req.headers, raw);
     console.log("reclamos-inbound:", r.status, JSON.stringify({ code: r.body.code ?? null, resultado: r.body.resultado ?? null, ignored: r.body.ignored ?? null }));
     return new Response(JSON.stringify(r.body), { status: r.status, headers: { "Content-Type": "application/json" } });
