@@ -48,11 +48,13 @@ Lo que **no** se hace por chat (y Iato lo dice): pagar, subir documentos a la b�
 
 - **Canal preferido:** notificaciones de la app, Telegram, WhatsApp (solo si está vinculado) o correo.
 - **No molestar** (por ejemplo 22:00 a 08:00, en su zona horaria).
-- Reglas (`_shared/channels/entrega.ts`), las respetan el **Operador** y la **vigilancia de vuelos**:
+- Reglas (`_shared/channels/entrega.ts`), las respetan el **Operador**, el **seguimiento de vuelos** (`flight-watch-cron`) y la **vigilancia proactiva** (`vigilancia-cron`: vuelos, check-in, documentos, clima, alertas oficiales y confirmaciones con proveedores). Los tres usan la misma entrega (`avisarUsuario`):
   - **Urgente** (el Operador lo marca urgente; vuelo cancelado o desviado; cualquier cambio de un vuelo de hoy o mañana): **por todos los canales disponibles, ya**, aunque sea de noche.
   - Normal en horario de no molestar: no suena nada; queda en la app y se entrega al terminar el horario (cola `channel_deferred`, la reparte el vigilante cada 2 min).
   - Normal: el canal preferido; si falla, el siguiente (push → Telegram → WhatsApp → correo). Si nada sale, correo de respaldo.
   - Si desvincula su canal preferido, vuelve a "app" (nunca se queda sin avisos).
+  - Vigilancia proactiva, además: cada aviso sale **una sola vez** (clave única en `vigilancia_avisos` y en `channel_deferred`) y con **tope diario** de avisos no urgentes por viajero (`vigilancia_config.avisos_tope_diario`, 3). Si el viajero **nunca guardó** sus preferencias, se usa un no molestar por omisión de 21:00 a 08:00 (`hora_hasta`/`hora_desde`) en la zona donde está (destino si ya viaja). Un aviso que caducaría antes de que termine el no molestar (p. ej. el check-in de un vuelo de madrugada) no se guarda ni sale tarde.
+  - Plantillas de WhatsApp fuera de la ventana de 24 h: `iatos_aviso_caso` si el aviso es de un caso abierto; `iatos_aviso_vuelo` para avisos de un vuelo (cambio, fuente no concluyente, check-in). Los demás (documentos, clima, seguridad) solo salen por WhatsApp con la ventana abierta; si no, por el siguiente canal.
 
 ---
 

@@ -8,7 +8,10 @@
 //                   evalúa derechos, encola el aviso urgente y despierta al Operador IA.
 //   confirmaciones  reconfirmación previa con el proveedor (con consentimiento) y el incidente preventivo.
 //   avisos_viaje    check-in, documentos, clima extremo y alertas oficiales nuevas (encolados una sola vez).
-//   entregar        manda lo encolado: urgente ya; lo demás a buena hora local y con tope diario por viajero.
+//   entregar        manda lo encolado, una sola vez y con tope diario de avisos no urgentes por viajero, por la MISMA
+//                   entrega de canales que el Operador (_shared/channels/entrega.ts: push, Telegram, WhatsApp con su
+//                   ventana de 24 h y plantillas, correo; canal preferido y no molestar de channel_prefs; urgente → ya
+//                   por todos los canales).
 import {
   addIncidentEvent, createIncident, type IncidentCategory, type IncidentDb, type IncidentEventInput,
 } from "../incidents.ts";
@@ -22,9 +25,10 @@ import {
   evaluarDerechos, type EventoVuelo, proximaRevision, textoEvento, textoNoConcluyente, vueloDeCandidato,
 } from "./vuelos.ts";
 import {
-  avisoCheckin, avisoClima, avisosDocumentos, type AvisoNuevo, climaPorRevisar, decidirEnvio, decidirSeguridad, type ViajeVentana,
-  zonaViajero,
+  avisoCheckin, avisoClima, avisosDocumentos, type AvisoNuevo, climaPorRevisar, decidirEnvio, decidirSeguridad, noMolestarPorOmision,
+  plantillaVuelo, type ViajeVentana, zonaViajero,
 } from "./avisos.ts";
+import { type Aviso, avisarUsuario, type EntregaDeps, folioCorto, NOMBRE_VIAJERO } from "../channels/entrega.ts";
 import {
   type Confirmacion, correoConfirmacion, direccionConfirmacion, planEnvio, textoPreventivo, venceSinRespuesta,
 } from "./confirmaciones.ts";
@@ -46,8 +50,11 @@ export type VigilanciaDeps = {
   frenoSerp?: () => Promise<"budget" | "quota" | null>;
   /** Aviso dentro de la app (notify_once). true si se insertó. */
   notificarApp: (n: { user_id: string; title: string; body: string; related_id: string | null; dedup_key: string }) => Promise<boolean>;
-  /** Push + su canal vinculado (Telegram) + correo (si urgente o si nada más llegó). */
-  avisarViajero: (userId: string, m: { titulo: string; texto: string; url: string; urgente: boolean; correo: "siempre" | "si_nada" }) => Promise<CanalResultado[]>;
+  /**
+   * Entrega al viajero por sus canales: la MISMA del Operador (channels/entrega.ts → avisarUsuario). En producción,
+   * entregaDeps(admin) de channels/entregaRuntime.ts.
+   */
+  entrega: EntregaDeps;
   /** Reparte los avisos al equipo humano de un incidente nuevo (deliverIncidentAlerts). */
   alertarEquipo: (incidentId: string) => Promise<void>;
   despertarOperador: (incidentId: string) => Promise<void>;
@@ -208,7 +215,7 @@ async function revisarVuelo(d: VigilanciaDeps, cfg: ConfigVigilancia, f: FilaVig
         const t = textoNoConcluyente({ vuelo: f.vuelo, fecha: f.fecha });
         await encolar(d, { user_id: f.user_id, trip_id: f.trip_id, clave: `aviso:fuente:${f.id}`, tipo: "fuente", titulo: t.titulo, cuerpo: t.cuerpo,
           url: f.trip_id ? `/dashboard/viajes/${f.trip_id}` : "/dashboard/concierge", urgente: true, zona_horaria: f.zona_origen,
-          expira_at: Number.isFinite(salida) ? new Date(salida).toISOString() : null }, s);
+          expira_at: Number.isFinite(salida) ? new Date(salida).toISOString() : null, plantilla: plantillaVuelo(f.vuelo, f.fecha, t.titulo) }, s);
       }
     }
     return;
@@ -316,7 +323,7 @@ async function procesarEvento(d: VigilanciaDeps, f: FilaVigilada, ev: EventoVuel
   await encolar(d, {
     user_id: f.user_id, trip_id: f.trip_id, clave: `aviso:${clave}`, tipo: "vuelo", titulo: t.titulo, cuerpo: t.cuerpo,
     url: incidente ? `/dashboard/concierge?tab=solicitudes&id=${incidente.id}` : f.trip_id ? `/dashboard/viajes/${f.trip_id}` : "/dashboard/concierge",
-    urgente: true, zona_horaria: f.zona_origen, incidente_id: incidente?.id ?? null,
+    urgente: true, zona_horaria: f.zona_origen, incidente_id: incidente?.id ?? null, plantilla: plantillaVuelo(f.vuelo, f.fecha, t.titulo),
   }, s);
   return incidente?.id ?? null;
 }
@@ -471,10 +478,27 @@ async function revisarSeguridad(d: VigilanciaDeps, t: ViajeVentana, fuentes: Avi
 
 type AvisoReclamado = AvisoNuevo & { id: string; enviados_24h: number; expira_at: string | null; zona_horaria: string | null };
 
+/**
+ * El aviso de la cola de la vigilancia en el formato de la entrega de canales. Plantilla de WhatsApp para fuera de la
+ * ventana de 24 h: la del caso si hay incidente (iatos_aviso_caso), si no la del vuelo si el aviso la trae.
+ */
+export function avisoDeCanales(a: AvisoReclamado): Aviso {
+  const resumen = a.titulo.replace(/\s+/g, " ").trim().slice(0, 250);
+  const plantilla = a.incidente_id
+    ? { nombre: "iatos_aviso_caso", params: [NOMBRE_VIAJERO, folioCorto(a.incidente_id), resumen] }
+    : a.plantilla ?? null;
+  return {
+    titulo: a.titulo, texto: a.cuerpo, url: a.url, urgente: a.urgente,
+    tipo: a.incidente_id ? "caso" : ["vuelo", "fuente", "checkin"].includes(a.tipo) ? "vuelo" : "general",
+    plantilla, dedupe: `vig:${a.clave}`.slice(0, 200), incidentId: a.incidente_id ?? null, expiraAt: a.expira_at ?? null,
+  };
+}
+
 async function faseEntregar(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen) {
   const ahora = d.ahora();
   const lista = await rpc<AvisoReclamado[]>(d, "vigilancia_avisos_reclamar", { _limit: 50, _now: ahora.toISOString() }) ?? [];
   const enviadosPorUsuario = new Map<string, number>();
+  const porOmision = noMolestarPorOmision(cfg);
   for (const a of lista) {
     try {
       const ya = enviadosPorUsuario.get(a.user_id) ?? 0;
@@ -489,10 +513,21 @@ async function faseEntregar(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen
         s.avisos.esperando++;
         continue;
       }
+      // Canal preferido, no molestar (si cae en su horario, la entrega de canales lo guarda en channel_deferred y el
+      // vigilante lo manda al terminar), WhatsApp con ventana/plantilla y urgente → todos: lo decide channels/entrega.ts.
+      const r = await avisarUsuario(d.entrega, a.user_id, avisoDeCanales(a), { tzPorOmision: a.zona_horaria, noMolestarPorOmision: porOmision })
+        .catch((e) => ({ modo: "ya" as const, entregados: 0, resultados: [{ ok: false, channel: "email" as const, to: "error", code: "SEND_FAILED" as const, error: safeErrorMessage(e) }] }));
+      if (r.modo === "vencido") {
+        // Caería en su horario de no molestar y para cuando termine ya no sirve: no se manda (ni a la app).
+        await rpc(d, "vigilancia_aviso_cerrar", { _id: a.id, _estado: "vencido", _canales: [{ canal: "no_molestar", ok: false, detalle: "venció antes de que terminara" }] });
+        s.avisos.vencidos++;
+        continue;
+      }
       const app = await d.notificarApp({ user_id: a.user_id, title: a.titulo, body: a.cuerpo.slice(0, 900), related_id: a.trip_id ?? null, dedup_key: a.clave })
         .catch(() => false);
-      const canales = await d.avisarViajero(a.user_id, { titulo: a.titulo, texto: a.cuerpo, url: a.url, urgente: a.urgente,
-        correo: a.tipo === "vuelo" && a.incidente_id ? "siempre" : "si_nada" }).catch((e) => [{ canal: "error", ok: false, detalle: safeErrorMessage(e) }]);
+      const canales: CanalResultado[] = r.modo === "diferido"
+        ? [{ canal: "diferido", ok: true, detalle: `horario de no molestar: sale ${r.hasta}` }]
+        : r.resultados.map((x) => ({ canal: x.to === "push" ? "push" : x.channel === "email" ? "correo" : x.channel, ok: x.ok, detalle: x.ok ? null : x.code ?? x.error ?? null }));
       const todos = [{ canal: "app", ok: app }, ...canales];
       const llego = todos.some((c) => c.ok);
       await rpc(d, "vigilancia_aviso_cerrar", { _id: a.id, _estado: llego ? "enviado" : "sin_canal", _canales: todos });
@@ -500,9 +535,10 @@ async function faseEntregar(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen
         s.avisos.enviados++;
         if (!a.urgente) enviadosPorUsuario.set(a.user_id, ya + 1);
       }
+      const resumen = r.modo === "diferido" ? `en la app; por sus canales al terminar su horario de no molestar (${r.hasta})`
+        : llego ? `enviado por ${todos.filter((c) => c.ok).map((c) => c.canal).join(", ")}` : "no llegó por ningún canal";
       await evento(d, { user_id: a.user_id, trip_id: a.trip_id, ambito: "aviso", tipo: `aviso_${a.tipo}`, clave: `entregado:${a.id}`,
-        resumen: `${a.titulo} · ${llego ? `enviado por ${todos.filter((c) => c.ok).map((c) => c.canal).join(", ")}` : "no llegó por ningún canal"}`,
-        datos: { canales: todos }, incidente_id: a.incidente_id ?? null, visible_viajero: llego });
+        resumen: `${a.titulo} · ${resumen}`, datos: { canales: todos }, incidente_id: a.incidente_id ?? null, visible_viajero: llego });
       if (a.incidente_id) {
         await addIncidentEvent(d.db, a.incidente_id, { kind: "alerta", actor: "monitor", direction: "saliente", channel: "push",
           counterpart: "viajero", body: `Aviso al viajero: ${a.titulo}`, delivery: llego ? "enviado" : "fallido", dedupeKey: `vig:entrega:${a.id}`,

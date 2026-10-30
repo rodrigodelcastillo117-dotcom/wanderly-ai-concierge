@@ -12,7 +12,7 @@ DIR=$(cd "$(dirname "$0")" && pwd); DB=${1:-iatos_vigilancia_test}
 PSQL="psql -U ${PGUSER:-postgres} -q -X"
 MIG="$T_MIG/20261030010000_vigilancia.sql"
 # 1 de idempotencia + los casos de vigilancia.sql
-ESPERADOS=35
+ESPERADOS=36
 
 main() {
   t_build_db "$DB"

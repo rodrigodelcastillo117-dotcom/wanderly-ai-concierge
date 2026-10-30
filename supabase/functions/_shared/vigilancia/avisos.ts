@@ -22,6 +22,8 @@ export type TipoAviso = "vuelo" | "fuente" | "checkin" | "documentos" | "clima" 
 export type AvisoNuevo = {
   user_id: string; trip_id: string | null; clave: string; tipo: TipoAviso; titulo: string; cuerpo: string; url: string;
   urgente: boolean; zona_horaria: string | null; programado_para?: string; expira_at?: string | null; incidente_id?: string | null;
+  /** Plantilla aprobada de WhatsApp para fuera de la ventana de 24 h (iatos_aviso_vuelo). Sin ella, WhatsApp solo con ventana abierta. */
+  plantilla?: { nombre: string; params: string[] } | null;
 };
 
 export type ViajeVentana = {
@@ -68,28 +70,32 @@ export function siguienteHoraDecente(ahora: Date, tz: string | null | undefined,
   return new Date(ahora.getTime() + espera * MIN);
 }
 
-export type Decision = { accion: "enviar" } | { accion: "esperar"; hasta: Date; motivo: "hora" | "tope" } | { accion: "vencer" };
+export type Decision = { accion: "enviar" } | { accion: "esperar"; hasta: Date; motivo: "tope" } | { accion: "vencer" };
 
 /**
- * Entrega de un aviso: lo urgente del vuelo sale ya (a cualquier hora, sin contar para el tope). Lo demás, solo a
- * buena hora local y sin pasar el tope diario por viajero (si se pasa, se recorre; si ya no sirve, se vence).
+ * Entrega de un aviso desde la cola de la vigilancia: lo urgente sale ya (sin contar para el tope). Lo demás, sin pasar
+ * el tope diario por viajero (si se pasa, se recorre 3 h; si ya no sirve, se vence). La HORA ya no la decide la
+ * vigilancia: el aviso va a la entrega de canales (_shared/channels/entrega.ts), la misma del Operador, que respeta el
+ * canal preferido y el horario de no molestar del viajero (channel_prefs; si nunca lo guardó, el de la vigilancia).
  */
-export function decidirEnvio(a: { urgente: boolean; zona_horaria: string | null; expira_at: string | null }, enviados24h: number,
-  cfg: Pick<ConfigVigilancia, "avisos_tope_diario" | "hora_desde" | "hora_hasta">, ahora: Date): Decision {
+export function decidirEnvio(a: { urgente: boolean; expira_at: string | null }, enviados24h: number,
+  cfg: Pick<ConfigVigilancia, "avisos_tope_diario">, ahora: Date): Decision {
   const expira = a.expira_at ? Date.parse(a.expira_at) : NaN;
   if (Number.isFinite(expira) && ahora.getTime() >= expira) return { accion: "vencer" };
-  if (a.urgente) return { accion: "enviar" };
-  const decente = siguienteHoraDecente(ahora, a.zona_horaria, cfg.hora_desde, cfg.hora_hasta);
-  let hasta: Date | null = null;
-  let motivo: "hora" | "tope" = "hora";
-  if (decente.getTime() > ahora.getTime()) hasta = decente;
-  else if (enviados24h >= cfg.avisos_tope_diario) {
-    motivo = "tope";
-    hasta = siguienteHoraDecente(new Date(ahora.getTime() + 3 * H), a.zona_horaria, cfg.hora_desde, cfg.hora_hasta);
-  }
-  if (!hasta) return { accion: "enviar" };
+  if (a.urgente || enviados24h < cfg.avisos_tope_diario) return { accion: "enviar" };
+  const hasta = new Date(ahora.getTime() + 3 * H);
   if (Number.isFinite(expira) && hasta.getTime() >= expira) return { accion: "vencer" };
-  return { accion: "esperar", hasta, motivo };
+  return { accion: "esperar", hasta, motivo: "tope" };
+}
+
+/**
+ * Horario de no molestar por omisión para quien NUNCA guardó preferencias de avisos: de hora_hasta a hora_desde
+ * (21:00 → 08:00 con la configuración inicial). null si la configuración no deja horas fuera (0 a 24 h).
+ */
+export function noMolestarPorOmision(cfg: Pick<ConfigVigilancia, "hora_desde" | "hora_hasta">): { inicio: string; fin: string } | null {
+  const hh = (h: number) => `${String(((h % 24) + 24) % 24).padStart(2, "0")}:00`;
+  const inicio = hh(cfg.hora_hasta), fin = hh(cfg.hora_desde);
+  return inicio === fin ? null : { inicio, fin };
 }
 
 // ───────────────────────────── Check-in en línea ─────────────────────────────
@@ -122,8 +128,13 @@ export function avisoCheckin(t: Pick<ViajeVentana, "id" | "user_id">, v: NonNull
     user_id: t.user_id, trip_id: t.id, clave: `checkin:${v.id}`, tipo: "checkin", titulo: `Check-in en línea · ${v.vuelo}`,
     cuerpo, url: `/dashboard/viajes/${t.id}`, urgente: false, zona_horaria: tz,
     programado_para: new Date(Math.max(desde, ahora.getTime())).toISOString(), expira_at: new Date(expira).toISOString(),
+    plantilla: plantillaVuelo(v.vuelo, v.fecha, "revisa si ya abrió el check-in en línea en la app o sitio de tu aerolínea"),
   };
 }
+
+/** Plantilla aprobada iatos_aviso_vuelo («Aviso de tu vuelo {{1}} del {{2}}: {{3}}») para WhatsApp fuera de la ventana. */
+export const plantillaVuelo = (vuelo: string, fecha: string, resumen: string) =>
+  ({ nombre: "iatos_aviso_vuelo", params: [vuelo, fecha, resumen.replace(/\s+/g, " ").trim().slice(0, 250)] });
 
 // ───────────────────────────── Documentos ─────────────────────────────
 

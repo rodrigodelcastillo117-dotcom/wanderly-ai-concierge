@@ -12,6 +12,7 @@ import type { FlightData, FlightOutcome } from "../../supabase/functions/_shared
 import { esCorreoDeReclamos, rutaEntrante } from "../../supabase/functions/_shared/derechos/rutas";
 import { handleInbound, type ReclamosDeps } from "../../supabase/functions/_shared/derechos/servicio";
 import { signSvix } from "../../supabase/functions/_shared/ai-reservations/signature";
+import { entregarDiferidos, type EntregaDeps } from "../../supabase/functions/_shared/channels/entrega";
 
 type Row = Record<string, any>;
 const U = "11111111-1111-4111-8111-111111111111";
@@ -33,6 +34,7 @@ class FakeDb {
   incEventos: Row[] = [];
   usados = 0;
   operador = false;
+  diferidos: Row[] = [];
   constructor(public now: () => Date) {}
 
   async rpc(fn: string, a: Record<string, any>): Promise<{ data: any; error: null | { message: string } }> {
@@ -127,6 +129,24 @@ class FakeDb {
         this.incEventos.push({ id: a._id, ...a._ev });
         return ok({ ok: true, event_id: this.incEventos.length, duplicate: false });
       }
+      // Entrega de canales (la del Operador): el viajero de estas pruebas nunca guardó preferencias ni vinculó chats.
+      case "channel_targets":
+        return ok({ prefs: { preferido: "app", noMolestarInicio: null, noMolestarFin: null, tz: null }, links: [], email: "viajero@ejemplo.test", name: "Ana" });
+      case "channel_deferred_add": {
+        if (this.diferidos.some((x) => x.user_id === a._user && x.dedupe_key === a._dedupe)) return ok({ ok: true, id: null, duplicate: true });
+        this.diferidos.push({ id: this.diferidos.length + 1, user_id: a._user, payload: a._payload, send_after: a._send_after, dedupe_key: a._dedupe, status: "pendiente" });
+        return ok({ ok: true, id: this.diferidos.length, duplicate: false });
+      }
+      case "channel_deferred_due": {
+        const due = this.diferidos.filter((x) => x.status === "pendiente" && Date.parse(x.send_after) <= now.getTime());
+        due.forEach((x) => (x.status = "enviando"));
+        return ok(due.map((x) => ({ id: x.id, user_id: x.user_id, payload: x.payload })));
+      }
+      case "channel_deferred_finish": {
+        const x = this.diferidos.find((y) => y.id === a._id)!;
+        x.status = a._ok ? "enviado" : "pendiente";
+        return ok(true);
+      }
       default: throw new Error(`rpc no simulada: ${fn}`);
     }
   }
@@ -140,13 +160,20 @@ const widget = (p: Partial<FlightData> = {}): FlightOutcome => ({ kind: "ok", fe
 function montar(t0: string) {
   let now = new Date(t0);
   const db = new FakeDb(() => now);
-  const llamadas = { serp: 0, push: [] as Row[], app: [] as Row[], correos: [] as Row[], equipo: [] as string[], operador: [] as string[] };
+  // push: avisos por push al viajero; viajero: TODO lo que salió por sus canales (push, correo…), vía channels/entrega.ts.
+  const llamadas = { serp: 0, push: [] as Row[], viajero: [] as Row[], app: [] as Row[], correos: [] as Row[], equipo: [] as string[], operador: [] as string[] };
+  const entrega: EntregaDeps = {
+    db: db as never, siteUrl: "https://traveliatos.life", ahora: () => now,
+    push: async (userId, p, urgente) => { llamadas.push.push({ userId, titulo: p.title, body: p.body, url: p.url, urgente }); llamadas.viajero.push({ canal: "push", titulo: p.title }); return 1; },
+    telegram: null, whatsapp: null,
+    email: async (to, asunto, texto) => { llamadas.viajero.push({ canal: "email", to, titulo: asunto, texto }); return { ok: true, channel: "email", to, providerMessageId: "re_v" }; },
+  };
   let respuestas: FlightOutcome[] = [];
   const deps: VigilanciaDeps = {
     db: db as never,
     consultarVuelo: async () => { llamadas.serp++; db.usados++; return respuestas.shift() ?? { kind: "no_data" }; },
     notificarApp: async (n) => { llamadas.app.push(n); return true; },
-    avisarViajero: async (userId, m) => { llamadas.push.push({ userId, ...m }); return [{ canal: "push", ok: true }, ...(m.correo === "siempre" ? [{ canal: "correo", ok: true }] : [])]; },
+    entrega,
     alertarEquipo: async (id) => { llamadas.equipo.push(id); },
     despertarOperador: async (id) => { llamadas.operador.push(id); },
     operadorActivo: async () => db.operador,
@@ -155,7 +182,11 @@ function montar(t0: string) {
     config: { dominioRespuesta: "reply.traveliatos.life", remitente: "IATOS Concierge <concierge@traveliatos.life>" },
   };
   return {
-    db, deps, llamadas,
+    db, deps, llamadas, entrega,
+    /** Lo que hace el vigilante cada 2 min: entregar los avisos que esperaban el fin del no molestar. */
+    vigilante: () => entregarDiferidos(entrega),
+    /** Texto completo del aviso encolado con ese título. */
+    texto: (titulo: string) => String(db.avisos.find((a) => a.titulo.slice(0, 80) === titulo)?.cuerpo ?? ""),
     setNow: (iso: string) => { now = new Date(iso); },
     responder: (...o: FlightOutcome[]) => { respuestas = o; },
   };
@@ -166,7 +197,7 @@ const vueloDelViaje = { fuente: "viaje", user_id: U, trip_id: TRIP, vuelo: "IB64
 describe("vuelos de punta a punta", () => {
   beforeEach(() => { seq = 0; });
 
-  it("cancelación detectada → incidente (monitor_vuelos, clave idempotente) + derechos UE/MX + aviso urgente por push, app y correo + operador", async () => {
+  it("cancelación detectada → incidente (monitor_vuelos, clave idempotente) + derechos UE/MX + aviso urgente por TODOS los canales (push, correo) y app + operador", async () => {
     const m = montar("2026-11-01T09:00:00Z"); // 25 h antes
     m.db.operador = true;
     m.db.candidatos = [vueloDelViaje];
@@ -185,9 +216,10 @@ describe("vuelos de punta a punta", () => {
     expect(m.llamadas.equipo).toEqual([inc.id]);
     expect(m.llamadas.operador).toEqual([inc.id]);
     expect(m.llamadas.push).toHaveLength(1);
-    expect(m.llamadas.push[0]).toMatchObject({ urgente: true, correo: "siempre" });
-    expect(m.llamadas.push[0].texto).toMatch(/el operador de IATOS ya está buscando vuelos alternativos/);
-    expect(m.llamadas.push[0].texto).toMatch(/Tus derechos/);
+    expect(m.llamadas.push[0]).toMatchObject({ urgente: true });
+    expect(m.llamadas.viajero.map((c) => c.canal)).toEqual(["push", "email"]);
+    expect(m.llamadas.viajero[1].texto).toMatch(/el operador de IATOS ya está buscando vuelos alternativos/);
+    expect(m.llamadas.viajero[1].texto).toMatch(/Tus derechos/);
     expect(m.llamadas.app[0]).toMatchObject({ user_id: U, related_id: TRIP });
     expect(m.db.vuelos[0]).toMatchObject({ activo: false, incidente_id: inc.id });
     expect(m.db.eventos.some((e) => e.tipo === "vuelo_cancelado" && e.visible_viajero)).toBe(true);
@@ -212,15 +244,16 @@ describe("vuelos de punta a punta", () => {
     expect(m.llamadas.equipo).toHaveLength(1);
     const aviso = m.llamadas.push[0];
     expect(aviso.titulo).toBe("Tu vuelo IB6400 viene retrasado 4 h");
-    expect(aviso.texto).toMatch(/Nueva hora estimada de salida: 15:00/);
-    expect(aviso.texto).toMatch(/una persona del equipo IATOS/);
-    expect(aviso.texto).toMatch(/261\/2004/);
+    const texto = m.texto(aviso.titulo);
+    expect(texto).toMatch(/Nueva hora estimada de salida: 15:00/);
+    expect(texto).toMatch(/una persona del equipo IATOS/);
+    expect(texto).toMatch(/261\/2004/);
     // Sigue vigilado (no terminó) y la próxima revisión respeta la frecuencia.
     expect(m.db.vuelos[0].activo).toBe(true);
     expect(Date.parse(m.db.vuelos[0].proxima_revision_at)).toBe(Date.parse("2026-11-02T08:00:00Z"));
   });
 
-  it("cambio de puerta → aviso urgente y bitácora, sin incidente (por omisión) y sin correo", async () => {
+  it("cambio de puerta → aviso urgente (por todos los canales, como lo urgente del Operador) y bitácora, sin incidente (por omisión)", async () => {
     const m = montar("2026-11-02T08:00:00Z");
     m.db.candidatos = [vueloDelViaje];
     m.responder(widget({ gate: "J40", terminal: "4" }));
@@ -231,7 +264,8 @@ describe("vuelos de punta a punta", () => {
     await correrVigilancia(m.deps, ["vuelos", "entregar"]);
     expect(m.db.incidentes).toHaveLength(0);
     expect(m.llamadas.push).toHaveLength(1);
-    expect(m.llamadas.push[0]).toMatchObject({ titulo: "Cambio de puerta: IB6400 sale de la K12", urgente: true, correo: "si_nada" });
+    expect(m.llamadas.push[0]).toMatchObject({ titulo: "Cambio de puerta: IB6400 sale de la K12", urgente: true });
+    expect(m.llamadas.viajero.map((c) => c.canal)).toEqual(["push", "email"]);
     expect(m.db.eventos.some((e) => e.tipo === "cambio_puerta" && /J40 → K12/.test(e.resumen))).toBe(true);
   });
 
@@ -269,7 +303,7 @@ describe("vuelos de punta a punta", () => {
     expect(m.db.incidentes).toHaveLength(0);
     expect(m.llamadas.push).toHaveLength(1);
     expect(m.llamadas.push[0].titulo).toBe("No pudimos confirmar el estado de tu vuelo IB6400");
-    expect(m.llamadas.push[0].texto).toMatch(/NO significa que haya un problema/);
+    expect(m.texto(m.llamadas.push[0].titulo)).toMatch(/NO significa que haya un problema/);
     expect(m.db.vuelos[0].estado).toEqual({});
     expect(m.db.vuelos[0].fallas_seguidas).toBe(3);
   });
@@ -394,13 +428,18 @@ describe("confirmaciones previas de punta a punta", () => {
     expect(m.db.incidentes[0]).toMatchObject({ categoria: "reserva_problema", origen: "proveedor", idem_key: "confirmacion:c1", playbook: "confirmacion_previa_v1" });
     expect(m.db.confirmaciones[0].estado).toBe("sin_respuesta");
     expect(m.llamadas.equipo).toHaveLength(1);
-    // Faltan 14 h y en Cancún son las 00:30: el viajero lo sabe a las 8:00, no de madrugada.
+    // Faltan 14 h y en Cancún son las 00:30: el viajero (que nunca eligió horario) lo sabe a las 8:00, no de madrugada.
+    // Queda en la app ya y espera en la cola de canales (channel_deferred) hasta el fin del no molestar.
     expect(m.llamadas.push).toHaveLength(0);
+    expect(m.db.diferidos).toHaveLength(1);
+    expect(m.db.diferidos[0].send_after).toBe("2026-11-03T13:00:00.000Z"); // 08:00 en Cancún
     m.setNow("2026-11-03T13:30:00Z");
     await correrVigilancia(m.deps, ["entregar"]);
+    await m.vigilante();
     expect(m.llamadas.push[0].titulo).toBe("Estamos asegurando el traslado con Traslados Sol");
     // No se repite.
     await correrVigilancia(m.deps, ["confirmaciones", "entregar"]);
+    await m.vigilante();
     expect(m.db.incidentes).toHaveLength(1);
     expect(m.llamadas.push).toHaveLength(1);
   });
@@ -455,10 +494,13 @@ describe("avisos de viaje de punta a punta", () => {
     m.setNow("2026-11-01T16:00:00Z"); // 10:00 en CDMX
     await correrVigilancia(m.deps, ["avisos_viaje", "entregar"]);
     expect(m.llamadas.push.map((p) => p.titulo)).toEqual(expect.arrayContaining(["EUA pide visa con pasaporte mexicano · Nueva York"]));
-    m.setNow("2026-11-02T04:00:00Z"); // check-in: 24 h antes de las 21:40 (22:00 del 1 nov en CDMX)
+    m.setNow("2026-11-02T04:00:00Z"); // check-in: 24 h antes de las 21:40 (22:00 del 1 nov en CDMX: no molestar por omisión)
     await correrVigilancia(m.deps, ["avisos_viaje", "entregar"]);
+    await m.vigilante();
+    expect(m.llamadas.push.map((p) => p.titulo)).not.toContain("Check-in en línea · AM401");
     m.setNow("2026-11-02T15:00:00Z");
     await correrVigilancia(m.deps, ["avisos_viaje", "entregar"]);
+    await m.vigilante();
     const titulos = m.llamadas.push.map((p) => p.titulo);
     expect(titulos.filter((x) => x === "Check-in en línea · AM401")).toHaveLength(1);
     expect(new Set(titulos).size).toBe(titulos.length); // nada repetido

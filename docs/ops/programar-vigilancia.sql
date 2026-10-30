@@ -51,8 +51,11 @@ SELECT cron.schedule(
 );
 
 -- 3) (OPCIONAL) Ajustes. Valores iniciales: 4 búsquedas de SerpApi al día, 3 avisos no urgentes por viajero al día,
---    horario 8–21 h del viajero, aviso de retraso desde 60 min e incidente desde 120 min, sin incidente por cambio de
---    puerta (solo aviso al viajero).
+--    aviso de retraso desde 60 min e incidente desde 120 min, sin incidente por cambio de puerta (solo aviso al viajero).
+--    Los avisos salen por la entrega de canales del Operador (canal preferido, no molestar de Perfil › Ajustes › Avisos,
+--    WhatsApp con ventana/plantillas, urgente → todos). hora_desde/hora_hasta (8 y 21) solo son el no molestar por
+--    omisión (21:00–08:00) de quien nunca guardó sus preferencias. Los avisos que esperan el fin del no molestar los
+--    reparte incidentes-vigilante (docs/ops/programar-incidentes.sql), así que esa tarea debe estar programada.
 --
 --    Cupo de SerpApi de la vigilancia según el plan. Todas las funciones gastan de la misma bolsa; el freno global
 --    (_shared/serpBrake.ts) aparta el 20 % del tope del día (mínimo 2) para búsquedas de vuelos y para lo demás

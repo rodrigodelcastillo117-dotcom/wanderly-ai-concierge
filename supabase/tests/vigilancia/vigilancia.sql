@@ -122,7 +122,16 @@ SELECT vgx.ok('V13 aviso una sola vez por clave; URL solo interna',
   AND public.vigilancia_aviso_encolar(jsonb_build_object('user_id', '0f000000-0000-0000-0000-00000000000a', 'clave', 'aviso:malo:1', 'tipo', 'documentos',
      'titulo', 'x x x', 'cuerpo', 'y y y', 'url', 'https://phishing.example'))->>'code' = 'INVALID');
 SELECT public.vigilancia_aviso_encolar(jsonb_build_object('user_id', '0f000000-0000-0000-0000-00000000000a', 'clave', 'aviso:vuelo:urg', 'tipo', 'vuelo',
-  'titulo', 'Vuelo cancelado', 'cuerpo', 'Tu vuelo aparece cancelado', 'urgente', true));
+  'titulo', 'Vuelo cancelado', 'cuerpo', 'Tu vuelo aparece cancelado', 'urgente', true,
+  'plantilla', jsonb_build_object('nombre', 'iatos_aviso_vuelo', 'params', jsonb_build_array('IB6400', '2026-11-02', 'Vuelo cancelado'))));
+INSERT INTO vgx.r SELECT 'pl1', public.vigilancia_aviso_encolar(jsonb_build_object('user_id', '0f000000-0000-0000-0000-00000000000a',
+  'clave', 'aviso:plantilla:texto', 'tipo', 'clima', 'titulo', 'Lluvia fuerte', 'cuerpo', 'Mañana llueve', 'plantilla', 'iatos_aviso_vuelo'));
+SELECT vgx.ok('V13b la plantilla de WhatsApp del aviso se guarda (objeto); otra cosa se ignora',
+  (SELECT plantilla->>'nombre' = 'iatos_aviso_vuelo' AND plantilla->'params'->>0 = 'IB6400' FROM public.vigilancia_avisos WHERE clave = 'aviso:vuelo:urg')
+  AND (SELECT plantilla IS NULL FROM public.vigilancia_avisos WHERE clave = 'aviso:docs:1')
+  AND (vgx.v('pl1')->>'created')::boolean
+  AND (SELECT plantilla IS NULL FROM public.vigilancia_avisos WHERE clave = 'aviso:plantilla:texto'), vgx.v('pl1')::text);
+DELETE FROM public.vigilancia_avisos WHERE clave = 'aviso:plantilla:texto';
 INSERT INTO vgx.r SELECT 'av1', public.vigilancia_avisos_reclamar(10, now());
 SELECT vgx.ok('V14 reclamo de avisos: urgentes primero, con los no urgentes enviados en 24 h; no se toman dos veces',
   jsonb_array_length(vgx.v('av1')) = 2 AND vgx.v('av1')->0->>'clave' = 'aviso:vuelo:urg' AND (vgx.v('av1')->0->>'enviados_24h')::int = 0

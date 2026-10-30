@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   avisoCheckin, avisoClima, avisosDocumentos, CHECKIN_VERIFICADO, climaExtremo, climaPorRevisar, decidirEnvio, decidirSeguridad,
-  siguienteHoraDecente, zonaViajero, type ViajeVentana,
+  noMolestarPorOmision, siguienteHoraDecente, zonaViajero, type ViajeVentana,
 } from "../../supabase/functions/_shared/vigilancia/avisos";
 import {
   clasificarRespuesta, correoConfirmacion, direccionConfirmacion, planEnvio, textoPreventivo, venceSinRespuesta, type Confirmacion,
@@ -32,15 +32,22 @@ describe("hora local del viajero y entrega", () => {
   });
 
   it("lo urgente del vuelo sale a cualquier hora y sin contar el tope", () => {
-    expect(decidirEnvio({ urgente: true, zona_horaria: "America/Mexico_City", expira_at: null }, 99, cfg, new Date("2026-11-03T09:00:00Z"))).toEqual({ accion: "enviar" });
+    expect(decidirEnvio({ urgente: true, expira_at: null }, 99, cfg, new Date("2026-11-03T09:00:00Z"))).toEqual({ accion: "enviar" });
   });
-  it("lo no urgente: espera la buena hora, respeta el tope diario y se vence si ya no sirve", () => {
-    const noche = new Date("2026-11-03T09:00:00Z");
-    expect(decidirEnvio({ urgente: false, zona_horaria: "America/Mexico_City", expira_at: null }, 0, cfg, noche)).toMatchObject({ accion: "esperar", motivo: "hora" });
+  it("lo no urgente: respeta el tope diario y se vence si ya no sirve; la HORA la decide la entrega de canales (no molestar)", () => {
+    const noche = new Date("2026-11-03T09:00:00Z"); // 03:00 en CDMX
+    // Ya no espera por su cuenta a las 8:00: el no molestar lo aplica channels/entrega.ts con las preferencias del viajero.
+    expect(decidirEnvio({ urgente: false, expira_at: null }, 0, cfg, noche)).toEqual({ accion: "enviar" });
     const dia = new Date("2026-11-03T18:00:00Z");
-    expect(decidirEnvio({ urgente: false, zona_horaria: "America/Mexico_City", expira_at: null }, 0, cfg, dia)).toEqual({ accion: "enviar" });
-    expect(decidirEnvio({ urgente: false, zona_horaria: "America/Mexico_City", expira_at: null }, 3, cfg, dia)).toMatchObject({ accion: "esperar", motivo: "tope" });
-    expect(decidirEnvio({ urgente: false, zona_horaria: "America/Mexico_City", expira_at: "2026-11-03T10:00:00Z" }, 0, cfg, noche)).toEqual({ accion: "vencer" });
+    expect(decidirEnvio({ urgente: false, expira_at: null }, 0, cfg, dia)).toEqual({ accion: "enviar" });
+    expect(decidirEnvio({ urgente: false, expira_at: null }, 3, cfg, dia)).toEqual({ accion: "esperar", motivo: "tope", hasta: new Date("2026-11-03T21:00:00Z") });
+    expect(decidirEnvio({ urgente: false, expira_at: "2026-11-03T20:00:00Z" }, 3, cfg, dia)).toEqual({ accion: "vencer" });
+    expect(decidirEnvio({ urgente: false, expira_at: "2026-11-03T09:00:00Z" }, 0, cfg, noche)).toEqual({ accion: "vencer" });
+  });
+
+  it("no molestar por omisión (quien nunca guardó preferencias) = de hora_hasta a hora_desde", () => {
+    expect(noMolestarPorOmision({ hora_desde: 8, hora_hasta: 21 })).toEqual({ inicio: "21:00", fin: "08:00" });
+    expect(noMolestarPorOmision({ hora_desde: 0, hora_hasta: 24 })).toBeNull();
   });
 });
 

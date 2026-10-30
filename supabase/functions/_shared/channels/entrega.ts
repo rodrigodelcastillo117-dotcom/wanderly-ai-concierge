@@ -6,9 +6,12 @@
 //   · WhatsApp: dentro de la ventana, texto; fuera, la plantilla aprobada del aviso (iatos_aviso_caso / iatos_aviso_vuelo).
 //     Sin plantilla, fuera de la ventana no se manda nada por WhatsApp (se intenta el siguiente canal).
 //   · Normal y nada salió: correo de respaldo (nunca se queda sin aviso).
+//   · Un aviso con fecha de caducidad (expiraAt) no se guarda para después si al terminar el no molestar ya no sirve.
+//   · Quien llama puede dar una zona y un horario de no molestar POR OMISIÓN (la vigilancia: la zona donde está el
+//     viajero y su horario 21–08 h); solo aplican si el viajero nunca guardó sus preferencias.
 import type { ChannelSendResult } from "./types.ts";
 import type { IncidentDb } from "../incidents.ts";
-import { type CanalDisponible, normalizarPreferencias, planDeEntrega } from "./preferencias.ts";
+import { type CanalDisponible, horaValida, normalizarPreferencias, planDeEntrega, type PreferenciasCanal, zonaValida } from "./preferencias.ts";
 import type { WhatsAppProveedor } from "./whatsapp.ts";
 
 export type Aviso = {
@@ -23,6 +26,21 @@ export type Aviso = {
   /** Llave única del aviso (no se encola dos veces). */
   dedupe: string;
   incidentId?: string | null;
+  /** Después de este instante el aviso ya no sirve: no se guarda para después ni se entrega tarde. */
+  expiraAt?: string | null;
+};
+
+/** En los parámetros de una plantilla, se cambia por el primer nombre del viajero (channel_targets.name). */
+export const NOMBRE_VIAJERO = "{nombre}";
+/** Margen: un aviso diferido debe poder entregarse al menos 15 min antes de que caduque. */
+const MARGEN_CADUCIDAD_MS = 15 * 60_000;
+
+export type OpcionesAviso = {
+  ignorarNoMolestar?: boolean;
+  /** Zona si el viajero no guardó una (p. ej. la del destino mientras viaja). */
+  tzPorOmision?: string | null;
+  /** Horario de no molestar si el viajero NUNCA guardó preferencias (sin fila en channel_prefs). */
+  noMolestarPorOmision?: { inicio: string; fin: string } | null;
 };
 
 export type EntregaDeps = {
@@ -35,15 +53,31 @@ export type EntregaDeps = {
   ahora?: () => Date;
 };
 
-export type ResultadoEntrega = { modo: "ya" | "diferido"; entregados: number; resultados: ChannelSendResult[]; hasta?: string };
+export type ResultadoEntrega = { modo: "ya" | "diferido" | "vencido"; entregados: number; resultados: ChannelSendResult[]; hasta?: string };
 
 type Targets = { prefs?: unknown; links?: Array<{ channel?: string; external_id?: string; window_open?: boolean }>; email?: string | null; name?: string | null };
 
-export async function avisarUsuario(d: EntregaDeps, userId: string, a: Aviso, o: { ignorarNoMolestar?: boolean } = {}): Promise<ResultadoEntrega> {
+/** Preferencias guardadas del viajero, completadas con las de quien llama SOLO donde él no eligió nada. */
+export function preferenciasConOmision(raw: unknown, o: OpcionesAviso = {}): PreferenciasCanal {
+  const prefs = normalizarPreferencias(raw);
+  if (!prefs.tz && zonaValida(o.tzPorOmision)) prefs.tz = o.tzPorOmision;
+  // channel_prefs_get trae updated_at solo si hay fila: sin fila = nunca eligió (una fila sin horario = eligió "sin horario").
+  const guardo = !!(raw && typeof raw === "object" && (raw as Record<string, unknown>).updated_at);
+  const pm = o.noMolestarPorOmision;
+  if (!guardo && !prefs.noMolestarInicio && pm && horaValida(pm.inicio) && horaValida(pm.fin) && pm.inicio !== pm.fin) {
+    prefs.noMolestarInicio = pm.inicio;
+    prefs.noMolestarFin = pm.fin;
+  }
+  return prefs;
+}
+
+const primerNombre = (n: unknown) => String(n ?? "").trim().split(/\s+/)[0] || "viajero";
+
+export async function avisarUsuario(d: EntregaDeps, userId: string, a: Aviso, o: OpcionesAviso = {}): Promise<ResultadoEntrega> {
   const ahora = d.ahora?.() ?? new Date();
   const t = await d.db.rpc("channel_targets", { _user: userId });
   const tg = (t.data ?? {}) as Targets;
-  const prefs = normalizarPreferencias(tg.prefs);
+  const prefs = preferenciasConOmision(tg.prefs, o);
   const links = Array.isArray(tg.links) ? tg.links : [];
   const disponibles: CanalDisponible[] = [{ canal: "push", destino: "push" }];
   const tgLink = links.find((l) => l.channel === "telegram" && l.external_id);
@@ -54,6 +88,8 @@ export async function avisarUsuario(d: EntregaDeps, userId: string, a: Aviso, o:
 
   const plan = planDeEntrega({ prefs: o.ignorarNoMolestar ? { ...prefs, noMolestarInicio: null, noMolestarFin: null } : prefs, urgente: a.urgente, ahora, disponibles });
   if (plan.modo === "diferir") {
+    const expira = a.expiraAt ? Date.parse(a.expiraAt) : NaN;
+    if (Number.isFinite(expira) && plan.hasta.getTime() + MARGEN_CADUCIDAD_MS >= expira) return { modo: "vencido", entregados: 0, resultados: [] };
     const r = await d.db.rpc("channel_deferred_add", { _user: userId, _payload: a, _send_after: plan.hasta.toISOString(), _dedupe: a.dedupe });
     if (!r.error) return { modo: "diferido", entregados: 0, resultados: [], hasta: plan.hasta.toISOString() };
     // Si no se pudo encolar, mejor avisar ya que perder el aviso.
@@ -75,7 +111,7 @@ export async function avisarUsuario(d: EntregaDeps, userId: string, a: Aviso, o:
         return d.telegram!(c.destino, `${a.titulo}\n\n${texto}`);
       case "whatsapp":
         if (c.ventanaAbierta) return d.whatsapp!.texto(c.destino, `*${a.titulo}*\n\n${texto}`);
-        return a.plantilla ? d.whatsapp!.plantilla(c.destino, a.plantilla.nombre, a.plantilla.params, a.plantilla.idioma ?? "es_MX")
+        return a.plantilla ? d.whatsapp!.plantilla(c.destino, a.plantilla.nombre, a.plantilla.params.map((p) => p === NOMBRE_VIAJERO ? primerNombre(tg.name) : p), a.plantilla.idioma ?? "es_MX")
           : { ok: false, channel: "whatsapp", to: c.destino, code: "CHANNEL_OFF", error: "ventana cerrada y sin plantilla" };
       case "email":
         return d.email!(c.destino, a.titulo, texto);
@@ -101,9 +137,16 @@ export async function entregarDiferidos(d: EntregaDeps, limite = 50): Promise<{ 
   const r = await d.db.rpc("channel_deferred_due", { _limit: limite });
   const filas = Array.isArray(r.data) ? r.data as Array<{ id: number; user_id: string; payload: Aviso }> : [];
   let enviados = 0;
+  const ahora = d.ahora?.() ?? new Date();
   for (const f of filas) {
     let ok = false;
     let error: string | null = null;
+    const expira = f.payload?.expiraAt ? Date.parse(f.payload.expiraAt) : NaN;
+    if (Number.isFinite(expira) && ahora.getTime() >= expira) {
+      // Ya no sirve (p. ej. el recordatorio de check-in de un vuelo que ya salió): se cierra sin mandarlo ni reintentar.
+      await d.db.rpc("channel_deferred_finish", { _id: f.id, _ok: true, _error: "vencido: no se entregó" });
+      continue;
+    }
     try {
       const x = await avisarUsuario(d, f.user_id, { ...f.payload, dedupe: `${f.payload?.dedupe ?? "diferido"}:entrega` }, { ignorarNoMolestar: true });
       ok = x.entregados > 0;

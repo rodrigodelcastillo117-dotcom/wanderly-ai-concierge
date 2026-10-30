@@ -10,8 +10,9 @@
 --                             cuándo toca revisarlo (nunca antes de 48 h), último estado visto y su incidente.
 --   vigilancia_eventos        BITÁCORA de la vigilancia (por viaje): qué se detectó, qué se avisó, qué se mandó.
 --                             Clave única: un mismo hallazgo nunca se procesa dos veces.
---   vigilancia_avisos         avisos al viajero (push, app, su canal): UNA sola vez por clave, a buena hora local
---                             y con tope diario por viajero (los urgentes del vuelo no esperan ni cuentan).
+--   vigilancia_avisos         avisos al viajero: UNA sola vez por clave y con tope diario por viajero (los urgentes no
+--                             esperan ni cuentan). Salen por la entrega de canales del Operador (canal preferido, no
+--                             molestar de channel_prefs, WhatsApp con ventana/plantilla, urgente → todos).
 --   vigilancia_confirmaciones confirmación previa con el proveedor (mesa, traslado, tour) 24–48 h antes: correo
 --                             SIEMPRE con fuente verificada, en el horario local del proveedor, y SOLO si el viajero
 --                             dio su consentimiento general (vigilancia_preferencias, apagado por omisión).
@@ -38,6 +39,8 @@ CREATE TABLE IF NOT EXISTS public.vigilancia_config (
   -- reserva de vuelos). Sugerido por plan en docs/ops/programar-vigilancia.sql (topeVigilanciaSugerido en vigilancia/vuelos.ts).
   serp_tope_diario          int NOT NULL DEFAULT 4 CHECK (serp_tope_diario BETWEEN 0 AND 1000),
   avisos_tope_diario        int NOT NULL DEFAULT 3 CHECK (avisos_tope_diario BETWEEN 1 AND 10),
+  -- hora_desde/hora_hasta: horario de no molestar POR OMISIÓN (de hora_hasta a hora_desde) solo para quien nunca guardó
+  -- sus preferencias de avisos (channel_prefs). Quien las guardó manda.
   hora_desde                int NOT NULL DEFAULT 8 CHECK (hora_desde BETWEEN 0 AND 23),
   hora_hasta                int NOT NULL DEFAULT 21 CHECK (hora_hasta BETWEEN 1 AND 24),
   retraso_aviso_min         int NOT NULL DEFAULT 60 CHECK (retraso_aviso_min BETWEEN 15 AND 600),
@@ -155,6 +158,8 @@ CREATE TABLE IF NOT EXISTS public.vigilancia_avisos (
   enviado_at       timestamptz,
   canales          jsonb CHECK (canales IS NULL OR length(canales::text) <= 4000),
   incidente_id     uuid REFERENCES public.concierge_requests(id) ON DELETE SET NULL,
+  -- Plantilla aprobada de WhatsApp (iatos_aviso_vuelo) para fuera de la ventana de 24 h; la entrega es la de canales.
+  plantilla        jsonb CHECK (plantilla IS NULL OR (jsonb_typeof(plantilla) = 'object' AND length(plantilla::text) <= 1000)),
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS vigilancia_avisos_due ON public.vigilancia_avisos (programado_para) WHERE estado IN ('pendiente','enviando');
@@ -373,10 +378,11 @@ CREATE OR REPLACE FUNCTION public.vigilancia_aviso_encolar(_a jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v uuid;
 BEGIN
-  INSERT INTO public.vigilancia_avisos (user_id, trip_id, clave, tipo, titulo, cuerpo, url, urgente, zona_horaria, programado_para, expira_at, incidente_id)
+  INSERT INTO public.vigilancia_avisos (user_id, trip_id, clave, tipo, titulo, cuerpo, url, urgente, zona_horaria, programado_para, expira_at, incidente_id, plantilla)
   VALUES ((_a->>'user_id')::uuid, nullif(_a->>'trip_id', '')::uuid, _a->>'clave', _a->>'tipo', left(_a->>'titulo', 140), left(_a->>'cuerpo', 2000),
     coalesce(nullif(_a->>'url', ''), '/dashboard'), coalesce((_a->>'urgente')::boolean, false), nullif(_a->>'zona_horaria', ''),
-    coalesce(nullif(_a->>'programado_para', '')::timestamptz, now()), nullif(_a->>'expira_at', '')::timestamptz, nullif(_a->>'incidente_id', '')::uuid)
+    coalesce(nullif(_a->>'programado_para', '')::timestamptz, now()), nullif(_a->>'expira_at', '')::timestamptz, nullif(_a->>'incidente_id', '')::uuid,
+    CASE WHEN jsonb_typeof(_a->'plantilla') = 'object' THEN _a->'plantilla' END)
   ON CONFLICT (clave) DO NOTHING
   RETURNING id INTO v;
   RETURN jsonb_build_object('ok', true, 'created', v IS NOT NULL, 'id', v);
@@ -385,7 +391,7 @@ EXCEPTION WHEN check_violation OR invalid_text_representation OR not_null_violat
 END $$;
 
 -- Reclama avisos listos (los urgentes primero) con cuántos avisos NO urgentes recibió ya cada viajero en 24 h
--- (el código decide: enviar, esperar a buena hora o al día siguiente, o vencer).
+-- (el código decide: enviar, esperar por el tope diario o vencer; la hora la decide la entrega de canales).
 CREATE OR REPLACE FUNCTION public.vigilancia_avisos_reclamar(_limit int DEFAULT 50, _now timestamptz DEFAULT now())
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v jsonb;
