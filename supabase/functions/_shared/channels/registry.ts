@@ -2,20 +2,21 @@
 // se intenta el siguiente). Puro: el entorno y los adaptadores llegan por parámetro.
 import type { Channel, ChannelId, ChannelMessage, ChannelSendContext, ChannelSendResult, ChannelStatus } from "./types.ts";
 import { emailChannel, type EmailSend } from "./email.ts";
+import { secretosWhatsApp } from "./whatsapp.ts";
 
 /**
  * Secretos que necesita cada canal (los pone el dueño en Supabase → Edge Functions → Secrets).
- * WhatsApp: con Twilio (WHATSAPP_PROVIDER=twilio, por defecto) o con WhatsApp Business de Meta
- * (WHATSAPP_PROVIDER=meta). SMS y llamadas: Twilio.
+ * WhatsApp: Meta Cloud API directa (WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_APP_SECRET) o Twilio
+ * (TWILIO_*); el proveedor lo decide whatsapp.ts proveedorWhatsApp. SMS: Twilio. Voz: Vapi (channels/voz.ts).
  */
 export const CHANNEL_SECRETS: Record<Exclude<ChannelId, "email">, (env: (k: string) => string | undefined) => string[]> = {
   // El secreto del webhook se deriva del token (channels/telegram.ts): el dueño pega UN solo secreto.
   telegram: () => ["TELEGRAM_BOT_TOKEN"],
-  whatsapp: (env) => (String(env("WHATSAPP_PROVIDER") ?? "twilio").toLowerCase() === "meta"
-    ? ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_APP_SECRET"]
-    : ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"]),
+  // Devuelve los que FALTAN según el proveedor (con alias WHATSAPP_PHONE_ID); el registro filtra de nuevo (no cambia nada).
+  whatsapp: (env) => secretosWhatsApp(env),
   sms: () => ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_SMS_FROM"],
-  voz: () => ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VOICE_FROM"],
+  // Llamadas salientes con un agente de voz (Vapi) sobre su número; además VOZ_LLAMADAS_REALES=true (voz.ts).
+  voz: () => ["VAPI_API_KEY", "VAPI_PHONE_NUMBER_ID", "VOZ_WEBHOOK_SECRET"],
 };
 
 export const CHANNEL_LABEL: Record<ChannelId, string> = {

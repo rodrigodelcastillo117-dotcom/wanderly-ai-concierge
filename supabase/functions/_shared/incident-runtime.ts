@@ -5,6 +5,7 @@ import { pushToUser } from "./push.ts";
 import { teamEmails } from "./teamEmails.ts";
 import { createChannelRegistry, type ChannelRegistry } from "./channels/registry.ts";
 import { telegramChannel } from "./channels/telegram.ts";
+import { whatsappChannel } from "./channels/whatsapp.ts";
 import type { IncidentAlertDeps } from "./incident-alerts.ts";
 import type { IncidentDb } from "./incidents.ts";
 
@@ -15,9 +16,13 @@ export function incidentChannels(): ChannelRegistry {
     env: (k) => Deno.env.get(k),
     sendEmail: (m) => sendEmail(m),
     emailFrom: INCIDENT_ALERT_FROM,
-    // Telegram: prendido solo si existe TELEGRAM_BOT_TOKEN. WhatsApp y voz: interfaz lista (channels/whatsapp.ts,
-    // channels/voz.ts) pero NO se registran hasta que el dueño lo apruebe.
-    adapters: { telegram: (env) => telegramChannel({ token: String(env("TELEGRAM_BOT_TOKEN") ?? ""), webhookSecret: env("TELEGRAM_WEBHOOK_SECRET") ?? null }) },
+    // Telegram: prendido solo si existe TELEGRAM_BOT_TOKEN. WhatsApp: prendido con sus secretos (Meta o Twilio); sin
+    // ventana conocida manda solo plantillas (alertas al equipo: el aviso de la Mesa sigue por correo y push). Voz: no se
+    // registra (channels/voz.ts, apagado: llamadas solo con VOZ_LLAMADAS_REALES=true).
+    adapters: {
+      telegram: (env) => telegramChannel({ token: String(env("TELEGRAM_BOT_TOKEN") ?? ""), webhookSecret: env("TELEGRAM_WEBHOOK_SECRET") ?? null }),
+      whatsapp: (env) => whatsappChannel({ env }),
+    },
   });
 }
 

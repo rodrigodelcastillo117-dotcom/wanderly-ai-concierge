@@ -59,6 +59,15 @@ verify_jwt = false
 [functions.canales]
 verify_jwt = true
 
+# WhatsApp Business (Meta Cloud API o Twilio): Meta/Twilio no mandan JWT; exige su firma (X-Hub-Signature-256 o
+# X-Twilio-Signature) y la verificación GET de Meta. Apagado sin sus secretos (503).
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+# Fin de llamadas con voz IA (Vapi): exige el encabezado x-iatos-voz firmado con VOZ_WEBHOOK_SECRET. Apagado sin él (503).
+[functions.voz-webhook]
+verify_jwt = false
+
 [functions.editar-viaje-ai]
 verify_jwt = true
 

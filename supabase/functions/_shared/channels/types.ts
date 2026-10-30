@@ -23,6 +23,11 @@ export type ChannelSendContext = {
   incidentId?: string | null;
   /** A quién va: el equipo (alerta), el viajero o un proveedor. */
   purpose?: "alerta_equipo" | "usuario" | "proveedor";
+  /**
+   * WhatsApp: plantilla aprobada por Meta para cuando la ventana de 24 h está cerrada (channels/whatsapp.ts,
+   * PLANTILLAS_WHATSAPP). Sin plantilla, fuera de la ventana no se manda nada (CHANNEL_OFF).
+   */
+  plantilla?: { nombre: string; params: string[]; idioma?: string } | null;
 };
 
 export type ChannelSendResult = {
@@ -45,6 +50,14 @@ export type InboundMessage = {
   incidentId?: string | null;
   /** Folio de 8 letras si venía en el texto ("Folio ABCD1234"). */
   folio?: string | null;
+  /** Ubicación compartida (Telegram «Ubicación», WhatsApp «Ubicación»). */
+  ubicacion?: { lat: number; lng: number } | null;
+  /** Foto o archivo (p. ej. un ticket): referencia del proveedor para descargarlo (file_id / media id / URL). */
+  media?: { ref: string; mime: string | null; bytes?: number | null } | null;
+  /** Botón que tocó (callback_data de Telegram / id del botón de WhatsApp). */
+  boton?: string | null;
+  /** Telegram: id del callback_query (para quitar el "cargando" del botón). */
+  callbackId?: string | null;
   raw?: unknown;
 };
 

@@ -75,11 +75,13 @@ El de la configuración existente (`_shared/claude.ts`): `ANTHROPIC_MODEL` si ex
 |---|---|---|
 | App + push | Activo | — |
 | Correo | Activo (Resend) | — |
-| **Telegram** | Implementado, **apagado** | El secreto `TELEGRAM_BOT_TOKEN` (ver §6) |
-| WhatsApp (Meta Cloud API o Twilio) | Interfaz lista (`_shared/channels/whatsapp.ts`), **no registrada** | Aprobación del dueño, plantillas aprobadas por Meta, verificación del negocio y sus secretos |
-| Voz (Twilio + Retell/Vapi) | Interfaz lista (`_shared/channels/voz.ts`), **sin llamadas reales** | Aprobación del dueño, número de Twilio México y cuenta de Retell o Vapi |
+| **Telegram** | Implementado, **apagado**; Iato completo + Operador | El secreto `TELEGRAM_BOT_TOKEN` (ver §6) |
+| **WhatsApp** (Meta Cloud API directa o Twilio) | Implementado, **apagado**; Iato completo + Operador, ventana de 24 h y plantillas | Alta del número, plantillas aprobadas por Meta y sus secretos (paso a paso y costos: `docs/iatos/IATOS_CANALES.md`) |
+| Voz (Vapi + número de Twilio México) | Adaptador listo (`_shared/channels/voz.ts`), **sin llamadas reales** | Aprobación del dueño (`VOZ_LLAMADAS_REALES=true`), número y cuenta de Vapi |
 
-En Telegram, el viajero vincula su cuenta desde la app (**Perfil → Ajustes → Telegram → Vincular Telegram**): la app le da un código de 8 letras de un solo uso (15 min) y un botón que abre el bot. Ya vinculado, lo que escribe al bot entra al **mismo caso** abierto (o abre uno nuevo si cuenta un problema) y el operador le contesta por ahí. Para planear o buscar, el bot lo manda a la app (pendiente: el chat completo de Iato por Telegram).
+Los avisos del operador al viajero respetan su **canal preferido** y su **horario de no molestar** (lo urgente sale ya por todos los canales): `docs/iatos/IATOS_CANALES.md` §3.
+
+En Telegram, el viajero vincula su cuenta desde la app (**Perfil → Ajustes → Telegram → Vincular Telegram**): la app le da un código de 8 letras de un solo uso (15 min) y un botón que abre el bot. Ya vinculado, lo que escribe sobre su caso entra al **mismo caso** abierto (o abre uno nuevo si cuenta un problema) y el operador le contesta por ahí. Desde el 30-oct-2026, lo demás (planear, su viaje, gastos con foto del ticket, clima, eventos) lo contesta **Iato completo** con la sesión del viajero; WhatsApp funciona igual (`docs/iatos/IATOS_CANALES.md`).
 
 ---
 
@@ -162,6 +164,6 @@ Encendido, los casos nuevos nacen del operador (si da latido); apagado o caído,
 1. Aplicar las 3 migraciones, desplegar las funciones y programar las tareas (§5).
 2. Correr la evaluación con IA real (con permiso) y revisar los casos que fallen antes de encender.
 3. Encender `operador_enabled` (y `reclamos_enabled` para enviar reclamos) con el visto bueno del dueño.
-4. Telegram: crear el bot y pegar el token (§6). El chat general de Iato por Telegram (planear/buscar) queda pendiente: hoy el bot atiende problemas y manda lo demás a la app.
-5. WhatsApp y voz: decisión del dueño (costos en el estudio de negocio de la agencia, §6 "Bot operador con IA").
+4. Telegram: crear el bot y pegar el token (§6). Iato completo por Telegram y WhatsApp: hecho (migración `20261030030000_canales.sql`, ver `docs/iatos/IATOS_CANALES.md`).
+5. WhatsApp: alta del número y plantillas (paso a paso en `IATOS_CANALES.md` §4). Voz: decisión del dueño (preparado y apagado).
 6. Verificar en Resend el remitente `operador@traveliatos.life` (o fijar `OPERADOR_FROM_ADDRESS`) y que el webhook de reclamos reciba `operador+…@reply.traveliatos.life`.

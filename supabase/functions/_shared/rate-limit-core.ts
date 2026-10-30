@@ -82,6 +82,11 @@ export type LimitOptions = {
    * cubeta también suma en las otras (más estricto, nunca más permisivo).
    */
   parallel?: boolean;
+  /**
+   * true = sin cubeta por IP. Solo para llamadas internas firmadas (Telegram/WhatsApp → concierge-chat): ahí la IP es
+   * la de nuestro servidor y la comparten todos los viajeros. Las cubetas por usuario se aplican igual.
+   */
+  skipIp?: boolean;
 };
 
 /** Aplica los límites por usuario (minuto y hora) y por IP (minuto) en ese orden. */
@@ -93,6 +98,7 @@ export async function evaluateRateLimit(
   opts: LimitOptions = {},
 ): Promise<RateLimitVerdict> {
   const { perMinute = 10, perHour = 100, ipPerMinute = 40 } = opts;
+  if (opts.skipIp) ip = "unknown";
   const failClosed = isPaidBucket(bucket);
 
   const check = async (subject: string, b: string, rule: RateRule, deny: RateLimitVerdict): Promise<RateLimitVerdict | null> => {

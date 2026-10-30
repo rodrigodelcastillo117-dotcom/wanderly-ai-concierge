@@ -1,14 +1,14 @@
 // Operador IATOS · conexión real (Deno). Arma OperadorDeps con: base (service_role), Claude (modelo de la
-// configuración existente, ANTHROPIC_MODEL → vigente, con respaldo: _shared/claude.ts), canales (push, Telegram si
-// está prendido, correo), reclamos atados al caso, vuelos (caché de seguimiento y una búsqueda con la caché y el cupo
+// configuración existente, ANTHROPIC_MODEL → vigente, con respaldo: _shared/claude.ts), canales (push, Telegram,
+// WhatsApp y correo con las preferencias del viajero: channels/entrega.ts), reclamos atados al caso, vuelos (caché de seguimiento y una búsqueda con la caché y el cupo
 // de flights-search), lugares (Google Places) y contactos de proveedores (descubrimiento de Reservas IA: sitio
 // oficial / Google Places; nunca adivina). La lógica vive en bucle.ts y herramientas.ts.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callClaudeWithFallback, claudeModels } from "../claude.ts";
 import { sendEmail } from "../email.ts";
-import { pushToUser } from "../push.ts";
 import { redactPii } from "../redact.ts";
-import { incidentChannels } from "../incident-runtime.ts";
+import { avisarUsuario, folioCorto } from "../channels/entrega.ts";
+import { entregaDeps } from "../channels/entregaRuntime.ts";
 import { buildReclamosDeps } from "../derechos/runtime.ts";
 import { verTodo } from "../derechos/contexto.ts";
 import { buildServiceDeps } from "../ai-reservations/runtime.ts";
@@ -17,7 +17,6 @@ import { DEFAULT_REPLY_DOMAIN } from "../ai-reservations/core.ts";
 import { liveSearchGateFor, serpFetchFor } from "../serpRuntime.ts";
 import { searchFlights } from "../flight-search.ts";
 import { nearbySearchBody, rankEmergencyPlaces } from "../places-rank.ts";
-import type { ChannelSendResult } from "../channels/types.ts";
 import type { IncidentDb } from "../incidents.ts";
 import type { DespachoDeps } from "./bucle.ts";
 import type { ContactoProveedor, LugarCercano, OperadorDeps } from "./tipos.ts";
@@ -115,9 +114,7 @@ export function buildOperadorDeps(): OperadorDeps & { despacho: DespachoDeps } {
       }
     }
     : null;
-  const channels = incidentChannels();
   const reservas = buildServiceDeps();
-  const siteUrl = env("SITE_URL") ?? "https://traveliatos.life";
 
   return {
     db,
@@ -130,26 +127,19 @@ export function buildOperadorDeps(): OperadorDeps & { despacho: DespachoDeps } {
     reclamos: (incidentId) => {
       try { return buildReclamosDeps({ casoActual: incidentId, origen: "iato" }); } catch { return null; }
     },
+    // Al viajero por SUS canales y con SUS preferencias (canal preferido, no molestar; urgente → todos): channels/entrega.ts.
+    // WhatsApp fuera de la ventana de 24 h usa la plantilla aprobada iatos_aviso_caso.
     avisarViajero: async (userId, m, incidentId) => {
-      const out: ChannelSendResult[] = [];
-      const url = `${siteUrl}${m.url}`;
-      const n = await pushToUser(admin, userId, { title: m.titulo, body: m.texto.slice(0, 180), url: m.url }, { TTL: 3600, urgency: m.urgente ? "high" : "normal" }).catch(() => 0);
-      out.push({ ok: n > 0, channel: "email", to: "push", code: n > 0 ? undefined : "SEND_FAILED", error: n > 0 ? null : "sin suscripción push" });
-      const { data: links } = await admin.rpc("channel_links_of", { _user: userId });
-      const tg = Array.isArray(links) ? links.find((l: { channel?: string }) => l.channel === "telegram") : null;
-      let entregado = n > 0;
-      if (tg?.external_id && channels.isEnabled("telegram")) {
-        const r = await channels.send("telegram", String(tg.external_id), { text: `${m.texto}\n\n${url}` }, { incidentId, purpose: "usuario" });
-        out.push(r);
-        entregado ||= r.ok;
-      }
-      // Correo: si es urgente o si nada más le llegó.
-      if (m.urgente || !entregado) {
-        const { data: u } = await admin.auth.admin.getUserById(userId);
-        const email = u?.user?.email;
-        if (email) out.push(await channels.send("email", email, { subject: m.titulo, text: `${m.texto}\n\nVer tu caso: ${url}` }, { incidentId, purpose: "usuario" }));
-      }
-      return out;
+      const { data: p } = await admin.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+      const nombre = String((p as { full_name?: string } | null)?.full_name ?? "").trim().split(/\s+/)[0] || "viajero";
+      const resumen = m.texto.replace(/\s+/g, " ").trim().slice(0, 250);
+      const r = await avisarUsuario(entregaDeps(admin), userId, {
+        titulo: m.titulo, texto: m.texto, url: m.url, urgente: m.urgente, tipo: "caso", incidentId,
+        plantilla: { nombre: "iatos_aviso_caso", params: [nombre, folioCorto(incidentId), resumen] },
+        dedupe: `caso:${incidentId}:${m.texto.length}:${resumen.slice(0, 40)}`,
+      });
+      if (r.modo === "diferido") return [{ ok: true, channel: "email", to: "diferido", providerMessageId: null, error: `horario de no molestar: se entrega ${r.hasta}` }];
+      return r.resultados;
     },
     estadoVuelo: async (vuelo, fecha, userId) => {
       let q = admin.from("tracked_flights").select("flight, flight_date, route, last_status, last_estimated, last_gate, last_terminal, last_checked_at")
