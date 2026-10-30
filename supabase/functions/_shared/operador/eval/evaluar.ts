@@ -7,7 +7,7 @@ import type { EscenarioOperador } from "./escenarios.ts";
 import { accionesEnBitacora, arnes, type AuxArnes, USER } from "./arnes.ts";
 import { despacharCorreos, tickOperador, trabajarCaso } from "../bucle.ts";
 import { requiereHumanoYa } from "../politica.ts";
-import { autoOpenIncident, runReportIncidentTool } from "../../../concierge-chat/incident.ts";
+import { autoOpenIncident, runReportIncidentTool } from "../../incident-iato.ts";
 import type { ModeloOperador } from "../tipos.ts";
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
