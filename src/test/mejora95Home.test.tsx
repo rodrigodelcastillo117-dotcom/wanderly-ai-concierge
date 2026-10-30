@@ -81,22 +81,27 @@ describe("Inicio de una cuenta nueva", () => {
     expect(screen.queryByRole("button", { name: /Crear nuevo viaje/ })).toBeNull();
   });
 
-  it("las herramientas muestran 8 y el resto con un toque (ninguna se quita)", async () => {
+  it("las herramientas van por momento del viaje, todas a la vista y a un toque (ninguna se quita)", async () => {
     renderHome();
     const tools = (await screen.findByRole("heading", { name: "Herramientas" })).closest("section")!;
     // querySelectorAll (no getAllByRole): Inicio es grande y las consultas por rol son lentas.
-    const tiles = () => [...tools.querySelectorAll("button")].filter((b) => b.dataset.testid !== "home-tools-toggle");
-    const has = (label: string) => tiles().some((b) => b.textContent?.includes(label));
-    expect(tiles()).toHaveLength(8);
-    expect(has("Vuelos")).toBe(true);
-    expect(has("Ferries")).toBe(false);
-    const toggle = within(tools).getByTestId("home-tools-toggle");
-    expect(toggle).toHaveTextContent("Ver las 16 herramientas");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
-    expect(tiles()).toHaveLength(16);
-    expect(has("Ferries")).toBe(true);
-    expect(toggle).toHaveTextContent("Ver menos herramientas");
+    const tiles = () => [...tools.querySelectorAll("button")];
+    const labels = () => tiles().map((b) => b.textContent?.trim());
+    // Ya no hay «Ver las 16»: nada queda escondido.
+    expect(within(tools).queryByTestId("home-tools-toggle")).toBeNull();
+    // Las 16 de antes siguen (con «Comparar destinos» y «Documentos y tarjetas» como en el menú)…
+    for (const l of ["Vuelos", "Hoteles", "Actividades", "Restaurantes", "Comparar destinos", "Convertidor de moneda", "eSIM",
+      "Documentos y tarjetas", "Autos", "Seguros", "Trenes", "Ferries", "Cruceros", "Cerca de ti", "Mis reservas", "Concierge"]) {
+      expect(labels(), `falta ${l}`).toContain(l);
+    }
+    // …más Recuerdos, «Tu resumen del año» y «Tengo un problema». Sin viaje no se pintan las de un viaje.
+    for (const l of ["Recuerdos", "Tu resumen del año", "Tengo un problema"]) expect(labels()).toContain(l);
+    expect(tiles()).toHaveLength(19);
+    expect(labels()).not.toContain("Equipaje");
+    expect(within(tools).getByTestId("home-tools-viaje")).toHaveTextContent(/aparecen aquí cuando tengas un viaje/);
+    expect(within(screen.getByTestId("home-tools-antes")).getByRole("heading")).toHaveTextContent("Antes de viajar");
+    expect(within(screen.getByTestId("home-tools-durante")).getByRole("heading")).toHaveTextContent("Durante el viaje");
+    expect(within(screen.getByTestId("home-tools-despues")).getByRole("heading")).toHaveTextContent("Después");
   });
 
   it("recomendaciones sin perfil: «para inspirarte» y sin un % afín inventado", async () => {

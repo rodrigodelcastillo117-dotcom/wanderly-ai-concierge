@@ -1,7 +1,7 @@
 import { homeSpendCard, loadMySpend, mergeMySpend } from "@/lib/mySpend";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Sparkles, Heart, Bell, Settings, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Gift, Car, Wifi, Compass, Ship, UtensilsCrossed, TrainFront, Anchor, Receipt } from "lucide-react";
+import { Plus, Sparkles, Heart, Send, ChevronRight, Scale, ArrowLeftRight, Crown, MapPin, Plane, Hotel, Shield, Car, Wifi, Compass, Ship, UtensilsCrossed, TrainFront, Anchor, Receipt, Vault, Backpack, Cloud, Radio, Map as MapIcon, Languages, LifeBuoy, BookHeart, Images, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +16,6 @@ import { conciergeBoxHref } from "@/lib/conciergeBoxRoute";
 import { recoPlanHref, sortRecosByMatch } from "@/lib/homeRecos";
 import { destinationPhotoQuery } from "@/lib/compareCost";
 import { VoiceInput } from "@/components/VoiceInput";
-import tileTrenes from "@/assets/tools/tile-trenes.jpg";
-import tileFerries from "@/assets/tools/tile-ferries.jpg";
-// JPG de 600 px (~9 kB) en lugar de PNG de 800 px (~250 kB cada uno).
-import tileReservas from "@/assets/tools/tile-reservas.jpg";
 import { TripFileUpload } from "@/components/TripFileUpload";
 
 
@@ -28,7 +24,6 @@ import bora from "@/assets/destination-bora.jpg";
 import marrakech from "@/assets/destination-marrakech.jpg";
 import patagonia from "@/assets/destination-patagonia.jpg";
 import tulum from "@/assets/destination-tulum.jpg";
-import tulum640 from "@/assets/destination-tulum-640.jpg";
 import santorini from "@/assets/hero-santorini.jpg";
 import santorini960 from "@/assets/hero-santorini-960.jpg";
 import { daysFromToday, formatLocalDate, localISODate } from "@/lib/localDate";
@@ -44,6 +39,8 @@ import { loadProfileBasics } from "@/lib/profileBasics";
 import { afterCritical, beginCritical } from "@/lib/idleGate";
 import { shortTripName } from "@/lib/tripName";
 import { savedCoverUrl, tripPhotoQuery } from "@/lib/tripImagery";
+import { openPlanWindow, PLAN_CTA } from "@/lib/planBus";
+import { INCIDENT_CTA, openIncident } from "@/lib/incidentBus";
 
 
 
@@ -79,12 +76,6 @@ const SpendDonut = ({ segments }: { segments: { label: string; pct: number; colo
   );
 };
 
-// Unsplash sirve el ancho que se pide: en móvil (2 columnas) basta 320 px.
-const tileSrcSet = (img: string) =>
-  img.startsWith("https://images.unsplash.com/")
-    ? `${img.replace(/([?&])w=\d+/, "$1w=320")} 320w, ${img} 600w`
-    : undefined;
-
 // La foto de respaldo de Santorini existe también a 960 px (la usa la landing): el móvil no baja la
 // de 1920 px (207 KB) para una caja de 390.
 const SANTORINI_SRCSET = `${santorini960} 960w, ${santorini} 1920w`;
@@ -109,28 +100,45 @@ const HERO_REELS = [
   { query: "tokyo japan neon shibuya night cinematic", fallback: kyoto, label: "Tokio" },
 ];
 
-// Herramientas de Inicio: se ven las primeras 8 (una fila en escritorio ancho) y el resto con «Ver las 16».
-const TOOLS_VISIBLE = 8;
-// Las más usadas primero (vuelos, hotel, qué hacer, dónde comer, comparar, moneda, datos y documentos).
-const HOME_TOOLS = [
-  { icon: Plane, label: "Vuelos", sub: "En vivo", to: "/dashboard/vuelos", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=600&q=70&auto=format&fit=crop" },
-  { icon: Hotel, label: "Hoteles", sub: "Reales", to: "/dashboard/hoteles", img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop" },
-  { icon: Compass, label: "Actividades", sub: "Tours y experiencias", to: "/dashboard/actividades", img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=70&auto=format&fit=crop" },
-  { icon: UtensilsCrossed, label: "Restaurantes", sub: "Mesas", to: "/dashboard/restaurantes", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=70&auto=format&fit=crop" },
-  { icon: Scale, label: "Comparar", sub: "Destinos", to: "/dashboard/comparar", img: "https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70&auto=format&fit=crop" },
-  { icon: ArrowLeftRight, label: "Convertidor de moneda", sub: "Tipo de cambio", to: "/dashboard/convertidor", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=70&auto=format&fit=crop" },
-  { icon: Wifi, label: "eSIM", sub: "Datos", to: "/dashboard/esim", img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&auto=format&fit=crop" },
-  { icon: Gift, label: "Documentos", sub: "Tarjetas y membresías", to: "/dashboard/beneficios", img: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&q=70&auto=format&fit=crop" },
-  { icon: Car, label: "Autos", sub: "Renta", to: "/dashboard/autos", img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&q=70&auto=format&fit=crop" },
-  { icon: Shield, label: "Seguros", sub: "Viaje", to: "/dashboard/seguros", img: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&q=70&auto=format&fit=crop" },
-  { icon: TrainFront, label: "Trenes", sub: "Europa+", to: "/dashboard/trenes", img: tileTrenes },
-  { icon: Anchor, label: "Ferries", sub: "Islas", to: "/dashboard/ferries", img: tileFerries },
-  { icon: Ship, label: "Cruceros", sub: "Islas", to: "/dashboard/cruceros", img: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600&q=70&auto=format&fit=crop" },
-  { icon: MapPin, label: "Cerca de ti", sub: "Lugares", to: "/dashboard/cercanos", img: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70&auto=format&fit=crop" },
-  { icon: Receipt, label: "Mis reservas", sub: "Historial", to: "/dashboard/reservas", img: tileReservas },
-  { icon: Crown, label: "Concierge", sub: "Tu concierge IA", to: "/dashboard/concierge", img: "https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=70&auto=format&fit=crop" },
+// Herramientas de Inicio agrupadas por MOMENTO DEL VIAJE (propuesta «Inicio sencillo», 30-oct-2026). Antes eran
+// 16 mosaicos sueltos (8 a la vista y el resto tras «Ver las 16») más 5 accesos dentro del centro de mando; ahora
+// todas a la vista y a UN toque, en tres grupos. Ninguna se quita: las 16 de antes siguen aquí, y se suman las
+// del viaje (equipaje, clima, en vivo, mapa, traductor, diario), Recuerdos, «Tu resumen del año» y «Tengo un
+// problema». `viaje`: herramienta de un viaje concreto (/dashboard/viajes/:id/<viaje>); sin viaje no se pinta.
+type HomeTool = { icon: LucideIcon; label: string; to?: string; viaje?: string; accion?: "problema" };
+const HOME_TOOL_GROUPS: { id: "antes" | "durante" | "despues"; title: string; tools: HomeTool[] }[] = [
+  { id: "antes", title: "Antes de viajar", tools: [
+    { icon: Plane, label: "Vuelos", to: "/dashboard/vuelos" },
+    { icon: Hotel, label: "Hoteles", to: "/dashboard/hoteles" },
+    { icon: Car, label: "Autos", to: "/dashboard/autos" },
+    { icon: Ship, label: "Cruceros", to: "/dashboard/cruceros" },
+    { icon: Shield, label: "Seguros", to: "/dashboard/seguros" },
+    { icon: Wifi, label: "eSIM", to: "/dashboard/esim" },
+    { icon: Vault, label: "Documentos y tarjetas", to: "/dashboard/beneficios" },
+    { icon: Backpack, label: "Equipaje", viaje: "packing" },
+    { icon: Cloud, label: "Clima", viaje: "clima" },
+    { icon: ArrowLeftRight, label: "Convertidor de moneda", to: "/dashboard/convertidor" },
+    { icon: Scale, label: "Comparar destinos", to: "/dashboard/comparar" },
+    { icon: Receipt, label: "Mis reservas", to: "/dashboard/reservas" },
+  ] },
+  { id: "durante", title: "Durante el viaje", tools: [
+    { icon: Radio, label: "En vivo", viaje: "live" },
+    { icon: MapPin, label: "Cerca de ti", to: "/dashboard/cercanos" },
+    { icon: MapIcon, label: "Mapa", viaje: "mapa" },
+    { icon: UtensilsCrossed, label: "Restaurantes", to: "/dashboard/restaurantes" },
+    { icon: Compass, label: "Actividades", to: "/dashboard/actividades" },
+    { icon: TrainFront, label: "Trenes", to: "/dashboard/trenes" },
+    { icon: Anchor, label: "Ferries", to: "/dashboard/ferries" },
+    { icon: Languages, label: "Traductor", viaje: "traductor" },
+    { icon: Crown, label: "Concierge", to: "/dashboard/concierge" },
+    { icon: LifeBuoy, label: INCIDENT_CTA, accion: "problema" },
+  ] },
+  { id: "despues", title: "Después", tools: [
+    { icon: BookHeart, label: "Diario", viaje: "diario" },
+    { icon: Images, label: "Recuerdos", to: "/dashboard/recuerdos" },
+    { icon: Sparkles, label: "Tu resumen del año", to: "/wrapped" },
+  ] },
 ];
-const TOOLS_TOTAL = HOME_TOOLS.length;
 
 const DashboardHome = () => {
   const { user } = useAuth();
@@ -147,7 +155,8 @@ const DashboardHome = () => {
   // La tarjeta del Concierge tiene su propio texto: compartía el estado con el buscador de
   // arriba y escribir aquí abría el panel "Tu idea de viaje".
   const [conciergeCard, setConciergeCard] = useState("");
-  const [toolsOpen, setToolsOpen] = useState(false);
+  // 1–4 letras y «Planear un viaje»: se pide un poco más en vez de mandar una frase que no se entiende.
+  const [planHint, setPlanHint] = useState(false);
   const [tick, setTick] = useState(0);
   const [reelIdx, setReelIdx] = useState(0);
   const [reelFading, setReelFading] = useState(false);
@@ -229,18 +238,26 @@ const DashboardHome = () => {
   const commandTrip = homeCommandTrip(active.trips, todayLocal, active.trip);
   const hasTrips = active.trips.length > 0;
   const ambiguous = !commandTrip && active.resolved.reason === "ambiguous";
-  const conciergeInputRef = useRef<HTMLInputElement>(null);
+  const conciergeInputRef = useRef<HTMLTextAreaElement>(null);
   const pickExample = (text: string) => {
     setConcierge(text);
+    setPlanHint(false);
     conciergeInputRef.current?.focus();
   };
-
-
-
+  // Herramientas de un viaje (equipaje, clima, mapa…): el de «Tu próximo viaje»; si no hay, el activo.
+  const toolTrip = commandTrip ?? active.trip ?? null;
+  // «Planear un viaje»: con texto, directo al plan con esa idea (/dashboard/planear?q=, como siempre); sin texto,
+  // la ventana del «+» (si no está montada, su misma ruta).
+  const submitPlan = () => {
+    const q = concierge.trim();
+    if (q.length >= 5) { navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`); return; }
+    if (q.length > 0) { setPlanHint(true); conciergeInputRef.current?.focus(); return; }
+    if (!openPlanWindow()) navigate("/dashboard/planear");
+  };
 
   return (
     <DashboardLayout>
-      <div className="px-4 md:px-10 pt-2 md:pt-10 pb-7 md:pb-10 space-y-5 md:space-y-12 max-w-[1400px] mx-auto overflow-x-hidden">
+      <div className="px-4 md:px-10 pt-2 md:pt-10 pb-7 md:pb-10 space-y-5 md:space-y-10 max-w-[1400px] mx-auto overflow-x-hidden">
         {/* Top header */}
         <header className="hidden md:flex items-center gap-4">
           <p className="text-[11px] md:text-xs text-muted-foreground tracking-wide">
@@ -248,103 +265,11 @@ const DashboardHome = () => {
           </p>
         </header>
 
+        {/* El saludo va en «¿A dónde quieres ir?» (antes era una fila sola): en el celular la acción principal queda
+            a la vista sin bajar. */}
+        <h1 className="sr-only">Inicio</h1>
 
-        {/* Saludo + búsqueda inline */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = concierge.trim();
-            if (q.length < 5) return;
-            navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
-          }}
-          className="animate-rise space-y-4"
-        >
-          <div className="flex flex-row items-center gap-2 md:gap-5">
-            <h1 className="font-display text-xl md:text-4xl leading-[1.1] tracking-tight shrink-0">
-              {/* Mientras llega el nombre, un espacio reservado (antes "Viajero." y luego "Sofía."). */}
-              {name
-                ? <><span className="capitalize">{name}</span>.</>
-                : <span aria-hidden="true" data-testid="home-name-loading" className="inline-block h-[0.9em] w-20 md:w-36 rounded-lg bg-white/[0.06] motion-safe:animate-pulse align-middle" />}
-            </h1>
-            <div className="relative flex-1 min-w-0">
-              <div className="relative flex items-center gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-2.5 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition">
-                <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                <input
-                  ref={conciergeInputRef}
-                  type="text"
-                  value={concierge}
-                  onChange={(e) => setConcierge(e.target.value)}
-                  placeholder="Platícame tu viaje…"
-                  aria-label="Platícame tu viaje"
-                  className="flex-1 min-w-0 bg-transparent border-0 outline-none font-display italic text-sm md:text-2xl leading-tight placeholder:text-primary/70 placeholder:italic text-foreground py-1"
-                />
-                <TripFileUpload size="sm" />
-                <VoiceInput
-                  onTranscript={(t) => setConcierge((prev) => (prev ? prev + " " : "") + t)}
-                  size="sm"
-                />
-                <Button
-                  type="submit"
-                  disabled={concierge.trim().length < 5}
-                  className="h-8 md:h-10 px-2.5 md:px-5 rounded-xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow disabled:opacity-40 text-[11px] md:text-sm tracking-wide shrink-0"
-                >
-                  Analizar
-                </Button>
-              </div>
-
-              {/* Despliegue en vivo de lo que el usuario escribe (editable) */}
-              {concierge.trim().length > 0 && (
-                <div
-                  className="animate-fade-in absolute left-0 right-0 top-full mt-2 z-30 rounded-2xl border border-primary/20 bg-background/30 backdrop-blur-md shadow-2xl p-4 md:p-5"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <p className="text-[10px] tracking-[0.3em] uppercase text-primary/80">Tu idea de viaje</p>
-                    <span className="text-[10px] text-muted-foreground">{concierge.trim().length} caracteres</span>
-                  </div>
-                  <textarea
-                    value={concierge}
-                    onChange={(e) => setConcierge(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        const q = concierge.trim();
-                        if (q.length >= 5) navigate(`/dashboard/planear?q=${encodeURIComponent(q)}`);
-                      }
-                    }}
-                    rows={Math.min(6, Math.max(2, Math.ceil(concierge.length / 60)))}
-                    aria-label="Editar idea de viaje"
-                    className="w-full resize-none bg-transparent border-0 outline-none font-display italic text-base md:text-xl leading-snug text-foreground whitespace-pre-wrap break-words placeholder:text-muted-foreground/50"
-                  />
-                  {concierge.trim().length < 5 ? (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Sigue escribiendo… mínimo 5 caracteres para analizar.
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-[11px] text-primary/80">
-                      Toca cualquier parte del texto para editar. Presiona <span className="text-primary">Analizar</span> o Enter.
-                    </p>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </div>
-          {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin "Analizar"). También mientras
-              cargan los viajes: si aparecieran después empujarían toda la página (CLS). */}
-          {concierge.trim().length === 0 && (hasTrips || active.loading) && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para escribir tu viaje">
-              {EXAMPLE_PROMPTS.map((ex) => (
-                <button key={ex} type="button" onClick={() => pickExample(ex)}
-                  className="shrink-0 min-h-[36px] rounded-full border border-white/[0.08] bg-white/[0.02] px-3 text-[11px] md:text-xs text-muted-foreground hover:text-primary hover:border-primary/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                  “{ex}”
-                </button>
-              ))}
-            </div>
-          )}
-        </form>
-
-
-        {/* Centro de mando del viaje activo, guía del primer viaje o selector si hay empate. */}
+        {/* 1 · Tu próximo viaje (foto, fechas y lo que falta), guía del primer viaje o selector si hay empate. */}
         {active.loading ? (
           // Alto reservado ≈ el del centro de mando ya cargado (CLS: antes el esqueleto medía ~180 px y la
           // tarjeta real ~470 en el móvil, y todo lo de abajo saltaba al llegar el viaje).
@@ -355,9 +280,9 @@ const DashboardHome = () => {
             <div className="h-12 w-full md:w-1/2 rounded-2xl bg-white/[0.05] motion-safe:animate-pulse" />
           </div>
         ) : commandTrip ? (
-          <TripCommandCenter trip={commandTrip} today={todayLocal} />
+          <TripCommandCenter trip={commandTrip} today={todayLocal} accesos={false} />
         ) : !hasTrips ? (
-          <FirstTripGuide onPickExample={pickExample} />
+          <FirstTripGuide onPickExample={pickExample} conBoton={false} />
         ) : ambiguous ? (
           <section aria-labelledby="pick-trip-title" className="rounded-3xl border border-primary/25 bg-white/[0.02] p-5 md:p-7">
             <p className="text-[11px] uppercase tracking-[0.25em] text-primary font-semibold">Tu viaje activo</p>
@@ -368,82 +293,276 @@ const DashboardHome = () => {
           </section>
         ) : null}
 
-        {/* IATOS Wrapped: destacado en diciembre y enero; el resto del año, acceso discreto. */}
-        {!active.loading && <DashboardWrappedPromo trips={active.trips} today={todayLocal} />}
-
-        {/* HERO — cinematic Santorini-style sunset */}
-        {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}
-        {/* Mientras carga se reserva su lugar: si apareciera después empujaría 340 px todo lo de abajo. */}
-        {/* Sin animación de entrada: es la imagen principal (LCP). Con opacidad 0 al inicio el navegador
-            la contaba 0.7 s tarde, y desplazada 20 px se medía más chica que la del siguiente reel. */}
-        {(hasTrips || active.loading) && (
-        <section>
-          <div
-            className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
-            onClick={() => navigate("/dashboard/planear?mode=emocion")}
-          >
-
-            <div
-              className={`w-full h-[340px] md:h-[460px] transition-opacity duration-[600ms] ease-out ${reelFading ? "opacity-0" : "opacity-100"}`}
-            >
-              <DestinationVideo
-                query={HERO_REELS[reelIdx].query}
-                fallbackImage={HERO_REELS[reelIdx].fallback}
-                fallbackSrcSet={fallbackSrcSet(HERO_REELS[reelIdx].fallback)}
-                sizes={HERO_SIZES}
-                priority
-                alt={`Inicia tu travesía en ${HERO_REELS[reelIdx].label}`}
-                className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
+        {/* 2 · UNA acción principal: «Planear un viaje». Es la MISMA que el «+» de la barra y el botón dorado del
+            menú lateral (abre su ventana); con texto escrito, va directo al plan con esa idea, igual que la página
+            Planear. Antes Inicio tenía 4 entradas distintas (Analizar, Planear por emoción, Crear nuevo viaje,
+            Planear mi primer viaje); «Planear por emoción» sigue más abajo, en «¿Aún sin destino?». */}
+        <section aria-labelledby="home-plan-title" data-testid="home-plan" className="glass-card rounded-3xl p-4 md:p-7">
+          <form onSubmit={(e) => { e.preventDefault(); submitPlan(); }} className="space-y-3">
+            <h2 id="home-plan-title" className="font-display text-2xl md:text-3xl leading-tight">
+              {/* Mientras llega el nombre, un espacio reservado (antes "Viajero." y luego "Sofía."). */}
+              {name
+                ? <><span className="capitalize">{name}</span>, ¿a dónde quieres ir?</>
+                : <><span aria-hidden="true" data-testid="home-name-loading" className="inline-block h-[0.9em] w-20 md:w-36 rounded-lg bg-white/[0.06] motion-safe:animate-pulse align-middle" />, ¿a dónde quieres ir?</>}
+            </h2>
+            <div className="relative flex items-start gap-2 md:gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl pl-3 md:pl-4 pr-1.5 py-1.5 focus-within:border-primary/40 transition">
+              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-2.5" aria-hidden="true" />
+              {/* Un solo campo que crece con el texto (antes un campo de una línea + un panel encima que lo repetía). */}
+              <textarea
+                ref={conciergeInputRef}
+                value={concierge}
+                onChange={(e) => { setConcierge(e.target.value); setPlanHint(false); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitPlan(); }
+                }}
+                rows={Math.min(5, Math.max(1, Math.ceil(concierge.length / 34)))}
+                placeholder="Platícame tu viaje…"
+                aria-label="Platícame tu viaje"
+                className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-display italic text-base md:text-xl leading-snug placeholder:text-primary/70 placeholder:italic text-foreground py-1.5"
+              />
+              <TripFileUpload size="sm" />
+              <VoiceInput
+                onTranscript={(t) => setConcierge((prev) => (prev ? prev + " " : "") + t)}
+                size="sm"
               />
             </div>
-            {/* Destination label — top-right on mobile (next to dots), top-left on desktop */}
-            <div className={`absolute top-5 right-5 md:top-7 md:right-auto md:left-7 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[11px] text-white/90 tracking-wider flex items-center transition-opacity duration-[600ms] z-10 ${reelFading ? "opacity-0" : "opacity-100"}`}>
-              <span className="text-primary mr-1.5">&#9679;</span>
-              {HERO_REELS[reelIdx].label}
-            </div>
-
-
-            {/* Reel progress dots — bottom-center on mobile, top-right on desktop */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-auto md:translate-x-0 md:top-7 md:right-7 flex items-center gap-1.5 z-10">
-              {HERO_REELS.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={(e) => { e.stopPropagation(); setReelFading(true); setTimeout(() => { setReelIdx(i); setReelFading(false); }, 600); }}
-                  className={`h-1 rounded-full transition-all duration-300 ${i === reelIdx ? "w-5 bg-primary" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
-                  aria-label={`Reel ${i + 1}`}
-                />
-              ))}
-            </div>
-
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
-
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md text-[11px] mb-5 self-start border border-primary/25 text-foreground/90 tracking-wider">
-                <Sparkles className="w-3 h-3 text-primary" />
-                <span>IA personalizada</span>
+            <Button
+              type="submit"
+              data-testid="home-plan-cta"
+              className="w-full h-12 rounded-2xl bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow text-sm tracking-wide"
+            >
+              <Plus className="w-4 h-4 mr-2" strokeWidth={2.25} aria-hidden="true" />
+              {PLAN_CTA}
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center leading-relaxed" aria-live="polite" data-testid="home-plan-ayuda">
+              {planHint
+                ? "Escribe un poco más (mínimo 5 letras), o borra el texto para elegir ruta y fechas."
+                : concierge.trim().length > 0
+                  ? "Armamos el plan con lo que escribiste; si falta un dato, solo te preguntamos ese."
+                  : "Escribe tu idea con tus palabras, o toca el botón para elegir ruta y fechas."}
+            </p>
+            {/* Ejemplos de un toque: solo llenan el campo (nada se analiza sin pedirlo). También mientras
+                cargan los viajes: si aparecieran después empujarían toda la página (CLS). */}
+            {concierge.trim().length === 0 && (hasTrips || active.loading) && (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para escribir tu viaje">
+                {EXAMPLE_PROMPTS.map((ex) => (
+                  <button key={ex} type="button" onClick={() => pickExample(ex)}
+                    className="shrink-0 min-h-[36px] rounded-full border border-white/[0.08] bg-white/[0.02] px-3 text-[11px] md:text-xs text-muted-foreground hover:text-primary hover:border-primary/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    “{ex}”
+                  </button>
+                ))}
               </div>
-              <h2 className="font-display text-4xl md:text-6xl leading-[1.02] mb-3 max-w-2xl">
-                Planea un <span className="italic gold-text font-light">nuevo</span> viaje
-              </h2>
-              {/* Abre el modo emoción ("¿Cuál es tu emoción del viaje?"): el texto y el botón dicen eso, para no
-                  confundirlo con «Crear nuevo viaje», que pide destino y fechas. */}
-              <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed" data-testid="home-hero-texto">
-                ¿Aún sin destino? Dinos qué quieres sentir (descanso, aventura, romance…) y IATOS te propone a dónde ir, con vuelos, hospedaje y experiencias.
-              </p>
-              <Button
-                onClick={() => navigate("/dashboard/planear?mode=emocion")}
-                className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide"
-              >
-                <Sparkles className="w-4 h-4 mr-2" strokeWidth={2.25} />
-                Planear por emoción
-              </Button>
-            </div>
+            )}
+          </form>
+        </section>
+
+        {/* IATOS Wrapped destacado (diciembre y enero). El resto del año, «Tu resumen del año» está en Herramientas › Después. */}
+        {!active.loading && <DashboardWrappedPromo trips={active.trips} today={todayLocal} soloDestacado />}
+
+        {/* 3 · HERRAMIENTAS por momento del viaje: todas a la vista y a un toque (antes 8 + «Ver las 16»). */}
+        <section aria-labelledby="tools-title" data-testid="home-tools">
+          <h2 id="tools-title" className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase font-normal">Herramientas</h2>
+          <p className="text-[11px] md:text-xs text-muted-foreground mt-1.5" data-testid="home-tools-viaje">
+            {toolTrip
+              ? <>Equipaje, Clima, En vivo, Mapa, Traductor y Diario son de tu viaje a <span className="text-foreground">{shortTripName(toolTrip)}</span>.</>
+              : "Equipaje, Clima, En vivo, Mapa, Traductor y Diario aparecen aquí cuando tengas un viaje."}
+          </p>
+          <div className="mt-4 space-y-5 md:space-y-4">
+            {HOME_TOOL_GROUPS.map((g) => (
+              <div key={g.id} role="group" aria-labelledby={`tools-${g.id}`} data-testid={`home-tools-${g.id}`} className="md:grid md:grid-cols-[160px_1fr] md:gap-6 md:items-start">
+                <h3 id={`tools-${g.id}`} className="font-display text-base md:text-lg mb-2 md:mb-0 md:pt-4">{g.title}</h3>
+                <div className="grid grid-cols-4 sm:grid-cols-6 xl:grid-cols-8 gap-1.5">
+                  {g.tools.filter((t) => !t.viaje || toolTrip).map(({ icon: Icon, label, to, viaje, accion }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        if (accion === "problema") { openIncident({ tripId: toolTrip?.id ?? null }); return; }
+                        navigate(viaje && toolTrip ? `/dashboard/viajes/${toolTrip.id}/${viaje}` : withTripParam(to!, active.trip?.id));
+                      }}
+                      aria-haspopup={accion ? "dialog" : undefined}
+                      className="flex flex-col items-center justify-center gap-1.5 min-h-[72px] rounded-2xl border border-white/[0.06] bg-white/[0.02] px-1 py-2 text-[11px] text-foreground/85 hover:border-primary/40 hover:text-primary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Icon className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                      <span className="leading-tight text-center">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
-        )}
 
-        {/* CURADO PARA TI */}
+        {/* 4 · MIS PRÓXIMOS VIAJES + TUS GASTOS + CONCIERGE. Sin viajes, Gastos y Concierge comparten fila. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
+          {/* Próximos viajes. Sin viajes no se pinta: la guía del primer viaje de arriba ya dice qué hacer
+              (antes repetía "Aún no tienes viajes planeados" + otro botón dorado de crear viaje). */}
+          {(hasTrips || active.loading) && (
+          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0" data-testid="home-upcoming">
+
+            <div className="flex items-center justify-between gap-2 mb-5">
+              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
+              <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+                Ver todos <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            {/* Con empate el selector ya está arriba (tarjeta "¿Cuál es tu próximo viaje?"): no se repite. */}
+            {active.trips.length > 1 && !ambiguous && (
+              <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
+                onChange={(id) => { void active.pin(id); }} className="mb-4 flex-wrap" />
+            )}
+            {upcomingList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">Aún no tienes viajes planeados.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {upcomingList.map((t) => {
+                  // Días de calendario locales (new Date("YYYY-MM-DD") es UTC y corría un día).
+                  // Un viaje en curso o pasado ya no dice "EN 0D".
+                  const days = daysFromToday(t.fecha_salida);
+                  const endDays = daysFromToday(t.fecha_regreso ?? t.fecha_salida);
+                  const badge = days == null ? "SIN FECHA"
+                    : days > 0 ? (days === 1 ? "MAÑANA" : `EN ${days} DÍAS`)
+                    : days === 0 ? "HOY"
+                    : endDays != null && endDays >= 0 ? "EN CURSO"
+                    : "TERMINADO";
+                  return (
+                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
+                      {/* Portada real del viaje; si no hay, foto ilustrativa del destino (marcada). */}
+                      <SmartImage
+                        alt={t.destino}
+                        imageUrl={savedCoverUrl(t.cover_image_url)}
+                        stockQuery={tripPhotoQuery(t)}
+                        size="thumb"
+                        icon={MapPin}
+                        className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex-shrink-0 ring-1 ring-white/[0.06]"
+                        imgClassName="group-hover:scale-110"
+                        captionPosition="bottom-left"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-display text-sm md:text-base truncate">{shortTripName(t)}{t.pais_destino && shortTripName(t) !== t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
+                        <p className="text-[11px] text-muted-foreground tracking-wide">
+                          {formatLocalDate(t.fecha_salida, { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <span className="text-[10px] px-2 md:px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider shrink-0">
+                        {badge}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            {/* Sin «Crear nuevo viaje»: repetía «Planear un viaje», que está arriba. */}
+          </section>
+          )}
+
+
+          {/* Tus gastos (antes "Smart Spend") */}
+          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden min-w-0">
+            <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Tus gastos</p>
+                <Link to="/dashboard/gastos?tab=resumen" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+                  Ver resumen <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Sin gastos no se pinta un "$0.00" gigante con una dona vacía: se explica qué hacer. */}
+              {spendMxn <= 0 && spendCats.length === 0 ? (
+                <div className="py-4">
+                  <p className="font-display text-xl md:text-2xl">Aún no registras gastos este mes</p>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed max-w-sm">
+                    Anota lo que gastas en tu viaje (comidas, transporte, compras) y aquí verás cuánto llevas y en qué se va.
+                  </p>
+                </div>
+              ) : (<>
+              <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
+              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
+                {`$${Math.round(spendMxn).toLocaleString("es-MX")}\u00A0`}<span className="text-[0.4em] text-muted-foreground font-sans tracking-wide">MXN</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mb-5">
+                {spendDeltaPct !== null ? (
+                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · en pesos</>
+                ) : spendMxn > 0 ? "En pesos · sin gastos el mes pasado" : "Sin gastos este mes · en pesos"}
+              </p>
+              {spendFxLabel && (
+                <p className="text-[10px] text-muted-foreground/80 -mt-4 mb-4">
+                  {spendFxLabel}
+                  {spendUnconverted.length > 0 && ` · sin convertir (sin tasa): ${spendUnconverted.join(", ")}`}
+                </p>
+              )}
+              <div className="flex items-center gap-5 min-w-0">
+                <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
+                <ul className="flex-1 space-y-2 text-sm" aria-label="Por categoría, todos tus gastos">
+                  {spendCats.length > 0 && <li className="text-[10px] text-muted-foreground/80 tracking-wide">Por categoría · todos tus gastos</li>}
+                  {spendCats.length === 0 && (
+                    <li className="text-xs text-muted-foreground italic">
+                      Registra gastos en tus viajes y aquí verás tu desglose real por categoría.
+                    </li>
+                  )}
+                  {spendCats.map((c) => (
+                    <li key={c.label} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-muted-foreground text-xs">
+                        <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                        {c.label}
+                      </span>
+                      <span className="text-foreground text-xs">{c.pct}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              </>)}
+              <Button
+                onClick={() => navigate("/dashboard/smart-spend")}
+                className="w-full mt-6 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] text-sm tracking-wide"
+              >
+                {spendMxn <= 0 && spendCats.length === 0 ? "Registrar un gasto" : "Ver detalles y análisis"}
+              </Button>
+            </div>
+          </section>
+        <section className={`glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full ${hasTrips || active.loading ? "lg:col-span-2" : ""}`}>
+
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.25em] md:tracking-[0.35em] uppercase truncate min-w-0">CONCIERGE IATO</p>
+                <Link to="/dashboard/concierge" className="text-[10px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
+                  Ver historial <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="flex items-start gap-3 mb-4 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
+                  <Sparkles className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-base md:text-lg mb-0.5">¿En qué puedo ayudarte hoy?</p>
+                  <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
+                    Busco opciones, comparo precios y te dejo los enlaces para reservar.
+                  </p>
+                </div>
+              </div>
+              <form
+                // Preguntas ("¿qué clima hará en mi viaje?") van al chat de Iato ya enviadas; solo lo que pide
+                // armar un viaje nuevo ("quiero ir a…", "arma un viaje…") abre el planificador.
+                onSubmit={(e) => { e.preventDefault(); if (conciergeCard.trim()) navigate(conciergeBoxHref(conciergeCard)); }}
+                className="relative w-full"
+              >
+                <Input
+                  value={conciergeCard}
+                  onChange={(e) => setConciergeCard(e.target.value)}
+                  aria-label="Escribe tu solicitud al Concierge"
+                  placeholder="Escribe tu solicitud…"
+                  className="pr-12 h-11 md:h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40 text-sm w-full"
+                />
+                <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center text-primary-foreground hover:opacity-90 transition">
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </section>
+        </div>
+
+
+        {/* 5 · CURADO PARA TI */}
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -525,257 +644,79 @@ const DashboardHome = () => {
 
 
 
-        {/* MIS PRÓXIMOS VIAJES + SMART SPEND (sin viajes, Gastos ocupa todo el ancho: no queda media fila vacía) */}
-        <div className={`grid grid-cols-1 ${hasTrips || active.loading ? "lg:grid-cols-2" : ""} gap-5 min-w-0 w-full max-w-full`}>
-          {/* Próximos viajes. Sin viajes no se pinta: la guía del primer viaje de arriba ya dice qué hacer
-              (antes repetía "Aún no tienes viajes planeados" + otro botón dorado de crear viaje). */}
-          {(hasTrips || active.loading) && (
-          <section className="glass-card rounded-3xl p-4 md:p-7 overflow-hidden min-w-0" data-testid="home-upcoming">
 
-            <div className="flex items-center justify-between gap-2 mb-5">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Mis próximos viajes</p>
-              <Link to="/dashboard/viajes" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
-                Ver todos <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-            {/* Con empate el selector ya está arriba (tarjeta "¿Cuál es tu próximo viaje?"): no se repite. */}
-            {active.trips.length > 1 && !ambiguous && (
-              <ActiveTripPicker trips={active.trips} pinnedId={active.pinnedId} resolved={active.resolved}
-                onChange={(id) => { void active.pin(id); }} className="mb-4 flex-wrap" />
-            )}
-            {upcomingList.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">Aún no tienes viajes planeados.</p>
-            ) : (
-              <div className="space-y-2.5 mb-5">
-                {upcomingList.map((t) => {
-                  // Días de calendario locales (new Date("YYYY-MM-DD") es UTC y corría un día).
-                  // Un viaje en curso o pasado ya no dice "EN 0D".
-                  const days = daysFromToday(t.fecha_salida);
-                  const endDays = daysFromToday(t.fecha_regreso ?? t.fecha_salida);
-                  const badge = days == null ? "SIN FECHA"
-                    : days > 0 ? (days === 1 ? "MAÑANA" : `EN ${days} DÍAS`)
-                    : days === 0 ? "HOY"
-                    : endDays != null && endDays >= 0 ? "EN CURSO"
-                    : "TERMINADO";
-                  return (
-                    <Link to={`/dashboard/viajes/${t.id}`} key={t.id} className="flex items-center gap-3 p-2 -mx-2 rounded-2xl hover:bg-white/[0.04] transition group min-w-0">
-                      {/* Portada real del viaje; si no hay, foto ilustrativa del destino (marcada). */}
-                      <SmartImage
-                        alt={t.destino}
-                        imageUrl={savedCoverUrl(t.cover_image_url)}
-                        stockQuery={tripPhotoQuery(t)}
-                        size="thumb"
-                        icon={MapPin}
-                        className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex-shrink-0 ring-1 ring-white/[0.06]"
-                        imgClassName="group-hover:scale-110"
-                        captionPosition="bottom-left"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-display text-sm md:text-base truncate">{shortTripName(t)}{t.pais_destino && shortTripName(t) !== t.pais_destino ? `, ${t.pais_destino}` : ""}</p>
-                        <p className="text-[11px] text-muted-foreground tracking-wide">
-                          {formatLocalDate(t.fecha_salida, { day: "numeric", month: "short", year: "numeric" })}
-                        </p>
-                      </div>
-                      <span className="text-[10px] px-2 md:px-3 py-1 rounded-full border border-primary/30 text-primary whitespace-nowrap tracking-wider shrink-0">
-                        {badge}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-            <Button
-              onClick={() => navigate("/dashboard/planear")}
-              className="w-full h-11 rounded-2xl bg-gradient-gold text-primary-foreground hover:opacity-90 text-sm tracking-wide"
+        {/* 6 · ¿AÚN SIN DESTINO? Planear por emoción (antes arriba, justo después del viaje: repetía la acción de planear). */}
+        {/* Para quien aún no tiene viajes la guía de arriba ya es la portada: sin video duplicado. */}
+        {/* Mientras carga se reserva su lugar: si apareciera después empujaría 340 px todo lo de abajo. */}
+        {/* Sin animación de entrada: es la imagen principal (LCP). Con opacidad 0 al inicio el navegador
+            la contaba 0.7 s tarde, y desplazada 20 px se medía más chica que la del siguiente reel. */}
+        {(hasTrips || active.loading) && (
+        <section>
+          <div
+            className="relative rounded-[28px] overflow-hidden premium-shadow group cursor-pointer ring-1 ring-white/[0.05]"
+            onClick={() => navigate("/dashboard/planear?mode=emocion")}
+          >
+
+            <div
+              className={`w-full h-[340px] md:h-[460px] transition-opacity duration-[600ms] ease-out ${reelFading ? "opacity-0" : "opacity-100"}`}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Crear nuevo viaje
-            </Button>
-          </section>
-          )}
-
-
-          {/* Tus gastos (antes "Smart Spend") */}
-          <section className="glass-card rounded-3xl p-4 md:p-7 relative overflow-hidden min-w-0">
-            <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase truncate">Tus gastos</p>
-                <Link to="/dashboard/gastos?tab=resumen" className="text-[11px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
-                  Ver resumen <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              {/* Sin gastos no se pinta un "$0.00" gigante con una dona vacía: se explica qué hacer. */}
-              {spendMxn <= 0 && spendCats.length === 0 ? (
-                <div className="py-4">
-                  <p className="font-display text-xl md:text-2xl">Aún no registras gastos este mes</p>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed max-w-sm">
-                    Anota lo que gastas en tu viaje (comidas, transporte, compras) y aquí verás cuánto llevas y en qué se va.
-                  </p>
-                </div>
-              ) : (<>
-              <p className="text-[11px] text-muted-foreground mb-1 tracking-wide">Este mes</p>
-              <p className="font-display text-4xl md:text-5xl mb-1 gold-text">
-                {`$${Math.round(spendMxn).toLocaleString("es-MX")}\u00A0`}<span className="text-[0.4em] text-muted-foreground font-sans tracking-wide">MXN</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground mb-5">
-                {spendDeltaPct !== null ? (
-                  <><span className={spendDeltaPct >= 0 ? "text-primary" : "text-emerald-400"}>{spendDeltaPct >= 0 ? "+" : ""}{spendDeltaPct}%</span> vs mes anterior · en pesos</>
-                ) : spendMxn > 0 ? "En pesos · sin gastos el mes pasado" : "Sin gastos este mes · en pesos"}
-              </p>
-              {spendFxLabel && (
-                <p className="text-[10px] text-muted-foreground/80 -mt-4 mb-4">
-                  {spendFxLabel}
-                  {spendUnconverted.length > 0 && ` · sin convertir (sin tasa): ${spendUnconverted.join(", ")}`}
-                </p>
-              )}
-              <div className="flex items-center gap-5 min-w-0">
-                <SpendDonut segments={spendCats.length ? spendCats : [{ label: "Sin datos", pct: 0, color: "hsl(0 0% 25%)" }]} />
-                <ul className="flex-1 space-y-2 text-sm" aria-label="Por categoría, todos tus gastos">
-                  {spendCats.length > 0 && <li className="text-[10px] text-muted-foreground/80 tracking-wide">Por categoría · todos tus gastos</li>}
-                  {spendCats.length === 0 && (
-                    <li className="text-xs text-muted-foreground italic">
-                      Registra gastos en tus viajes y aquí verás tu desglose real por categoría.
-                    </li>
-                  )}
-                  {spendCats.map((c) => (
-                    <li key={c.label} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-muted-foreground text-xs">
-                        <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
-                        {c.label}
-                      </span>
-                      <span className="text-foreground text-xs">{c.pct}%</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              </>)}
-              <Button
-                onClick={() => navigate("/dashboard/smart-spend")}
-                className="w-full mt-6 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] text-sm tracking-wide"
-              >
-                {spendMxn <= 0 && spendCats.length === 0 ? "Registrar un gasto" : "Ver detalles y análisis"}
-              </Button>
-            </div>
-          </section>
-        </div>
-
-        {/* AI CONCIERGE + INSPIRACIÓN */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 w-full max-w-full">
-          <section className="glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full">
-
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.25em] md:tracking-[0.35em] uppercase truncate min-w-0">CONCIERGE IATO</p>
-              <Link to="/dashboard/concierge" className="text-[10px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
-                Ver historial <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            <div className="flex items-start gap-3 mb-4 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-6px_hsl(41_47%_59%/0.5)]">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-base md:text-lg mb-0.5">¿En qué puedo ayudarte hoy?</p>
-                <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
-                  Busco opciones, comparo precios y te dejo los enlaces para reservar.
-                </p>
-              </div>
-            </div>
-            <form
-              // Preguntas ("¿qué clima hará en mi viaje?") van al chat de Iato ya enviadas; solo lo que pide
-              // armar un viaje nuevo ("quiero ir a…", "arma un viaje…") abre el planificador.
-              onSubmit={(e) => { e.preventDefault(); if (conciergeCard.trim()) navigate(conciergeBoxHref(conciergeCard)); }}
-              className="relative w-full"
-            >
-              <Input
-                value={conciergeCard}
-                onChange={(e) => setConciergeCard(e.target.value)}
-                aria-label="Escribe tu solicitud al Concierge"
-                placeholder="Escribe tu solicitud…"
-                className="pr-12 h-11 md:h-12 rounded-2xl bg-white/[0.03] border-white/[0.08] focus-visible:ring-primary/40 text-sm w-full"
+              <DestinationVideo
+                query={HERO_REELS[reelIdx].query}
+                fallbackImage={HERO_REELS[reelIdx].fallback}
+                fallbackSrcSet={fallbackSrcSet(HERO_REELS[reelIdx].fallback)}
+                sizes={HERO_SIZES}
+                priority
+                alt={`Inicia tu travesía en ${HERO_REELS[reelIdx].label}`}
+                className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-[1200ms]"
               />
-              <button type="submit" aria-label="Enviar" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-gold flex items-center justify-center text-primary-foreground hover:opacity-90 transition">
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </section>
-
-          <section className="glass-card rounded-3xl p-3.5 md:p-7 overflow-hidden min-w-0 w-full max-w-full">
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <p className="text-primary text-[10px] md:text-[11px] tracking-[0.25em] md:tracking-[0.35em] uppercase truncate min-w-0">Inspiración para ti</p>
-              <Link to="/dashboard/descubre" className="text-[10px] md:text-xs text-primary/80 hover:text-primary flex items-center gap-0.5 tracking-wide whitespace-nowrap shrink-0">
-                Ver más <ChevronRight className="w-3 h-3" />
-              </Link>
+            </div>
+            {/* Destination label — top-right on mobile (next to dots), top-left on desktop */}
+            <div className={`absolute top-5 right-5 md:top-7 md:right-auto md:left-7 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[11px] text-white/90 tracking-wider flex items-center transition-opacity duration-[600ms] z-10 ${reelFading ? "opacity-0" : "opacity-100"}`}>
+              <span className="text-primary mr-1.5">&#9679;</span>
+              {HERO_REELS[reelIdx].label}
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden h-[170px] md:h-[320px] group cursor-pointer ring-1 ring-white/[0.05] w-full" onClick={() => navigate("/dashboard/descubre")}>
-              <DestinationVideo query="romantic beach sunset travel cinematic" fallbackImage={tulum640} lowPriority alt="Escapadas románticas" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1100ms]" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              {/* Antes era un botón "Siguiente" sin acción; la tarjeta entera abre Descubre. */}
-              <span aria-hidden="true" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center">
-                <ChevronRight className="w-4 h-4" />
-              </span>
-              <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="font-display text-xl md:text-2xl mb-0.5 leading-tight">Escapadas <span className="italic gold-text font-light">románticas</span></h3>
-                <p className="text-[10px] md:text-[11px] text-white/70 tracking-wide">Destinos perfectos para conectar</p>
-              </div>
-            </div>
 
-          </section>
-        </div>
-
-          {/* HERRAMIENTAS — ancho completo (antes quedaba dentro de la rejilla de 2 columnas y
-              ocupaba solo la mitad izquierda en escritorio). */}
-          <section aria-labelledby="tools-title">
-            <div className="flex items-center justify-between mb-3">
-              <h2 id="tools-title" className="text-primary text-[10px] md:text-[11px] tracking-[0.3em] md:tracking-[0.35em] uppercase font-normal">Herramientas</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2.5">
-              {HOME_TOOLS.filter((_, i) => toolsOpen || i < TOOLS_VISIBLE).map(({ icon: Icon, label, sub, to, img }) => (
+            {/* Reel progress dots — bottom-center on mobile, top-right on desktop */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-auto md:translate-x-0 md:top-7 md:right-7 flex items-center gap-1.5 z-10">
+              {HERO_REELS.map((_, i) => (
                 <button
-                  key={label}
-                  onClick={() => navigate(withTripParam(to, active.trip?.id))}
-                  className="relative overflow-hidden aspect-[4/3] rounded-xl border border-white/[0.08] hover:border-primary/50 transition-all text-left group"
-                >
-                  <img
-                    src={img}
-                    srcSet={tileSrcSet(img)}
-                    sizes="(min-width: 768px) 25vw, 50vw"
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    // Al final de la página: en red lenta no compite con la imagen principal.
-                    {...{ fetchpriority: "low" }}
-                    width={600}
-                    height={450}
-                    className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
-                  <div className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-background/70 backdrop-blur flex items-center justify-center border border-primary/30">
-                    <Icon className="w-3.5 h-3.5 text-primary" strokeWidth={1.5} />
-                  </div>
-                  <div className="absolute bottom-2.5 left-2.5 right-2.5">
-                    <div className="text-[13px] font-semibold leading-tight text-white">{label}</div>
-                    <div className="text-[9px] text-primary/80 tracking-[0.2em] uppercase mt-0.5">{sub}</div>
-                  </div>
-                </button>
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setReelFading(true); setTimeout(() => { setReelIdx(i); setReelFading(false); }, 600); }}
+                  className={`h-1 rounded-full transition-all duration-300 ${i === reelIdx ? "w-5 bg-primary" : "w-1.5 bg-white/30 hover:bg-white/50"}`}
+                  aria-label={`Reel ${i + 1}`}
+                />
               ))}
             </div>
-            {/* 16 mosaicos de golpe abrumaban (sobre todo al entrar por primera vez): se ven los 8 más usados y
-                el resto con un toque. Ninguna herramienta se quita. */}
-            <button
-              type="button"
-              onClick={() => setToolsOpen((v) => !v)}
-              aria-expanded={toolsOpen}
-              data-testid="home-tools-toggle"
-              className="mt-3 w-full min-h-[44px] rounded-xl border border-white/[0.08] bg-white/[0.02] text-sm text-primary hover:border-primary/40 transition flex items-center justify-center gap-1.5"
-            >
-              {toolsOpen ? "Ver menos herramientas" : `Ver las ${TOOLS_TOTAL} herramientas`}
-              <ChevronRight className={`w-4 h-4 transition-transform ${toolsOpen ? "-rotate-90" : "rotate-90"}`} aria-hidden="true" />
-            </button>
-          </section>
+
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md text-[11px] mb-5 self-start border border-primary/25 text-foreground/90 tracking-wider">
+                <Sparkles className="w-3 h-3 text-primary" />
+                <span>IA personalizada</span>
+              </div>
+              <h2 className="font-display text-4xl md:text-6xl leading-[1.02] mb-3 max-w-2xl">
+                ¿Aún sin <span className="italic gold-text font-light">destino</span>?
+              </h2>
+              {/* Abre el modo emoción ("¿Cuál es tu emoción del viaje?"): el título, el texto y el botón dicen eso, para
+                  no confundirlo con «Planear un viaje» (arriba), que parte de un destino. */}
+              <p className="text-sm md:text-base text-white/70 mb-6 max-w-xl leading-relaxed" data-testid="home-hero-texto">
+                Dinos qué quieres sentir (descanso, aventura, romance…) y IATOS te propone a dónde ir, con vuelos, hospedaje y experiencias.
+              </p>
+              <Button
+                onClick={() => navigate("/dashboard/planear?mode=emocion")}
+                className="bg-gradient-gold text-primary-foreground hover:opacity-90 gold-glow self-start h-12 px-6 rounded-2xl text-sm tracking-wide"
+              >
+                <Sparkles className="w-4 h-4 mr-2" strokeWidth={2.25} />
+                Planear por emoción
+              </Button>
+            </div>
+          </div>
+        </section>
+        )}
+
       </div>
     </DashboardLayout>
   );

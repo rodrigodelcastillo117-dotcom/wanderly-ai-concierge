@@ -38,8 +38,9 @@ export function WrappedPromoCard({ promo, className = "" }: { promo: WrappedProm
   );
 }
 
-/** Inicio: solo si el año del aviso tiene viajes que ya empezaron. */
-export function DashboardWrappedPromo({ trips, today }: { trips: Array<{ fecha_salida?: string | null }>; today: string }) {
+/** Inicio: solo si el año del aviso tiene viajes que ya empezaron. `soloDestacado`: el acceso discreto del resto
+ *  del año no se pinta (Inicio ya tiene «Tu resumen del año» en Herramientas › Después). */
+export function DashboardWrappedPromo({ trips, today, soloDestacado = false }: { trips: Array<{ fecha_salida?: string | null }>; today: string; soloDestacado?: boolean }) {
   const fromList = wrappedPromo(today, trips);
   const [extra, setExtra] = useState<WrappedPromo | null>(null);
   // La lista del inicio trae a lo más 50 viajes (los más antiguos): si está llena, se pregunta directo.
@@ -54,7 +55,8 @@ export function DashboardWrappedPromo({ trips, today }: { trips: Array<{ fecha_s
     return () => { cancelled = true; };
   }, [fromList, full, today]);
   const promo = fromList ?? extra;
-  return promo ? <WrappedPromoCard promo={promo} /> : null;
+  if (!promo || (soloDestacado && !promo.featured)) return null;
+  return <WrappedPromoCard promo={promo} />;
 }
 
 /** Perfil: siempre visible (la página explica si aún no hay viajes). */
