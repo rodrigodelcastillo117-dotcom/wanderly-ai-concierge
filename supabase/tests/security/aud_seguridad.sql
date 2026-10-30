@@ -129,7 +129,12 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- Reclamos (20261029090000_reclamos): admin_claims_list / admin_claim_view exigen auth.uid() en public.admins
   -- (_ops_require_admin, 42501 si no); solo leen (lista y detalle sin token de respuesta; reenvíos solo los
   -- ligados a ese reclamo). Pruebas en supabase/tests/reclamos (O1–O2).
-  ('admin_claims_list'), ('admin_claim_view')),
+  ('admin_claims_list'), ('admin_claim_view'),
+  -- Comisiones (20261030020000_comisiones): admin_commissions_summary y admin_managed_request_decide exigen auth.uid()
+  -- en public.admins (42501 si no); el resumen solo da agregados del mes y solicitudes (sin neto ni datos del viajero
+  -- más allá del texto de su sí); decidir solo aprueba/rechaza una solicitud pendiente, una vez, con historial (no llama
+  -- a ningún proveedor). Pruebas en supabase/tests/comisiones (C18, C26, C27).
+  ('admin_commissions_summary'), ('admin_managed_request_decide')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)
