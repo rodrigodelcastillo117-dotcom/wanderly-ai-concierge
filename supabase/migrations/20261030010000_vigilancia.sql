@@ -110,7 +110,8 @@ GRANT SELECT ON public.vigilancia_vuelos TO authenticated;
 -- ───────────────────────────── 4. Bitácora ─────────────────────────────
 CREATE TABLE IF NOT EXISTS public.vigilancia_eventos (
   id               bigserial PRIMARY KEY,
-  user_id          uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- Sin persona solo los eventos del sistema (p. ej. "se acabó el cupo de SerpApi de hoy").
+  user_id          uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   trip_id          uuid REFERENCES public.trips(id) ON DELETE SET NULL,
   ambito           text NOT NULL CHECK (ambito IN ('vuelo','confirmacion','aviso','sistema')),
   tipo             text NOT NULL CHECK (tipo ~ '^[a-z_]{3,60}$'),
@@ -120,7 +121,8 @@ CREATE TABLE IF NOT EXISTS public.vigilancia_eventos (
   ref_id           uuid,
   incidente_id     uuid REFERENCES public.concierge_requests(id) ON DELETE SET NULL,
   visible_viajero  boolean NOT NULL DEFAULT false,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  CHECK (user_id IS NOT NULL OR ambito = 'sistema')
 );
 CREATE INDEX IF NOT EXISTS vigilancia_eventos_trip ON public.vigilancia_eventos (trip_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS vigilancia_eventos_recientes ON public.vigilancia_eventos (created_at DESC);
@@ -352,6 +354,14 @@ BEGIN
 EXCEPTION WHEN check_violation OR invalid_text_representation OR not_null_violation OR foreign_key_violation THEN
   RETURN jsonb_build_object('ok', false, 'code', 'INVALID', 'detail', left(SQLERRM, 200));
 END $$;
+
+-- Lo que ya se registró de un viaje en un ámbito (línea base de alertas oficiales, etc.), lo más reciente primero.
+CREATE OR REPLACE FUNCTION public.vigilancia_eventos_trip(_trip uuid, _ambito text, _limit int DEFAULT 50)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT coalesce(jsonb_agg(jsonb_build_object('tipo', e.tipo, 'clave', e.clave, 'datos', e.datos, 'created_at', e.created_at) ORDER BY e.id DESC), '[]'::jsonb)
+    FROM (SELECT * FROM public.vigilancia_eventos WHERE trip_id = _trip AND ambito = _ambito ORDER BY id DESC
+           LIMIT least(greatest(coalesce(_limit, 0), 0), 200)) e;
+$$;
 
 -- Avisos al viajero: una sola vez por clave.
 CREATE OR REPLACE FUNCTION public.vigilancia_aviso_encolar(_a jsonb)
@@ -615,7 +625,7 @@ GRANT ALL ON public.vigilancia_config, public.vigilancia_preferencias, public.vi
 GRANT USAGE, SELECT ON SEQUENCE public.vigilancia_eventos_id_seq TO service_role;
 
 REVOKE ALL ON FUNCTION public.vigilancia_cfg(), public.vigilancia_candidatos_vuelo(date, date), public.vigilancia_vuelo_upsert(jsonb),
-  public.vigilancia_vuelos_reclamar(int, timestamptz), public.vigilancia_vuelo_guardar(uuid, jsonb), public.vigilancia_evento(jsonb),
+  public.vigilancia_vuelos_reclamar(int, timestamptz), public.vigilancia_vuelo_guardar(uuid, jsonb), public.vigilancia_evento(jsonb), public.vigilancia_eventos_trip(uuid, text, int),
   public.vigilancia_aviso_encolar(jsonb), public.vigilancia_avisos_reclamar(int, timestamptz),
   public.vigilancia_aviso_cerrar(uuid, text, jsonb, timestamptz), public.vigilancia_viajes_ventana(timestamptz, int),
   public.vigilancia_confirmaciones_sync(timestamptz), public.vigilancia_confirmaciones_pendientes(timestamptz, int),
@@ -623,7 +633,7 @@ REVOKE ALL ON FUNCTION public.vigilancia_cfg(), public.vigilancia_candidatos_vue
   public.my_vigilancia_prefs(), public.my_vigilancia_prefs_set(boolean, text), public.admin_vigilancia_resumen()
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.vigilancia_cfg(), public.vigilancia_candidatos_vuelo(date, date), public.vigilancia_vuelo_upsert(jsonb),
-  public.vigilancia_vuelos_reclamar(int, timestamptz), public.vigilancia_vuelo_guardar(uuid, jsonb), public.vigilancia_evento(jsonb),
+  public.vigilancia_vuelos_reclamar(int, timestamptz), public.vigilancia_vuelo_guardar(uuid, jsonb), public.vigilancia_evento(jsonb), public.vigilancia_eventos_trip(uuid, text, int),
   public.vigilancia_aviso_encolar(jsonb), public.vigilancia_avisos_reclamar(int, timestamptz),
   public.vigilancia_aviso_cerrar(uuid, text, jsonb, timestamptz), public.vigilancia_viajes_ventana(timestamptz, int),
   public.vigilancia_confirmaciones_sync(timestamptz), public.vigilancia_confirmaciones_pendientes(timestamptz, int),
