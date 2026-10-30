@@ -100,20 +100,24 @@ async function placeIdPorTexto(texto: string): Promise<string | null> {
   return typeof j?.places?.[0]?.id === "string" ? j.places[0].id : null;
 }
 
+/** Claude con la configuración del Operador (ANTHROPIC_MODEL → vigente, con respaldo). null sin ANTHROPIC_API_KEY. */
+export function modeloOperadorReal(): OperadorDeps["modelo"] {
+  if (!env("ANTHROPIC_API_KEY")) return null;
+  return async (payload) => {
+    try {
+      const res = await callClaudeWithFallback(payload, { signal: AbortSignal.timeout(60_000) });
+      return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
+    } catch {
+      return { ok: false, status: 0, data: null };
+    }
+  };
+}
+
 export function buildOperadorDeps(): OperadorDeps & { despacho: DespachoDeps } {
   const admin = adminClient();
   const db = dbDe(admin);
   const modelos = claudeModels();
-  const modelo: OperadorDeps["modelo"] = env("ANTHROPIC_API_KEY")
-    ? async (payload) => {
-      try {
-        const res = await callClaudeWithFallback(payload, { signal: AbortSignal.timeout(60_000) });
-        return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
-      } catch {
-        return { ok: false, status: 0, data: null };
-      }
-    }
-    : null;
+  const modelo = modeloOperadorReal();
   const reservas = buildServiceDeps();
 
   return {

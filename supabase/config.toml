@@ -51,6 +51,10 @@ verify_jwt = false
 [functions.operador]
 verify_jwt = false
 
+# Evaluación del Operador con IA real desde el servidor: solo administradores (JWT + public.admins), tope de gasto.
+[functions.operador-eval]
+verify_jwt = true
+
 # Bot de Telegram: Telegram no manda JWT; exige el secreto del webhook (derivado de TELEGRAM_BOT_TOKEN). Apagado sin token.
 [functions.telegram-webhook]
 verify_jwt = false

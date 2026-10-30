@@ -6,18 +6,8 @@
 import type { ModeloOperador } from "../../../supabase/functions/_shared/operador/tipos";
 import { respuesta, type Llamada } from "./operadorHarness";
 
-export type Hechos = {
-  vuelo?: string; origen?: string; destino?: string; aerolinea?: string; fecha?: string;
-  evento?: "retraso" | "cancelacion" | "sobreventa" | "conexion_perdida" | "equipaje_perdido" | "equipaje_danado" | "equipaje_retrasado";
-  horas?: number; aviso_dias?: number; reubicacion?: boolean; necesitaVolar?: boolean; reclamo?: boolean;
-  proveedor?: string; tipo_proveedor?: "hotel" | "traslado" | "tour" | "agencia" | "restaurante" | "otro";
-  problema?: "cobro_doble" | "servicio_no_prestado" | "sobreventa_hotel" | "servicio_deficiente" | "reserva_no_encontrada";
-  monto?: number; moneda?: string; contraIatos?: boolean; idioma?: "es" | "en";
-};
-
-export type Adversario =
-  | "inventa_correo" | "promete_reembolso" | "envia_sin_permiso" | "doble_busqueda" | "ver_sin_permiso" | "bucle_infinito"
-  | "ia_caida" | "ignora_viajero" | "gasto_excesivo" | "se_niega" | "inventa_telefono" | "contacto_falso";
+export type { Adversario, Hechos } from "../../../supabase/functions/_shared/operador/eval/escenarios";
+import type { Adversario, Hechos } from "../../../supabase/functions/_shared/operador/eval/escenarios";
 
 type Bloque = { type: string; name?: string; id?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> };
 type Msg = { role: string; content: unknown };
