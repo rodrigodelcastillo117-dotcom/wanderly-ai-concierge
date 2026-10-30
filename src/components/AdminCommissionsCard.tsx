@@ -56,6 +56,12 @@ function isSummary(v: unknown): v is CommissionsSummary {
     && Array.isArray(m.por_producto) && !!m.clics && Array.isArray(m.solicitudes);
 }
 
+type Diagnostico = { id: string; verificado: boolean; configurado: boolean; entorno: string; nivel?: string; nivel_detalle?: string };
+const NIVEL: Record<string, string> = {
+  full_booking: "Full + Booking (puede cancelar y cambiar por API)", full: "Full (sin reservas)", basic: "Basic (solo búsqueda y enlaces)",
+  llave_invalida: "llave inválida o aún no activa", sin_llave: "sin llave", desconocido: "no se pudo saber",
+};
+
 const box = "rounded-xl bg-surface/60 border border-white/[0.06] p-4";
 
 export function AdminCommissionsCard() {
@@ -63,6 +69,8 @@ export function AdminCommissionsCard() {
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [deciding, setDeciding] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [diag, setDiag] = useState<Diagnostico[] | null>(null);
+  const [diagState, setDiagState] = useState<"idle" | "loading" | "error">("idle");
 
   const load = useCallback(async () => {
     setState("loading");
@@ -87,6 +95,16 @@ export function AdminCommissionsCard() {
     const ok = !error && (r as { ok?: boolean } | null)?.ok;
     setAviso(ok ? (aprobar ? "Aprobada: la tarea la hará con el proveedor (si la ejecución está prendida)." : "Rechazada.") : "No se pudo guardar la decisión.");
     await load();
+  };
+
+  // Solo lecturas: qué proveedores tienen secretos y el nivel de la llave de Viator (sin reservar ni gastar).
+  const revisarProveedores = async () => {
+    setDiagState("loading");
+    const { data: d, error } = await supabase.functions.invoke("reservas-gestionadas", { body: { diagnostico: true } });
+    const lista = (d as { adaptadores?: Diagnostico[] } | null)?.adaptadores;
+    if (error || !Array.isArray(lista)) { setDiagState("error"); return; }
+    setDiag(lista);
+    setDiagState("idle");
   };
 
   const ganado = data?.totales ?? [];
@@ -194,6 +212,27 @@ export function AdminCommissionsCard() {
                         <Button size="sm" variant="outline" disabled={deciding === s.id} onClick={() => decidir(s.id, false)}>Rechazar</Button>
                       </div>
                     )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className={box}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">Proveedores con reserva por API</p>
+              <Button size="sm" variant="outline" disabled={diagState === "loading"} onClick={revisarProveedores}>Revisar proveedores</Button>
+            </div>
+            {diagState === "error" && <p className="text-xs text-muted-foreground mt-2">No se pudo revisar (¿falta desplegar reservas-gestionadas?).</p>}
+            {diag && (
+              <ul className="space-y-1.5 text-sm mt-2">
+                {diag.map((a) => (
+                  <li key={a.id} className="flex flex-wrap justify-between gap-2">
+                    <span className="text-muted-foreground">{a.id}</span>
+                    <span className="text-right text-xs">
+                      {!a.verificado ? "NO VERIFICADO (sin documentación pública)" : a.configurado ? `con llave · ${a.entorno === "produccion" ? "producción" : "sandbox"}` : "sin llave"}
+                      {a.nivel ? ` · ${NIVEL[a.nivel] ?? a.nivel}` : ""}
+                    </span>
                   </li>
                 ))}
               </ul>

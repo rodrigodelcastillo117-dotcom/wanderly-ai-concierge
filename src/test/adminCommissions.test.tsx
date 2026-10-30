@@ -5,7 +5,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { CommissionsSummary } from "@/components/AdminCommissionsCard";
 
 const rpc = vi.fn();
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+const invoke = vi.fn();
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), functions: { invoke: (...a: unknown[]) => invoke(...a) } } }));
 
 import { AdminCommissionsCard } from "@/components/AdminCommissionsCard";
 
@@ -50,6 +51,21 @@ describe("AdminCommissionsCard", () => {
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("admin_managed_request_decide", { _id: "q1", _approve: true, _note: null }));
     expect(await screen.findByRole("status")).toHaveTextContent(/Aprobada/);
     expect(rpc.mock.calls.filter((c) => c[0] === "admin_commissions_summary")).toHaveLength(2);
+  });
+
+  it("«Revisar proveedores» muestra qué tiene llave, el entorno, lo NO VERIFICADO y el nivel de Viator (solo lecturas)", async () => {
+    rpc.mockResolvedValue({ data: resumen, error: null });
+    invoke.mockResolvedValue({ data: { ok: true, adaptadores: [
+      { id: "ratehawk", verificado: true, configurado: false, entorno: "sandbox" },
+      { id: "viator", verificado: true, configurado: true, entorno: "produccion", nivel: "basic" },
+      { id: "traslados", verificado: false, configurado: false, entorno: "sandbox" },
+    ] }, error: null });
+    render(<AdminCommissionsCard />);
+    fireEvent.click(await screen.findByRole("button", { name: "Revisar proveedores" }));
+    expect(invoke).toHaveBeenCalledWith("reservas-gestionadas", { body: { diagnostico: true } });
+    expect(await screen.findByText(/Basic \(solo búsqueda y enlaces\)/)).toBeInTheDocument();
+    expect(screen.getByText("NO VERIFICADO (sin documentación pública)")).toBeInTheDocument();
+    expect(screen.getByText("sin llave")).toBeInTheDocument();
   });
 
   it("si no es administrador o falta la migración, lo dice sin romper la página", async () => {
