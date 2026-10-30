@@ -1,5 +1,8 @@
 # Tareas de operación que hace una persona
 
+> **Publicación del backend nuevo (incidentes, Operador, reclamos, canales, vigilancia y comisiones):** sigue
+> [`DIA_DE_LOVABLE.md`](./DIA_DE_LOVABLE.md), una guía de un solo paso, en orden, con cómo apagar todo en un minuto.
+
 El agente de Lovable tiene prohibido por política tocar secretos y programar
 tareas, así que estos pasos los hace el dueño del proyecto.
 

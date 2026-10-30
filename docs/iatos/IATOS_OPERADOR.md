@@ -150,7 +150,8 @@ Encendido, los casos nuevos nacen del operador (si da latido); apagado o caído,
 - SQL: `supabase/tests/operador` (33 casos: bandera, candado, idempotencia, despertar, topes, consentimiento, correos con fuente y horario, Telegram, permisos).
 - Vitest: `operador.test.ts` (bucle y límites), `operadorCanales.test.ts` (Telegram, respuesta del proveedor, WhatsApp/voz apagados), `operadorIntegracion.test.ts` (reclamos → incidentes), `operadorUi.test.tsx` (vincular Telegram, bitácora en la Mesa).
 - **Evaluación "no puede fallar"**: `operadorEval.test.ts`, 95 escenarios de punta a punta con mocks (vuelos, traslados, hoteles, equipaje, documentos, robos, salud, seguridad, cobros, quejas, ambiguos, Telegram, en español, inglés y con faltas, y 12 donde el modelo se porta mal a propósito). Revisa en cada uno: caso creado, respuesta inmediata útil, acciones, derechos, escalamiento, cero casos perdidos, nada inventado, horario del proveedor y nada sin consentimiento.
-- **Con IA real** (cuesta dinero, ~US$8–12 con Sonnet 5.5; correr solo con permiso):
+- **Con IA real desde el servidor** (la llave no sale): función `operador-eval`, solo administradores, un escenario por llamada, tope de gasto (1 USD por omisión, máx. 5), memoria simulada (no escribe en la base real ni manda nada). Cómo correrla: `docs/ops/DIA_DE_LOVABLE.md`, paso g.
+- **Con IA real en una computadora** (cuesta dinero, ~US$8–12 con Sonnet 5.5; correr solo con permiso):
   ```bash
   npm i --no-save @anthropic-ai/sdk
   OPERADOR_EVAL_REAL=1 ANTHROPIC_API_KEY=… npx vitest run src/test/operadorEval.test.ts
