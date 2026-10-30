@@ -289,3 +289,14 @@ verify_jwt = false
 # Reclamos (pg_cron): recordatorio único y paso a "escalable"; autenticación de cron interna
 [functions.reclamos-cron]
 verify_jwt = false
+
+# Comisiones y reservas gestionadas (docs/iatos/IATOS_COMISIONES.md). Las tres validan su propia autorización:
+# cron (isAuthorizedCron) / administrador / firma del proveedor.
+[functions.comisiones-sync]
+verify_jwt = false
+
+[functions.reservas-gestionadas]
+verify_jwt = false
+
+[functions.proveedores-webhook]
+verify_jwt = false
