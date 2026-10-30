@@ -11,7 +11,7 @@ import type { ModeloOperador } from "../tipos.ts";
 
 export const EVAL_TOPE_USD_POR_OMISION = 1;
 export const EVAL_TOPE_USD_MAX = 5;
-export const EVAL_CANTIDAD_POR_OMISION = 2;
+export const EVAL_CANTIDAD_POR_OMISION = 1;
 export const EVAL_CANTIDAD_MAX = 4;
 
 export type PedidoEval = { solo: string[]; desde: number; cantidad: number; tope_usd: number };

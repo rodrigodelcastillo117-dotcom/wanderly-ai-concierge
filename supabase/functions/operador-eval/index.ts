@@ -2,7 +2,8 @@
 // Solo administradores (verify_jwt = true + public.admins). Corre una tanda corta de escenarios (máx. 4) sobre memoria
 // simulada: NO escribe en la base real, NO manda correos, mensajes ni push, NO busca vuelos reales (todo en memoria;
 // lo único real son las llamadas a Claude). Tope de gasto por llamada (tope_usd, 1 USD por omisión, máx. 5) y una
-// evaluación a la vez. Uso: POST { desde?: number, cantidad?: 1–4, solo?: ["V01"], tope_usd?: number } →
+// evaluación a la vez. Uso: POST { desde?: number, cantidad?: 1–4 (1 por omisión: cada escenario con IA real tarda
+// ~30–90 s y la plataforma corta una respuesta a los 150 s), solo?: ["V01"], tope_usd?: number } →
 // { escenarios, resumen, gasto_usd, siguiente }. Guía: docs/ops/DIA_DE_LOVABLE.md, paso g.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";

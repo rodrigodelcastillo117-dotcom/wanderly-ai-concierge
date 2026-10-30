@@ -19,7 +19,7 @@ afterEach(() => { globalThis.Date = DateReal; });
 
 describe("operador-eval · pedido", () => {
   it("acota tanda y tope; rechaza escenarios desconocidos y tandas grandes", () => {
-    expect(leerPedidoEval({})).toEqual({ ok: true, pedido: { solo: [], desde: 0, cantidad: 2, tope_usd: 1 } });
+    expect(leerPedidoEval({})).toEqual({ ok: true, pedido: { solo: [], desde: 0, cantidad: 1, tope_usd: 1 } });
     expect(leerPedidoEval({ cantidad: 50, tope_usd: 999, desde: 3 })).toEqual({ ok: true, pedido: { solo: [], desde: 3, cantidad: EVAL_CANTIDAD_MAX, tope_usd: EVAL_TOPE_USD_MAX } });
     expect(leerPedidoEval({ solo: ["v01"] })).toMatchObject({ ok: true, pedido: { solo: ["V01"] } });
     expect(leerPedidoEval({ solo: ["NO_EXISTE"] })).toMatchObject({ ok: false });
