@@ -28,6 +28,10 @@ const PUBLIC_GATES: Record<string, RegExp> = {
   "reclamos-inbound": /handleInbound\([\s\S]*verifySvixSignature\(headers/, // firma Svix propia (RECLAMOS_INBOUND_SECRET)
   // Secreto del webhook de Telegram (X-Telegram-Bot-Api-Secret-Token, comparación en tiempo constante); sin token → 503.
   "telegram-webhook": /TELEGRAM_OFF[\s\S]*parseInbound!?\(req\)[\s\S]*INVALID_SECRET[\s\S]*sameSecret\(req\.headers\.get\("x-telegram-bot-api-secret-token"\)/,
+  // WhatsApp: apagado sin secretos (503); firma de Meta (X-Hub-Signature-256) o de Twilio (X-Twilio-Signature) antes de leer nada.
+  "whatsapp-webhook": /WHATSAPP_OFF[\s\S]*verifyMetaSignature\(req\.headers\.get\("x-hub-signature-256"\)[\s\S]*INVALID_SIGNATURE[\s\S]*verifyTwilioSignature\(req\.headers\.get\("x-twilio-signature"\)[\s\S]*INVALID_SIGNATURE/,
+  // Voz (Vapi): apagado sin VOZ_WEBHOOK_SECRET (503); encabezado x-iatos-voz firmado y atado al caso.
+  "voz-webhook": /VOZ_OFF[\s\S]*verificarFirmaLlamada\(req\.headers\.get\("x-iatos-voz"\)[\s\S]*INVALID_SIGNATURE/,
 };
 // Consumen APIs de pago (IA, Google, SerpApi, Pexels, Travelpayouts, correo).
 const PAID_CALL = /connector-gateway\.lovable\.dev|aiFetch|ai\.gateway\.lovable|callClaude|serpapi|googleTransportFor|api\.pexels|travelpayouts|sendEmail\(/;

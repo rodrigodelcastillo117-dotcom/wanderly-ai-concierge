@@ -81,7 +81,8 @@ type CasoAbierto = { id: string; lastToUserAt: string | null };
 
 const RE_CASO = /^\s*\/?caso\b[:\s,]*/i;
 const RE_RECLAMO = /\bC-[A-Z0-9]{6}\b/;
-const RE_CORTA = /^\s*(s[ií]|no|ok|okay|vale|listo|claro|de acuerdo|gracias|perfecto|ya)\b/i;
+// Sin \b: en JS no reconoce la "í" como letra ("sí" no cerraría la palabra).
+const RE_CORTA = /^\s*(s[ií]|no|ok|okay|vale|listo|claro|de acuerdo|gracias|perfecto|ya)(?=$|[\s,.;:!?¡¿])/i;
 
 /**
  * ¿Lo que escribió es para su caso abierto (operador) o una pregunta para Iato? Con el caso abierto va al caso si:
