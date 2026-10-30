@@ -1,0 +1,17 @@
+{
+ "_fuente": {
+  "url": "https://support.travelpayouts.com/hc/en-us/articles/5169505760402-API-of-affiliates-balance-and-payment",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual del artículo oficial de Travelpayouts (actualizado el 22-oct-2026)."
+ },
+ "value": [
+  {
+   "paid_at": "2021-04-20 13:34:42",
+   "payment_uuid": "4af0c247-df4c-4873-a6b6-7bbf91afa3b9",
+   "amount": "29.82",
+   "currency": "usd",
+   "payment_info_id": 92798,
+   "comment": "test"
+  }
+ ]
+}

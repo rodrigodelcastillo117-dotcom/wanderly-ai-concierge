@@ -1,0 +1,19 @@
+{
+ "_fuente": {
+  "url": "https://support.travelpayouts.com/hc/en-us/articles/5169505760402-API-of-affiliates-balance-and-payment",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual del artículo oficial de Travelpayouts (actualizado el 22-oct-2026)."
+ },
+ "value": {
+  "actions": [
+   {
+    "campaign_id": 100,
+    "action_id": "100:10080977893",
+    "finished_amount": "0.01",
+    "booked_at": "2020-02-25 11:05:21"
+   }
+  ],
+  "currency": "usd",
+  "count": 396
+ }
+}
