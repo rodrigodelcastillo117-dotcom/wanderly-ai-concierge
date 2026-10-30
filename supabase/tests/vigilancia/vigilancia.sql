@@ -70,10 +70,11 @@ SELECT vgx.ok('V3 alta: válidas se guardan, una basura se descarta sin tumbar l
   vgx.v('up')::text || ' / ' || (SELECT string_agg(vuelo, ',') FROM public.vigilancia_vuelos));
 SELECT public.vigilancia_vuelo_upsert(jsonb_build_array(jsonb_build_object('user_id', '0f000000-0000-0000-0000-00000000000a', 'vuelo', 'IB6400',
   'fecha', current_date + 1, 'fuente', 'seguimiento', 'salida_at', now() + interval '99 hours', 'salida_exacta', false)));
-SELECT vgx.ok('V4 alta idempotente: no duplica ni pisa la salida exacta, el viaje ni la fuente "viaje"',
+SELECT vgx.ok('V4 alta idempotente: no duplica ni pisa la salida exacta, el viaje ni la fuente "viaje"; marca si también está en seguimiento',
   (SELECT count(*) FROM public.vigilancia_vuelos WHERE vuelo = 'IB6400') = 1 AND (vgx.vuelo('IB6400')).salida_exacta
   AND (vgx.vuelo('IB6400')).salida_at < now() + interval '21 hours' AND (vgx.vuelo('IB6400')).fuente = 'viaje'
-  AND (vgx.vuelo('IB6400')).trip_id = '0f100000-0000-0000-0000-000000000001');
+  AND (vgx.vuelo('IB6400')).trip_id = '0f100000-0000-0000-0000-000000000001' AND (vgx.vuelo('IB6400')).en_seguimiento
+  AND (SELECT en_seguimiento FROM public.vigilancia_vuelos WHERE vuelo = 'UX91'));
 
 -- ═══ Reclamo y cupo ═══
 INSERT INTO vgx.r SELECT 'c1', public.vigilancia_vuelos_reclamar(10, now());

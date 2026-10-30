@@ -96,7 +96,7 @@ async function encolar(d: VigilanciaDeps, a: AvisoNuevo, s: Resumen): Promise<bo
 type FilaVigilada = {
   id: string; user_id: string; trip_id: string | null; vuelo: string; fecha: string; origen: string | null; destino: string | null;
   zona_origen: string | null; salida_at: string | null; salida_exacta: boolean; llegada_at: string | null; estado: EstadoVuelo;
-  fallas_seguidas: number; incidente_id: string | null;
+  fallas_seguidas: number; incidente_id: string | null; en_seguimiento?: boolean;
 };
 
 async function faseVuelos(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen) {
@@ -259,6 +259,9 @@ async function procesarEvento(d: VigilanciaDeps, f: FilaVigilada, ev: EventoVuel
       body: textoBase.corto, data: { evento: ev } });
   }
 
+  // Vuelo que la persona sigue en tracked_flights: flight-watch-cron ya le avisó del cambio de puerta/terminal o del
+  // retraso menor. Sin caso nuevo, no se repite el aviso (queda en la bitácora).
+  if (!incidente && f.en_seguimiento) return null;
   const t = incidente
     ? textoEvento(ev, { vuelo: f.vuelo, fecha: f.fecha, origen: f.origen, destino: f.destino, consultado, zona: f.zona_origen,
       derechos: der?.resumen ?? null, folio: incidente.folio, operadorActivo: incidente.assignee === "iato_ops" && operador })

@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS public.vigilancia_vuelos (
   origen              text CHECK (origen IS NULL OR origen ~ '^[A-Z]{3}$'),
   destino             text CHECK (destino IS NULL OR destino ~ '^[A-Z]{3}$'),
   fuente              text NOT NULL CHECK (fuente IN ('seguimiento','viaje')),
+  -- También está en tracked_flights (flight-watch-cron ya le avisa de puerta/hora): la vigilancia no repite esos avisos.
+  en_seguimiento      boolean NOT NULL DEFAULT false,
   zona_origen         text CHECK (zona_origen IS NULL OR zona_origen ~ '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$'),
   -- Salida: exacta si la dio la fuente con zona horaria o el itinerario con hora y ciudad conocida; si no, el
   -- peor caso (fin del día) para no empezar a revisar ANTES de 48 h.
@@ -239,10 +241,10 @@ BEGIN
   IF jsonb_typeof(_rows) <> 'array' THEN RETURN 0; END IF;
   FOR r IN SELECT * FROM jsonb_array_elements(_rows) LOOP
     BEGIN
-      INSERT INTO public.vigilancia_vuelos AS w (user_id, trip_id, vuelo, fecha, origen, destino, fuente, zona_origen, salida_at,
+      INSERT INTO public.vigilancia_vuelos AS w (user_id, trip_id, vuelo, fecha, origen, destino, fuente, en_seguimiento, zona_origen, salida_at,
         salida_exacta, proxima_revision_at)
       VALUES ((r->>'user_id')::uuid, nullif(r->>'trip_id', '')::uuid, r->>'vuelo', (r->>'fecha')::date, nullif(r->>'origen', ''),
-        nullif(r->>'destino', ''), r->>'fuente', nullif(r->>'zona_origen', ''), nullif(r->>'salida_at', '')::timestamptz,
+        nullif(r->>'destino', ''), r->>'fuente', r->>'fuente' = 'seguimiento', nullif(r->>'zona_origen', ''), nullif(r->>'salida_at', '')::timestamptz,
         coalesce((r->>'salida_exacta')::boolean, false), nullif(r->>'proxima_revision_at', '')::timestamptz)
       ON CONFLICT (user_id, vuelo, fecha) DO UPDATE SET
         trip_id = coalesce(w.trip_id, EXCLUDED.trip_id),
@@ -250,6 +252,7 @@ BEGIN
         destino = coalesce(w.destino, EXCLUDED.destino),
         zona_origen = coalesce(w.zona_origen, EXCLUDED.zona_origen),
         fuente = CASE WHEN w.fuente = 'viaje' OR EXCLUDED.fuente = 'viaje' THEN 'viaje' ELSE 'seguimiento' END,
+        en_seguimiento = w.en_seguimiento OR EXCLUDED.en_seguimiento,
         salida_at = CASE WHEN w.salida_exacta THEN w.salida_at ELSE coalesce(EXCLUDED.salida_at, w.salida_at) END,
         salida_exacta = w.salida_exacta OR EXCLUDED.salida_exacta,
         proxima_revision_at = CASE WHEN w.revisiones = 0 AND w.activo THEN coalesce(EXCLUDED.proxima_revision_at, w.proxima_revision_at)

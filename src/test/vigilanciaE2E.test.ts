@@ -42,8 +42,8 @@ class FakeDb {
       case "vigilancia_vuelo_upsert": {
         for (const r of a._rows) {
           const ex = this.vuelos.find((v) => v.user_id === r.user_id && v.vuelo === r.vuelo && v.fecha === r.fecha);
-          if (ex) { ex.trip_id ??= r.trip_id; if (!ex.salida_exacta) ex.salida_at = r.salida_at; continue; }
-          this.vuelos.push({ id: uuid(), ...r, activo: true, estado: {}, fallas_seguidas: 0, revisiones: 0, incidente_id: null, llegada_at: null, claimed_at: null });
+          if (ex) { ex.trip_id ??= r.trip_id; ex.en_seguimiento ||= r.fuente === "seguimiento"; if (!ex.salida_exacta) ex.salida_at = r.salida_at; continue; }
+          this.vuelos.push({ id: uuid(), ...r, en_seguimiento: r.fuente === "seguimiento", activo: true, estado: {}, fallas_seguidas: 0, revisiones: 0, incidente_id: null, llegada_at: null, claimed_at: null });
         }
         return ok(a._rows.length);
       }
@@ -231,6 +231,25 @@ describe("vuelos de punta a punta", () => {
     expect(m.llamadas.push).toHaveLength(1);
     expect(m.llamadas.push[0]).toMatchObject({ titulo: "Cambio de puerta: IB6400 sale de la K12", urgente: true, correo: "si_nada" });
     expect(m.db.eventos.some((e) => e.tipo === "cambio_puerta" && /J40 → K12/.test(e.resumen))).toBe(true);
+  });
+
+  it("sin spam: si el vuelo ya está en seguimiento (flight-watch-cron avisa la puerta), la vigilancia no repite ese aviso", async () => {
+    const m = montar("2026-11-02T08:00:00Z");
+    m.db.candidatos = [vueloDelViaje, { fuente: "seguimiento", user_id: U, trip_id: TRIP, vuelo: "IB6400", fecha: "2026-11-02", ruta: "MAD-MEX" }];
+    m.responder(widget({ gate: "J40" }));
+    await correrVigilancia(m.deps, ["vuelos", "entregar"]);
+    expect(m.db.vuelos).toHaveLength(1);
+    m.db.vuelos[0].proxima_revision_at = "2026-11-02T08:00:00Z";
+    m.responder(widget({ gate: "K12" }));
+    await correrVigilancia(m.deps, ["vuelos", "entregar"]);
+    expect(m.llamadas.push).toHaveLength(0);
+    expect(m.db.eventos.some((e) => e.tipo === "cambio_puerta")).toBe(true);
+    // Un caso sí se avisa (con folio y derechos: flight-watch-cron no lo hace).
+    m.db.vuelos[0].proxima_revision_at = "2026-11-02T08:00:00Z";
+    m.responder(widget({ gate: "K12", status: "cancelado", provider_status: "Canceled" }));
+    await correrVigilancia(m.deps, ["vuelos", "entregar"]);
+    expect(m.llamadas.push).toHaveLength(1);
+    expect(m.db.incidentes).toHaveLength(1);
   });
 
   it("fuente no concluyente → nada de incidentes ni estados inventados; cerca de la salida, UN aviso tranquilo", async () => {
