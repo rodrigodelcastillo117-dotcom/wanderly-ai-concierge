@@ -10,7 +10,7 @@ Esta guía es para el día en que el dueño recargue créditos en Lovable. Ese d
 - **Chat de Lovable:** el cuadro de mensajes del proyecto.
 
 **Antes de empezar.**
-- La rama `claude/integra-backend` debe estar unida a `main` en GitHub; `main` debe incluir el commit `c21ceb9` o uno posterior.
+- La rama `claude/integra-backend` debe estar unida a `main` en GitHub; `main` debe incluir el commit `da5820a` o uno posterior (último cambio de código de esta guía).
 - Ten a la mano los secretos del paso d.
 
 Tiempo estimado: de 60 a 90 minutos, más la evaluación del paso g.
@@ -114,7 +114,7 @@ Van en **tres tandas** de 27, 29 y 29. Pega cada mensaje **tal cual** en el chat
 **Mensaje 1** (sincroniza y despliega las 15 nuevas y las 12 que cambian su comportamiento):
 
 ```
-Deploy only — do NOT edit, create or commit any file. First sync edge functions from GitHub main exactly: `git fetch origin main` then `git archive origin/main supabase | tar -x`; confirm `git diff origin/main -- supabase` is empty (main must include commit c21ceb9). Then deploy exactly these 27 Edge Functions (15 are NEW: canales, comisiones-sync, incidente, incidentes-vigilante, operador, operador-eval, proveedores-webhook, reclamos, reclamos-cron, reclamos-inbound, reservas-gestionadas, telegram-webhook, vigilancia-cron, voz-webhook, whatsapp-webhook — use the verify_jwt values in supabase/config.toml):
+Deploy only — do NOT edit, create or commit any file. First sync edge functions from GitHub main exactly: `git fetch origin main` then `git archive origin/main supabase | tar -x`; confirm `git diff origin/main -- supabase` is empty (main must include commit da5820a). Then deploy exactly these 27 Edge Functions (15 are NEW: canales, comisiones-sync, incidente, incidentes-vigilante, operador, operador-eval, proveedores-webhook, reclamos, reclamos-cron, reclamos-inbound, reservas-gestionadas, telegram-webhook, vigilancia-cron, voz-webhook, whatsapp-webhook — use the verify_jwt values in supabase/config.toml):
 
 canales comisiones-sync incidente incidentes-vigilante operador operador-eval proveedores-webhook reclamos reclamos-cron reclamos-inbound reservas-gestionadas telegram-webhook vigilancia-cron voz-webhook whatsapp-webhook ai-reservations ai-reservations-cron concierge-action concierge-chat enviar-opinion flight-watch-cron flights-search health-check ops-desk places-nearby reservations-inbound scan-receipt
 
