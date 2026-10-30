@@ -14,6 +14,7 @@ import { adminClient } from "../_shared/entitlements.ts";
 import { aiFetchDetailed } from "../_shared/ai.ts";
 import { logUsage } from "../_shared/serpRuntime.ts";
 import { usageFromChat } from "../_shared/usage.ts";
+import { canalDeLlamada } from "../_shared/channels/modoCanal.ts";
 import { MAX_RECEIPT_BYTES, mimeForReceipt, parseReceipt, RECEIPT_BUCKET, receiptBody, receiptContent, receiptPathOk, receiptTruncated, toBase64 } from "./receipt.ts";
 
 const corsHeaders = {
@@ -48,7 +49,11 @@ Deno.serve(async (req) => {
   const user = await getAuthUser(req);
   if (!user) return unauthorizedResponse(corsHeaders);
 
-  const rl = await enforceRateLimit(req, "scan-receipt", user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20 });
+  // Foto mandada por Telegram/WhatsApp: misma sesión del viajero; la firma interna solo quita la cubeta por IP (la IP es
+  // la de nuestro servidor). Firma presente pero inválida → fuera.
+  const modo = await canalDeLlamada(req.headers, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", user.id);
+  if (modo.invalido) return unauthorizedResponse(corsHeaders);
+  const rl = await enforceRateLimit(req, "scan-receipt", user.id, { perMinute: 6, perHour: 40, ipPerMinute: 20, skipIp: !!modo.canal });
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   const body = await req.json().catch(() => ({}));

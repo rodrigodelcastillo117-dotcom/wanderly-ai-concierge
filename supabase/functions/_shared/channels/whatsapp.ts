@@ -377,3 +377,22 @@ export function whatsappChannel(o: { env: Env; fetch?: typeof fetch; ventana?: (
     },
   };
 }
+
+/** Número público de WhatsApp de IATOS (para el enlace wa.me de la app): WHATSAPP_NUMERO, el de Twilio o el de Meta. */
+export async function numeroWhatsApp(env: Env, f: typeof fetch = fetch): Promise<string | null> {
+  const fijo = e164(val(env, "WHATSAPP_NUMERO"));
+  if (fijo) return fijo;
+  if (proveedorWhatsApp(env) === "twilio") return e164(val(env, "TWILIO_WHATSAPP_FROM"));
+  const id = val(env, "WHATSAPP_PHONE_NUMBER_ID") || val(env, "WHATSAPP_PHONE_ID");
+  if (!id || !val(env, "WHATSAPP_TOKEN")) return null;
+  try {
+    const r = await f(`https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${encodeURIComponent(id)}?fields=display_phone_number`, { headers: { Authorization: `Bearer ${val(env, "WHATSAPP_TOKEN")}` }, signal: AbortSignal.timeout(6_000) });
+    const j = await r.json().catch(() => ({})) as { display_phone_number?: string };
+    return e164(j.display_phone_number ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/** Enlace que abre WhatsApp con el código ya escrito ("IATOS ABCD2345"). */
+export const enlaceWaMe = (numero: string, codigo: string) => `https://wa.me/${numero.replace(/^\+/, "")}?text=${encodeURIComponent(`IATOS ${codigo}`)}`;

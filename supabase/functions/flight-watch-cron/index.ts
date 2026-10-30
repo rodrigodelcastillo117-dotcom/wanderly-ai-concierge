@@ -1,5 +1,6 @@
 // Recorre vuelos rastreados, consulta su estado en SerpApi, detecta cambios y avisa (dentro de la
-// app y por push). Las reglas viven en rules.ts y el ciclo en runner.ts (ambos probados).
+// app, por push y por los canales del viajero —Telegram/WhatsApp— respetando su canal preferido y su horario de no
+// molestar: _shared/channels/entrega.ts). Las reglas viven en rules.ts y el ciclo en runner.ts (ambos probados).
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchFlightStatus } from '../_shared/flight-serpapi.ts';
@@ -12,6 +13,8 @@ import { sendEmail } from '../_shared/email.ts';
 import { flightUpdateEmail } from '../_shared/email-templates.ts';
 import { alertEmailsEnabled, alertRecipient } from '../_shared/alert-email.ts';
 import type { TrackedFlight } from './rules.ts';
+import { avisarUsuario } from '../_shared/channels/entrega.ts';
+import { entregaDeps } from '../_shared/channels/entregaRuntime.ts';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -35,6 +38,7 @@ Deno.serve(async (req) => {
   // Caché compartida de 10 min con flight-status: varias personas en el mismo vuelo pagan una sola
   // búsqueda; cada búsqueda real queda en ai_usage_log.
   const serp = serpFetchFor('flight-watch-cron', null);
+  const entrega = entregaDeps(admin);
 
   try {
     const summary = await runFlightWatch({
@@ -58,6 +62,18 @@ Deno.serve(async (req) => {
         return data != null;
       },
       push: (userId, payload) => pushToUser(admin, userId, payload, FLIGHT_PUSH_OPTIONS),
+      // Canales del viajero con SUS preferencias (preferido, no molestar). Cancelado, desviado o un vuelo de hoy/mañana =
+      // urgente: por todos los canales aunque sea de noche. WhatsApp fuera de la ventana de 24 h: plantilla iatos_aviso_vuelo.
+      deliver: (f, payload, change) => {
+        // Un cambio de un vuelo de hoy o mañana (puerta, retraso) tampoco espera al fin del horario de no molestar.
+        const dias = f.flight_date ? Math.abs(Date.parse(`${f.flight_date}T12:00:00Z`) - Date.now()) / 86_400_000 : 99;
+        const urgente = /cancel|divert|desvi/i.test(`${change.status ?? ""} ${change.changes.join(" ")}`) || dias <= 1.5;
+        return avisarUsuario(entrega, f.user_id, {
+          titulo: payload.title, texto: payload.body, url: payload.url, urgente, tipo: 'vuelo',
+          plantilla: { nombre: 'iatos_aviso_vuelo', params: [f.flight, f.flight_date ?? '', change.changes.join(', ').slice(0, 250)] },
+          dedupe: `vuelo:${f.id}:${change.fingerprint}`.slice(0, 200),
+        }).then((r) => r.entregados).catch(() => 0);
+      },
       // Correo del aviso: apagado por defecto (ALERT_EMAILS_ENABLED, ver _shared/alert-email.ts).
       email: alertEmailsEnabled()
         ? async (f, change) => {

@@ -86,7 +86,9 @@ export function parseTelegramUpdate(u: TelegramUpdate, now = new Date()): Inboun
 /** "/start ABCD2345", "/vincular ABCD2345" o el código solo → código de vinculación (8 caracteres). */
 export function linkCodeIn(text: string): string | null {
   const t = String(text ?? "").trim();
-  const m = /^\/(?:start|vincular|link)(?:@\w+)?\s+([A-Za-z0-9]{8})\s*$/i.exec(t) ?? /^([A-HJ-NP-Z2-9]{8})$/.exec(t.toUpperCase());
+  // WhatsApp: el enlace wa.me de la app llega con el texto "IATOS ABCD2345".
+  const m = /^\/(?:start|vincular|link)(?:@\w+)?\s+([A-Za-z0-9]{8})\s*$/i.exec(t) ?? /^([A-HJ-NP-Z2-9]{8})$/.exec(t.toUpperCase())
+    ?? /^(?:iatos|vincular|c[oó]digo)[:\s]+([A-HJ-NP-Za-hj-np-z2-9]{8})\s*$/i.exec(t);
   return m ? m[1].toUpperCase() : null;
 }
 
@@ -165,13 +167,13 @@ export type TelegramBoton = { texto: string; data?: string; url?: string };
 
 /** Teclado en línea: botones de acción (callback_data ≤ 64 bytes) o de enlace (https). Una fila por botón. */
 export function inlineKeyboard(botones: TelegramBoton[]): { inline_keyboard: Array<Array<Record<string, string>>> } | undefined {
-  const filas = botones.flatMap((b) => {
+  const filas: Array<Array<Record<string, string>>> = [];
+  for (const b of botones) {
     const texto = String(b.texto ?? "").trim().slice(0, 60);
-    if (!texto) return [];
-    if (b.data && new TextEncoder().encode(b.data).length <= 64) return [[{ text: texto, callback_data: b.data }]];
-    if (b.url && /^https:\/\//.test(b.url)) return [[{ text: texto, url: b.url }]];
-    return [];
-  });
+    if (!texto) continue;
+    if (b.data && new TextEncoder().encode(b.data).length <= 64) filas.push([{ text: texto, callback_data: b.data }]);
+    else if (b.url && /^https:\/\//.test(b.url)) filas.push([{ text: texto, url: b.url }]);
+  }
   return filas.length ? { inline_keyboard: filas.slice(0, 8) } : undefined;
 }
 

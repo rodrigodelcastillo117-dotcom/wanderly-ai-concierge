@@ -21,6 +21,12 @@ export type RunnerDeps = {
   push: (userId: string, payload: { title: string; body: string; url: string }) => Promise<number>;
   /** Correo del aviso (opcional, apagado por defecto). Solo se llama si el aviso se insertó. */
   email?: (flight: TrackedFlight, change: { changes: string[]; status: string | null; url: string }) => Promise<void>;
+  /**
+   * Canales del viajero (Telegram/WhatsApp) respetando su canal preferido y su horario de no molestar
+   * (_shared/channels/entrega.ts). Si existe, REEMPLAZA a `push` (la entrega decide push y canales). Devuelve cuántos
+   * avisos salieron ya (0 si quedó diferido por el horario).
+   */
+  deliver?: (flight: TrackedFlight, payload: { title: string; body: string; url: string }, change: { changes: string[]; status: string | null; fingerprint: string }) => Promise<number>;
   now: () => number;
   log?: (...args: unknown[]) => void;
 };
@@ -102,7 +108,10 @@ export async function runFlightWatch(deps: RunnerDeps, opts: RunnerOptions = DEF
         if (notified) {
           s.notified++;
           // Se espera antes de sumar: `s.pushed += await …` leería el contador viejo con filas en paralelo.
-          const sent = await deps.push(f.user_id, { title, body, url: flightUrl(f) }).catch(() => 0);
+          const payload = { title, body, url: flightUrl(f) };
+          const sent = await (deps.deliver
+            ? deps.deliver(f, payload, { changes: ev.changes, status: ev.state.status, fingerprint: ev.fingerprint })
+            : deps.push(f.user_id, payload)).catch(() => 0);
           s.pushed += sent;
           if (deps.email) await deps.email(f, { changes: ev.changes, status: ev.state.status, url: flightUrl(f) }).catch(() => {});
         }

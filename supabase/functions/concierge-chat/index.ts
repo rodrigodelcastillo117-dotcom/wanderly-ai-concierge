@@ -69,6 +69,8 @@ import { reportIncident } from "../_shared/incident-report.ts";
 import { deliverIncidentAlerts } from "../_shared/incident-alerts.ts";
 import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
 import { addIncidentEvent } from "../_shared/incidents.ts";
+// Canales (Telegram/WhatsApp): la misma Iato con la sesión del viajero; la firma interna solo cambia formato e IP.
+import { canalDeLlamada, notaCanal } from "../_shared/channels/modoCanal.ts";
 
 declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
 
@@ -83,6 +85,7 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 const SERPAPI_KEY = Deno.env.get("SERPAPI_PRIVATE_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const FN_URL = `${SUPABASE_URL}/functions/v1`;
 
 const TOOL_FUNCTIONS: Record<string, string> = {
@@ -284,7 +287,9 @@ async function handleAction(req: Request, body: Body, authHeader: string) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
   const { data: u } = await supabase.auth.getUser();
   if (!u?.user) return fail("UNAUTHENTICATED");
-  const rl = await enforceRateLimit(req, "concierge-chat-action", u.user.id, { perMinute: 8, perHour: 60, ipPerMinute: 20 });
+  const modo = await canalDeLlamada(req.headers, SERVICE_KEY, u.user.id);
+  if (modo.invalido) return fail("UNAUTHENTICATED");
+  const rl = await enforceRateLimit(req, "concierge-chat-action", u.user.id, { perMinute: 8, perHour: 60, ipPerMinute: 20, skipIp: !!modo.canal });
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
   const today = resolveToday({ clientDate: body.client_date, tz: body.tz });
   // Viajes a los que tiene acceso HOY (RLS con su sesión): una tarjeta vieja no da acceso.
@@ -390,13 +395,16 @@ Deno.serve(async (req) => {
     const { data: u } = await supabase.auth.getUser();
     if (!u?.user) return fail("UNAUTHENTICATED");
     const userId = u.user.id;
+    // Telegram/WhatsApp: firma interna atada a ESTE usuario (y su sesión real arriba). Inválida → fuera.
+    const modo = await canalDeLlamada(req.headers, SERVICE_KEY, userId);
+    if (modo.invalido) return fail("UNAUTHENTICATED");
 
     // Anti-abuso: límite de ritmo por usuario e IP (aplica también a PRO). Rendimiento: las tres
     // cubetas a la vez y, en paralelo, la configuración de modelos (lectura): antes eran 4 viajes a la
     // base en serie antes de empezar.
     const exigenteRequested = !!body.god_mode;
     const [rl, rc] = await Promise.all([
-      enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30, parallel: true }),
+      enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30, parallel: true, skipIp: !!modo.canal }),
       runtimeConfig(userId, exigenteRequested),
     ]);
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
@@ -405,7 +413,7 @@ Deno.serve(async (req) => {
     const clientMessages = sanitizeClientMessages(body.messages);
     const lastUserMsg = [...clientMessages].reverse().find((m) => m.role === "user")?.content ?? "";
     if (!lastUserMsg.trim()) return fail("INVALID_REQUEST");
-    const wantsStream = body.stream === true || (req.headers.get("accept") ?? "").includes("text/event-stream");
+    const wantsStream = !modo.canal && (body.stream === true || (req.headers.get("accept") ?? "").includes("text/event-stream"));
 
     // Configuración (modelos + tope de Modo exigente). Si el tope del día se alcanzó, se responde en
     // modo normal y se dice: nunca se bloquea el mensaje por eso.
@@ -508,7 +516,7 @@ Deno.serve(async (req) => {
       user_id: userId, candidates: trips.length, vigentes: viajesVigentes.length, selected_trip_id: trip?.id ?? null,
       reason: resolution.reason, today: todayISO, today_source: today.source, intents, tier: route.tier, route_reason: route.reason,
       trip_phase: situation?.phase ?? null, user_position: situation?.position ?? "unknown",
-      exigente, exigente_capped: exigenteCapped, stream: wantsStream,
+      exigente, exigente_capped: exigenteCapped, stream: wantsStream, canal: modo.canal,
     }));
 
     const tripMeta = {
@@ -644,6 +652,7 @@ Deno.serve(async (req) => {
     });
 
     plan.notes.push(turnPlaceNote(turnPlace));
+    if (modo.canal) plan.notes.push(notaCanal(modo.canal));
     if (openedIncident) plan.notes.push(incidentPromptNote(openedIncident, today.tz ?? null));
     // "¿Qué viajes tengo en los próximos 2 meses?": todos los que salen en el rango, inclusive (N4-P1-1).
     const rangeNote = rangeTripsNote(lastUserMsg, todayISO, [...trips, ...allTrips]);

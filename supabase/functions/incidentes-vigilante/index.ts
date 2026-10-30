@@ -9,6 +9,8 @@ import { safeErrorMessage } from "../_shared/redact.ts";
 import { runIncidentWatch } from "../_shared/incident-alerts.ts";
 import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
 import { despertarOperadorTick } from "../_shared/operador/runtime.ts";
+import { entregarDiferidos } from "../_shared/channels/entrega.ts";
+import { entregaDeps } from "../_shared/channels/entregaRuntime.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
@@ -22,6 +24,9 @@ Deno.serve(async (req) => {
     console.log("incidentes-vigilante:", JSON.stringify({ watch: r.watch, delivered: r.delivered }));
     // Operador IATOS: un tick (casos con algo nuevo, seguimientos vencidos y correos programados). Apagado → nada.
     await despertarOperadorTick();
+    // Canales: avisos al viajero que esperaban a que terminara su horario de no molestar.
+    const diferidos = await entregarDiferidos(entregaDeps(admin)).catch((e) => ({ error: safeErrorMessage(e) }));
+    console.log("incidentes-vigilante diferidos:", JSON.stringify(diferidos));
     return json(r, r.ok ? 200 : 500);
   } catch (e) {
     console.error("incidentes-vigilante error:", safeErrorMessage(e));
