@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Globe from "react-globe.gl";
 import { Globe2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { placeCoords } from "../../supabase/functions/_shared/airports.ts";
 
 type Props = {
   origin?: string;
@@ -18,6 +19,13 @@ async function geocodeCity(q: string): Promise<{ lat: number; lng: number } | nu
   const key = q.trim().toLowerCase();
   if (!key) return null;
   if (geoCache.has(key)) return geoCache.get(key)!;
+  // Primero la tabla de ciudades de la app (sin red, sin costo): Tokio, Kioto, Osaka, Lisboa, Sintra,
+  // Oporto… solo lo que no está ahí se pide a la función "geocode" (Google Maps, de pago).
+  const known = placeCoords(q);
+  if (known) {
+    geoCache.set(key, known);
+    return known;
+  }
   try {
     const { data, error } = await supabase.functions.invoke("geocode", {
       body: { address: q },
@@ -48,7 +56,7 @@ function pointInRing(lng: number, lat: number, ring: number[][]) {
   }
   return inside;
 }
-function pointInFeature(lng: number, lat: number, feat: any): boolean {
+export function pointInFeature(lng: number, lat: number, feat: any): boolean {
   const g = feat?.geometry;
   if (!g) return false;
   if (g.type === "Polygon") {
@@ -73,7 +81,7 @@ function pointInFeature(lng: number, lat: number, feat: any): boolean {
 
 // Cache global del GeoJSON de países
 let countriesPromise: Promise<any[]> | null = null;
-function loadCountries(): Promise<any[]> {
+export function loadCountries(): Promise<any[]> {
   if (!countriesPromise) {
     countriesPromise = fetch(
       "https://unpkg.com/three-globe@2.31.1/example/country-polygons/ne_110m_admin_0_countries.geojson"
@@ -280,7 +288,7 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
       >
         {points.length === 0 && !loading && (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground italic px-4 text-center">
-            Agrega ciudades arriba y verás tu ruta trazada sobre el globo terráqueo.
+            Agrega ciudades y verás tu ruta trazada sobre el globo terráqueo.
           </div>
         )}
         <Globe

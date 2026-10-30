@@ -38,6 +38,7 @@ import { usePriveSeal } from "@/hooks/usePriveSeal";
 import { DNA_ARCHETYPES, profileCountsText } from "@/lib/travelDna";
 import { useAutoEvolveAvatar } from "@/components/avatar/useAutoEvolveAvatar";
 import { ProfileWrappedLink } from "@/components/wrapped/WrappedPromo";
+import { MiMundo } from "@/components/mundo/MiMundo";
 import { localISODate } from "@/lib/localDate";
 import { readFunctionError } from "@/lib/functionErrors";
 import { openCookieSettings } from "@/lib/consent";
@@ -253,6 +254,10 @@ const Profile = () => {
 
             {/* IATOS Wrapped: tu año en viajes */}
             <ProfileWrappedLink today={localISODate()} />
+
+            {/* MI MUNDO: el globo con los países y ciudades de todos tus viajes (hechos en dorado, planeados en
+                celeste) y el conteo de países. Se carga solo al verse (el globo pesa ~1.7 MB). */}
+            <MiMundo />
 
             {/* PERFIL DE VIAJERO */}
             <section aria-labelledby="dna-title" className="glass-card rounded-3xl p-6 md:p-8 border border-primary/20 gold-glow space-y-6">

@@ -27,6 +27,7 @@ import { lazyWithRetry } from "@/lib/lazyRetry";
 const RouteGlobe3D = lazyWithRetry(() =>
   import("@/components/RouteGlobe3D").then((m) => ({ default: m.RouteGlobe3D }))
 );
+
 import { PriceSourceBadge } from "@/components/PriceSourceBadge";
 
 import { VoiceInput } from "@/components/VoiceInput";
@@ -43,6 +44,27 @@ import { TransportModePicker } from "@/components/roadtrip/TransportModePicker";
 import { RoadTripPanel } from "@/components/roadtrip/RoadTripPanel";
 import { buildRoadTripPlan, resolveLegModes, type LegMode, type TransportMode } from "@/lib/roadtrip";
 
+
+// Dónde va el globo: en computadora (lg), en la columna derecha como siempre; en el celular, ARRIBA, justo
+// después del título (antes quedaba hasta abajo de la página y Carlo no lo veía; aprobado por el dueño el
+// 30-oct-2026). Se decide con matchMedia para montar UN solo globo (dos lienzos WebGL pesan el doble).
+const LG_UP = "(min-width: 1024px)";
+function useLgUp(): boolean {
+  const [lg, setLg] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.(LG_UP)?.matches);
+  useEffect(() => {
+    const mq = typeof window !== "undefined" ? window.matchMedia?.(LG_UP) : null;
+    if (!mq) return;
+    const on = () => setLg(!!mq.matches);
+    on();
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", on);
+      return () => mq.removeEventListener("change", on);
+    }
+    mq.addListener?.(on);
+    return () => mq.removeListener?.(on);
+  }, []);
+  return lg;
+}
 
 type ConnStyle = "tiempo" | "paisaje" | "smart";
 
@@ -78,6 +100,7 @@ const CONNECTION_OPTIONS: {
 
 const MultiDestRoute = () => {
   const { user } = useAuth();
+  const lgUp = useLgUp();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -373,6 +396,13 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
   };
 
 
+  // El globo 3D de la ruta (perezoso: three.js baja aparte). Un solo lugar a la vez (ver useLgUp).
+  const routeGlobe = (height?: number) => (
+    <Suspense fallback={<SlowLoading active size="md" className="h-64 items-center rounded-xl bg-surface" label="Cargando el mapa de tu ruta…"><div className="h-64 rounded-xl bg-surface animate-pulse" /></SlowLoading>}>
+      <RouteGlobe3D origin={origin} destinations={validStops} height={height} />
+    </Suspense>
+  );
+
   return (
     <DashboardLayout>
       <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-8">
@@ -383,6 +413,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
             Encadena 2 o más destinos. IATOS AI optimiza conexiones, paradas y logística.
           </p>
         </header>
+
+        {/* Celular: el globo de la ruta arriba, lo primero que se ve después del título. */}
+        {!lgUp && <div data-testid="ruta-globo-arriba">{routeGlobe(300)}</div>}
 
         {/* grid-cols-1 (minmax(0,1fr)) en móvil: sin él la columna implícita crecía al ancho del contenido
             y la tarjeta quedaba cortada a la derecha (390 px de pantalla, 634 px de columna). */}
@@ -870,9 +903,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
               onChangeFechas={(fs, fr) => { setFechaSalida(fs); setFechaRegreso(fr); }}
               onChangeViajeros={(n) => setViajeros(n)}
             />
-            <Suspense fallback={<SlowLoading active size="md" className="h-64 items-center rounded-xl bg-surface" label="Cargando el mapa de tu ruta…"><div className="h-64 rounded-xl bg-surface animate-pulse" /></SlowLoading>}>
-              <RouteGlobe3D origin={origin} destinations={validStops} />
-            </Suspense>
+            {lgUp && routeGlobe()}
           </div>
         </div>
       </div>

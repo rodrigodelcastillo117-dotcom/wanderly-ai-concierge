@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CANDADO VISUAL: compara las 15 pantallas más usadas (390x844, celular) contra sus capturas de referencia.
+// CANDADO VISUAL: compara las 16 pantallas más usadas (390x844, celular) contra sus capturas de referencia.
 //
 //   npm run candado:visual                 → compara; termina con error si alguna pantalla cambió más del umbral
 //   npm run candado:visual -- --actualizar → toma capturas nuevas de referencia (SOLO con aprobación del dueño)
@@ -35,8 +35,9 @@ const PUERTO = Number(arg("--puerto", "8417"));
 let BASE = arg("--base", "");
 
 const ruta = encodeURIComponent;
-// Las 15 pantallas más usadas. `listo`: lo que debe verse antes de capturar. `ocultar`: zonas que se mueven
-// solas (el globo gira): se tapan en la captura, pero se exige que existan.
+// Las 16 pantallas más usadas. `listo`: lo que debe verse antes de capturar. `ocultar`: zonas que se mueven
+// solas (el globo gira): se tapan en la captura, pero se exige que existan. `esperar`: lo que carga al verse
+// (después de bajar) y se espera antes de capturar.
 const PANTALLAS = [
   { id: "01-landing", url: "/", sesion: false, listo: "main, h1" },
   { id: "02-auth", url: "/auth", sesion: false, listo: "input[type=email]" },
@@ -45,7 +46,10 @@ const PANTALLAS = [
   { id: "05-mis-viajes", url: "/dashboard/viajes", listo: '[data-testid="trip-card-dates"]' },
   { id: "06-viaje-resumen", url: `/dashboard/viajes/${ITALIA.id}`, listo: '[data-testid="trip-dashboard"]' },
   { id: "07-viaje-comprar", url: `/dashboard/viajes/${ITALIA.id}#comprar`, listo: '[data-trip-panel="comprar"]:not([hidden])', bajar: '[data-trip-panel="comprar"]' },
-  { id: "08-viaje-itinerario", url: `/dashboard/viajes/${ITALIA.id}#destinos`, listo: '[data-trip-panel="destinos"]:not([hidden])', bajar: '[data-trip-panel="destinos"]' },
+  // Viaje de varias ciudades: el Itinerario lleva el globo de la ruta (30-oct-2026). Se carga al verse:
+  // `esperar` lo espera después de bajar; gira solo, por eso se tapa, pero se exige.
+  { id: "08-viaje-itinerario", url: `/dashboard/viajes/${ITALIA.id}#destinos`, listo: '[data-trip-panel="destinos"]:not([hidden])', bajar: '[data-trip-panel="destinos"]',
+    esperar: '[data-testid="viaje-globo"] canvas', ocultar: ["canvas"], exige: '[data-testid="viaje-globo"] canvas' },
   { id: "09-planear", url: "/dashboard/planear", listo: "textarea, input" },
   { id: "10-ruta-globo", url: `/dashboard/ruta?origin=${ruta("Ciudad de México")}&destinos=${ruta("Roma|Florencia|Venecia")}&fecha_salida=2027-05-10&fecha_regreso=2027-05-20&viajeros=2`,
     listo: "canvas", bajar: "canvas", ocultar: ["canvas"], exige: "canvas" },
@@ -54,6 +58,9 @@ const PANTALLAS = [
   { id: "13-gastos", url: "/dashboard/gastos", listo: "h1" },
   { id: "14-prive", url: "/prive", listo: ".prive-root" },
   { id: "15-mesa", url: "/dashboard/admin/operaciones", listo: '[data-testid="ops-item"]' },
+  // "Mi mundo" (Perfil › Avatar, 30-oct-2026): el globo con los países de tus viajes. Carga al verse.
+  { id: "16-mi-mundo", url: "/dashboard/perfil", listo: '[data-testid="mi-mundo"]', bajar: '[data-testid="mi-mundo"]',
+    esperar: '[data-testid="mi-mundo-globo"] canvas', ocultar: ["canvas"], exige: '[data-testid="mi-mundo-globo"] canvas' },
 ].filter((p) => !SOLO.length || SOLO.some((s) => p.id.includes(s)));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -108,6 +115,7 @@ async function capturar(browser, base, p) {
   try { await page.locator(p.listo).first().waitFor({ state: "visible", timeout: 45_000 }); } catch { ok = false; }
   await sleep(2500); // fotos simuladas, fuentes y esqueletos
   if (p.bajar) await page.locator(p.bajar).first().scrollIntoViewIfNeeded().catch(() => {});
+  if (p.esperar) await page.locator(p.esperar).first().waitFor({ state: "attached", timeout: 30_000 }).catch(() => {});
   await sleep(800);
   const falta = p.exige && !(await page.locator(p.exige).count()) ? p.exige : null;
   const png = await page.screenshot({ animations: "disabled", caret: "hide", mask: (p.ocultar || []).map((s) => page.locator(s)), maskColor: "#202020" });

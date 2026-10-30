@@ -48,7 +48,8 @@ import { isGroundTripOption, transportModeOf, tripCountryLabel } from "@/lib/boo
 import { discardedFaresNotice, flightAirlineLabel, flightDurationLabel, flightIsEstimate, flightLiveLine, flightStopsLabel } from "@/lib/flightDisplay";
 import { groundOptionsForCity, legOptionsFor } from "@/lib/multiDestTrip";
 import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
-import { cityStays, sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { cityStays, sameCity, tripDestinations } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { TripRouteGlobe } from "@/components/route/TripRouteGlobe";
 import { TripSectionNav, isTripSection, sectionFromHash, TRIP_SECTION_EVENT, type TripSection } from "@/components/TripSectionNav";
 import { TripExperiencias } from "@/components/trip/TripExperiencias";
 import { tripCities } from "@/lib/experiencias";
@@ -975,6 +976,10 @@ const TripDetail = () => {
               {itineraryBuyLink(helpCtx)}
             </button>
           </div>
+
+          {/* "El mundito": la ruta del viaje de varias ciudades en el globo 3D (como en /dashboard/ruta).
+              Diferido: solo se descarga con esta pestaña abierta y el globo por verse. */}
+          <TripRouteGlobe origin={trip.ciudad_origen} destinations={tripDestinations(trip)} active={section === "destinos"} />
 
           {/* Sin plan día por día (p. ej. un viaje traído): qué hacer, en vez de solo días «sin plan». */}
           {shownDays.length > 0 && shownDays.every((d: any) => d.pendiente) && (
