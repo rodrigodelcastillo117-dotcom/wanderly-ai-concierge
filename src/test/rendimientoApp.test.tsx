@@ -188,7 +188,8 @@ describe("inicio sin saltos de diseño", () => {
     expect(home).toMatch(/\{\(hasTrips \|\| active\.loading\) && \(/);
     expect(home).toMatch(/aria-label="Cargando tu viaje" className="[^"]*min-h-\[460px\]/);
     // Imágenes de abajo del pliegue con prioridad baja; el hero con prioridad alta y sin lazy.
-    expect(home).toMatch(/fallbackImage=\{tulum640\} lowPriority/);
+    // (La tarjeta «Inspiración para ti» con tulum640 se quitó en «Inicio sencillo»: repetía «Ver todos» de Destinos.)
+    expect(home).toMatch(/<DestinationVideo query=\{d\.image_query\} lowPriority/);
     expect(home).toMatch(/fallbackSrcSet=\{fallbackSrcSet\(HERO_REELS\[reelIdx\]\.fallback\)\}[\s\S]{0,80}priority/);
     // Los ejemplos de un toque también reservan su fila mientras cargan los viajes.
     expect(home).toMatch(/concierge\.trim\(\)\.length === 0 && \(hasTrips \|\| active\.loading\) && \(/);

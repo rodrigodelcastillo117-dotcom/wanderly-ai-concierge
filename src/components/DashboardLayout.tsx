@@ -21,6 +21,8 @@ import { openOpinion } from "@/lib/opinionBus";
 // Incidentes ("Tengo un problema"): opción discreta en el menú «Más» y en el menú lateral; el diálogo vive una vez.
 import { IncidentHost } from "@/components/incident/IncidentEntry";
 import { INCIDENT_CTA, openIncident } from "@/lib/incidentBus";
+// «Planear un viaje» de Inicio abre esta misma ventana (una sola forma de planear).
+import { onOpenPlanWindow } from "@/lib/planBus";
 
 // Ventana "Planear viaje" (la nueva puerta de entrada). Se carga solo al pulsar el botón: hasta
 // entonces no hay ni código ni llamadas de red. /dashboard/planear sigue siendo la ruta del enlace
@@ -128,6 +130,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     setPlanMounted(true);
     setPlanOpen(true);
   };
+  useEffect(() => onOpenPlanWindow(() => { setPlanMounted(true); setPlanOpen(true); }), []);
   const moreActive = mobileMoreNav.some((n) => location.pathname.startsWith(n.to));
   // En el chat del Concierge el área de escritura va pegada abajo: reservamos el alto
   // de la barra inferior y del área segura para que no quede oculta debajo.

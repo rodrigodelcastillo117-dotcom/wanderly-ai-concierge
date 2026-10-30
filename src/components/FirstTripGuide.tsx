@@ -17,7 +17,8 @@ export const FIRST_TRIP_STEPS = [
   "Te da el total en pesos: qué es en vivo y qué es estimado.",
 ] as const;
 
-export function FirstTripGuide({ onPickExample }: { onPickExample: (text: string) => void }) {
+/** `conBoton`: Inicio lo apaga porque justo debajo está «Planear un viaje» (una sola acción principal). */
+export function FirstTripGuide({ onPickExample, conBoton = true }: { onPickExample: (text: string) => void; conBoton?: boolean }) {
   const navigate = useNavigate();
   return (
     <section aria-labelledby="first-trip-title" className="animate-fade-up relative overflow-hidden rounded-2xl border border-primary/25 px-4 py-5 md:px-7 md:py-7">
@@ -44,13 +45,13 @@ export function FirstTripGuide({ onPickExample }: { onPickExample: (text: string
             ))}
           </ol>
         </div>
-        <button
+        {conBoton && <button
           type="button"
           onClick={() => navigate("/dashboard/planear")}
           className="min-h-[44px] shrink-0 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-gold text-primary-foreground text-sm font-medium px-5 hover:opacity-90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           Planear mi primer viaje <ArrowRight className="w-4 h-4" aria-hidden />
-        </button>
+        </button>}
       </div>
       <div className="relative mt-3 flex flex-nowrap overflow-x-auto gap-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" aria-label="Ejemplos para empezar">
         {EXAMPLE_PROMPTS.map((ex) => (

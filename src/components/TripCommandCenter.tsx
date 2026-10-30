@@ -26,7 +26,13 @@ type TripSummary = {
   cover_image_url?: string | null;
 };
 
-type Props = { trip: TripSummary; today: string };
+type Props = {
+  trip: TripSummary;
+  today: string;
+  /** Accesos rápidos (Ver viaje, Modo viaje, Clima, Equipaje, Mapa). Inicio los apaga: viven en «Herramientas»,
+   *  agrupadas por momento del viaje, y el viaje se abre desde «Mis próximos viajes» (sin repetirlos). */
+  accesos?: boolean;
+};
 
 const fmtMXN = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
 
@@ -35,7 +41,7 @@ const fmtMXN = (n: number) => `$${Math.round(n).toLocaleString("es-MX")} MXN`;
  * seguido y clima (solo con datos reales; si algo no está, no se muestra), UNA acción principal
  * y accesos rápidos. Antes Inicio solo tenía un renglón "Próximo viaje" debajo de un video.
  */
-export function TripCommandCenter({ trip, today }: Props) {
+export function TripCommandCenter({ trip, today, accesos = true }: Props) {
   const navigate = useNavigate();
   // Fila completa (total, viajeros, cotización vigente) del viaje activo; la lista de Inicio solo
   // trae columnas ligeras. select("*") porque no todas las columnas nuevas están en producción.
@@ -232,7 +238,7 @@ export function TripCommandCenter({ trip, today }: Props) {
             </button>
             </>)}
           </div>
-          <nav aria-label={`Accesos rápidos de ${trip.destino}`} className="grid grid-cols-5 gap-1.5">
+          {accesos && <nav aria-label={`Accesos rápidos de ${trip.destino}`} className="grid grid-cols-5 gap-1.5">
             {quick.map(({ icon: Icon, label, to }) => (
               <Link
                 key={label}
@@ -243,7 +249,7 @@ export function TripCommandCenter({ trip, today }: Props) {
                 <span className="leading-tight text-center">{label}</span>
               </Link>
             ))}
-          </nav>
+          </nav>}
         </div>
       </div>
     </section>

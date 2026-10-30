@@ -84,8 +84,11 @@ describe("Inicio sin viajes: guía del primer viaje", () => {
     expect(screen.getByLabelText("Platícame tu viaje")).toHaveValue("Oaxaca un fin de semana, 2 personas");
     // No navegó ni analizó nada.
     expect(screen.queryByTestId("where")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Planear mi primer viaje/ }));
-    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/dashboard/planear"));
+    // Una sola acción principal (propuesta «Inicio sencillo»): la guía ya no repite su propio botón; «Planear un
+    // viaje» lleva al plan con lo que quedó escrito.
+    expect(screen.queryByRole("button", { name: /Planear mi primer viaje/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Planear un viaje" }));
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/dashboard/planear?q=${encodeURIComponent("Oaxaca un fin de semana, 2 personas")}`));
   });
 
   it("recomendaciones vacías y gastos vacíos explican qué hacer (sin $0.00 gigante)", async () => {
@@ -125,7 +128,10 @@ describe("Inicio con viaje: centro de mando", () => {
     const cc = await screen.findByRole("region", { name: /Puebla/ });
     expect(await within(cc).findByText("Cotiza tu viaje")).toBeInTheDocument();
     expect(within(cc).getByText("Aún sin cotización")).toBeInTheDocument();
-    expect(within(cc).getByRole("link", { name: "Equipaje" })).toHaveAttribute("href", `/dashboard/viajes/${PUEBLA}/packing`);
+    // Los accesos del viaje ya no se repiten en la tarjeta: viven en Herramientas › Antes de viajar, del mismo viaje.
+    expect(within(cc).queryByRole("link", { name: "Equipaje" })).toBeNull();
+    fireEvent.click(within(screen.getByTestId("home-tools-antes")).getByRole("button", { name: "Equipaje" }));
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/dashboard/viajes/${PUEBLA}/packing`));
   });
 
   it("las herramientas ocupan todo el ancho (ya no quedan dentro de la rejilla de 2 columnas)", async () => {
