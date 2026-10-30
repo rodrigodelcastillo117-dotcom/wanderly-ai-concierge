@@ -404,7 +404,7 @@ Deno.serve(async (req) => {
     // base en serie antes de empezar.
     const exigenteRequested = !!body.god_mode;
     const [rl, rc] = await Promise.all([
-      enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30, parallel: true, skipIp: !!modo.canal }),
+      enforceRateLimit(req, "concierge-chat", userId, { perMinute: 10, perHour: 120, ipPerMinute: 30, skipIp: !!modo.canal, parallel: true }),
       runtimeConfig(userId, exigenteRequested),
     ]);
     if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
