@@ -1,0 +1,36 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-cart-book-request-viator-form-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "cartRef": "CR-cb9c9d63017a63c96454e4a5b0b153eb",
+  "bookerInfo": {
+   "firstName": "Jane",
+   "lastName": "Doe"
+  },
+  "communication": {
+   "email": "jane.doe@example.com",
+   "phone": "+61 444444444"
+  },
+  "items": [
+   {
+    "bookingRef": "BR-593038025",
+    "bookingQuestionAnswers": [
+     {
+      "question": "SPECIAL_REQUIREMENTS",
+      "answer": "No blue M&Ms"
+     }
+    ],
+    "languageGuide": {
+     "type": "GUIDE",
+     "language": "cmn",
+     "legacyGuide": "cmn/SERVICE_GUIDE"
+    }
+   }
+  ],
+  "paymentToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+ }
+}

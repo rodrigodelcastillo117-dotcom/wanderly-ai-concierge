@@ -1,0 +1,35 @@
+{
+ "data": {
+  "data_3ds": null,
+  "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6",
+  "percent": 100,
+  "prepayment": null
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/order/booking/finish/status",
+   "is_active": true,
+   "is_limited": false,
+   "remaining": 30,
+   "requests_number": 30,
+   "reset": "2026-09-29T07:48:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6"
+  },
+  "method": "POST",
+  "real_ip": "5.135.60.82",
+  "request_id": "d528c5002fcbb7776b366c6d9efb6afc",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2026-09-29T07:47:03.221275"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/booking/check-booking-process/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "amendment-quote-request-update-pax-mix",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "bookingRef": "BR-123456789",
+  "updatePaxMix": {
+   "removePaxMix": [
+    {
+     "travelerNum": 1
+    },
+    {
+     "travelerNum": 2
+    }
+   ],
+   "addPaxMix": [
+    {
+     "travelerNum": 4,
+     "ageBand": "ADULT",
+     "bookingQuestions": [
+      {
+       "question": "DATE_OF_BIRTH",
+       "answer": "1986-05-25"
+      },
+      {
+       "question": "FULL_NAMES_FIRST",
+       "answer": "Alice"
+      },
+      {
+       "question": "FULL_NAMES_LAST",
+       "answer": "Doe"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

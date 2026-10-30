@@ -1,0 +1,77 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "amendment-check-response-amendable",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "bookingRef": "BR-000000001",
+  "isAmendable": true,
+  "amendmentTypes": [
+   "BOOKING_DETAILS",
+   "UPDATE_PAX_MIX",
+   "PER_TRAVELER_QUESTIONS",
+   "PER_BOOKING_QUESTIONS"
+  ],
+  "paxMixSummary": [
+   {
+    "travelerNum": 1,
+    "ageBand": "ADULT",
+    "bookingQuestions": [
+     {
+      "question": "FULL_NAMES_FIRST",
+      "answer": "John"
+     },
+     {
+      "question": "FULL_NAMES_LAST",
+      "answer": "Smith"
+     },
+     {
+      "question": "WEIGHT",
+      "answer": "80",
+      "unit": "KG"
+     }
+    ]
+   },
+   {
+    "travelerNum": 2,
+    "ageBand": "ADULT",
+    "bookingQuestions": [
+     {
+      "question": "FULL_NAMES_FIRST",
+      "answer": "Mary"
+     },
+     {
+      "question": "FULL_NAMES_LAST",
+      "answer": "Smith"
+     },
+     {
+      "question": "WEIGHT",
+      "answer": "60",
+      "unit": "KG"
+     }
+    ]
+   },
+   {
+    "travelerNum": 3,
+    "ageBand": "CHILD",
+    "bookingQuestions": [
+     {
+      "question": "FULL_NAMES_FIRST",
+      "answer": "Jane"
+     },
+     {
+      "question": "FULL_NAMES_LAST",
+      "answer": "Smith"
+     },
+     {
+      "question": "WEIGHT",
+      "answer": "40",
+      "unit": "KG"
+     }
+    ]
+   }
+  ]
+ }
+}

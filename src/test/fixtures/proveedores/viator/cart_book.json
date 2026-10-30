@@ -1,0 +1,90 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-cart-book-response-viator-form-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "cartRef": "CR-cb9c9d63017a63c96454e4a5b0b153eb",
+  "partnerCartRef": "lW83mqyU",
+  "currency": "AUD",
+  "items": [
+   {
+    "partnerBookingRef": "irk5vCJ7",
+    "bookingRef": "BR-593038025",
+    "status": "CONFIRMED",
+    "lineItems": [
+     {
+      "ageBand": "ADULT",
+      "numberOfTravelers": 2,
+      "subtotalPrice": {
+       "price": {
+        "recommendedRetailPrice": 13.6,
+        "partnerNetPrice": 12.52
+       }
+      }
+     }
+    ],
+    "itemTotalPrice": {
+     "price": {
+      "recommendedRetailPrice": 13.6,
+      "partnerNetPrice": 12.52,
+      "bookingFee": 0,
+      "commission": 1.08,
+      "partnerTotalPrice": 12.52
+     }
+    },
+    "cancellationPolicy": {
+     "type": "STANDARD",
+     "description": "For a full refund, cancel at least 24 hours before the scheduled departure time.",
+     "cancelIfBadWeather": true,
+     "cancelIfInsufficientTravelers": false,
+     "refundEligibility": [
+      {
+       "dayRangeMin": 1,
+       "percentageRefundable": 100,
+       "startTimestamp": "2023-07-21T02:19:02Z",
+       "endTimestamp": "2023-08-18T22:59:59Z"
+      },
+      {
+       "dayRangeMin": 0,
+       "dayRangeMax": 1,
+       "percentageRefundable": 0,
+       "startTimestamp": "2023-08-18T23:00:00Z",
+       "endTimestamp": "2023-08-19T23:00:00Z"
+      }
+     ]
+    },
+    "voucherInfo": {
+     "url": "https://shop.live.rc.viator.com/ticket?code=1006658118:1176d4aed0e88ffec7faf11e67183edc0cd40d5b5244b30b0cd08aab14f72b4b",
+     "format": "HTML",
+     "type": "STANDARD"
+    }
+   }
+  ],
+  "voucherInfo": {
+   "url": "https://shop.live.rc.viator.com/ticket?code=1006658118:1176d4aed0e88ffec7faf11e67183edc0cd40d5b5244b30b0cd08aab14f72b4b",
+   "format": "HTML",
+   "type": "STANDARD"
+  },
+  "totalConfirmedPrice": {
+   "price": {
+    "recommendedRetailPrice": 13.6,
+    "partnerNetPrice": 12.52,
+    "bookingFee": 0,
+    "commission": 1.08,
+    "partnerTotalPrice": 12.52
+   }
+  },
+  "totalPendingPrice": {
+   "price": {
+    "recommendedRetailPrice": 0,
+    "partnerNetPrice": 0,
+    "bookingFee": 0,
+    "commission": 0,
+    "partnerTotalPrice": 0
+   }
+  }
+ }
+}

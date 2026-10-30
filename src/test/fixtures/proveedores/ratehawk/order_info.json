@@ -1,0 +1,657 @@
+{
+ "data": {
+  "current_page_number": 1,
+  "total_orders": 869,
+  "total_pages": 290,
+  "found_orders": 549,
+  "found_pages": 183,
+  "orders": [
+   {
+    "agreement_number": null,
+    "amount_payable": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_payable_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_refunded": {
+     "amount": "411.20",
+     "currency_code": "EUR"
+    },
+    "amount_sell": {
+     "amount": "411.20",
+     "currency_code": "EUR"
+    },
+    "amount_sell_b2b2c": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "api_auth_key_id": 1234,
+    "cancelled_at": "2025-09-18T12:38:00",
+    "checkin_at": "2025-12-25",
+    "checkout_at": "2025-12-26",
+    "contract_slug": "only.look.no.book",
+    "created_at": "2025-09-18T08:09:04",
+    "hotel_data": {
+     "id": "test_hotel",
+     "hid": 8526976,
+     "order_id": null
+    },
+    "is_cancellable": false,
+    "modified_at": "2025-09-18T12:38:01",
+    "nights": 1,
+    "order_id": 260453787,
+    "order_type": "hotel",
+    "roomnights": 1,
+    "rooms_data": [
+     {
+      "bedding_name": [
+       "sofa-bed"
+      ],
+      "guest_data": {
+       "adults_number": 2,
+       "children_number": 0,
+       "guests": [
+        {
+         "first_name": "Marty",
+         "first_name_original": "Marty",
+         "last_name": "Quatro",
+         "last_name_original": "Quatro",
+         "is_child": false,
+         "age": null,
+         "id": 1
+        },
+        {
+         "first_name": "Marta",
+         "first_name_original": "Marta",
+         "last_name": "Quatro",
+         "last_name_original": "Quatro",
+         "is_child": false,
+         "age": null,
+         "id": 2
+        }
+       ]
+      },
+      "meal_name": "half-board-lunch",
+      "has_breakfast": true,
+      "no_child_meal": false,
+      "room_idx": 0,
+      "room_name": "Quadruple Junior Suite (+ sofa, treatment program included, kitchen)"
+     }
+    ],
+    "source": "b2b-api",
+    "status": "cancelled",
+    "supplier_data": {
+     "confirmation_id": "361911424",
+     "name": "Extranet",
+     "order_id": "361911424"
+    },
+    "taxes": [
+     {
+      "amount_tax": {
+       "amount": "0.41",
+       "currency_code": "EUR"
+      },
+      "is_included": true,
+      "name": "city_tax"
+     },
+     {
+      "amount_tax": {
+       "amount": "2000.00",
+       "currency_code": "EUR"
+      },
+      "is_included": false,
+      "name": "cleaning_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "3.06",
+       "currency_code": "EUR"
+      },
+      "is_included": true,
+      "name": "hotel_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "5000.00",
+       "currency_code": "EUR"
+      },
+      "is_included": false,
+      "name": "luxury_tax"
+     },
+     {
+      "amount_tax": {
+       "amount": "40.00",
+       "currency_code": "EUR"
+      },
+      "is_included": false,
+      "name": "resort_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "22.00",
+       "currency_code": "EUR"
+      },
+      "is_included": false,
+      "name": "service_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "11.00",
+       "currency_code": "EUR"
+      },
+      "is_included": false,
+      "name": "vat"
+     }
+    ],
+    "total_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR",
+     "included": false
+    },
+    "is_package": false,
+    "partner_data": {
+     "order_comment": "partner_comment",
+     "order_id": "tut"
+    },
+    "amount_payable_with_upsells": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "cancellation_info": {
+     "free_cancellation_before": "2025-12-25T05:00:00",
+     "policies": [
+      {
+       "end_at": "2025-12-25T05:00:00",
+       "penalty": {
+        "amount": "0.00",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "0.00",
+         "amount_gross": "0.00",
+         "amount_net": "0.00"
+        }
+       },
+       "start_at": null
+      },
+      {
+       "end_at": null,
+       "penalty": {
+        "amount": "411.20",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "102.80",
+         "amount_gross": "514.00",
+         "amount_net": "411.20"
+        }
+       },
+       "start_at": "2025-12-25T05:00:00"
+      }
+     ]
+    },
+    "invoice_id": null,
+    "is_checked": false,
+    "meta_data": {
+     "voucher_order_comment": null
+    },
+    "payment_data": {
+     "payment_type": "deposit",
+     "invoice_id": null,
+     "invoice_id_v2": null,
+     "paid_at": null,
+     "payment_by": null,
+     "payment_due": "2026-01-15",
+     "payment_pending": "2026-01-12"
+    },
+    "upsells": [],
+    "has_tickets": false,
+    "user_data": {
+     "email": "asdfds@foo.com",
+     "arrival_datetime": null,
+     "user_comment": "comment"
+    },
+    "amount_sell_b2b2c_commission": null
+   },
+   {
+    "agreement_number": null,
+    "amount_payable": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_payable_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_refunded": {
+     "amount": "30908.00",
+     "currency_code": "EUR"
+    },
+    "amount_sell": {
+     "amount": "30908.00",
+     "currency_code": "EUR"
+    },
+    "amount_sell_b2b2c": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "api_auth_key_id": 1234,
+    "cancelled_at": "2025-09-16T14:15:45",
+    "checkin_at": "2025-09-29",
+    "checkout_at": "2025-09-30",
+    "contract_slug": "only.look.no.book",
+    "created_at": "2025-09-16T14:06:35",
+    "hotel_data": {
+     "hid": 8473727,
+     "order_id": null
+    },
+    "is_cancellable": false,
+    "modified_at": "2025-09-16T14:15:46",
+    "nights": 1,
+    "order_id": 246069602,
+    "order_type": "hotel",
+    "roomnights": 2,
+    "rooms_data": [
+     {
+      "bedding_name": [
+       "double"
+      ],
+      "guest_data": {
+       "adults_number": 1,
+       "children_number": 0,
+       "guests": [
+        {
+         "first_name": "Mikhail",
+         "first_name_original": "Mikhail",
+         "last_name": "Rudenko",
+         "last_name_original": "Rudenko",
+         "is_child": false,
+         "age": null,
+         "id": 1
+        }
+       ]
+      },
+      "meal_name": "nomeal",
+      "has_breakfast": false,
+      "no_child_meal": true,
+      "room_idx": 0,
+      "room_name": "Standard Double room (shared bathroom) (full double bed)"
+     },
+     {
+      "bedding_name": [
+       "double"
+      ],
+      "guest_data": {
+       "adults_number": 1,
+       "children_number": 0,
+       "guests": [
+        {
+         "first_name": "Alan",
+         "first_name_original": "Alan",
+         "last_name": "Tashev",
+         "last_name_original": "Tashev",
+         "is_child": false,
+         "age": null,
+         "id": 3
+        }
+       ]
+      },
+      "meal_name": "nomeal",
+      "has_breakfast": false,
+      "no_child_meal": true,
+      "room_idx": 1,
+      "room_name": "Standard Double room (shared bathroom) (full double bed)"
+     }
+    ],
+    "source": "b2b-api",
+    "status": "cancelled",
+    "supplier_data": {
+     "confirmation_id": "853713014",
+     "name": "Extranet",
+     "order_id": "853713014"
+    },
+    "taxes": [
+     {
+      "amount_tax": {
+       "amount": "781.92",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "city_tax"
+     },
+     {
+      "amount_tax": {
+       "amount": "9.20",
+       "currency_code": "EUR"
+      },
+      "is_included": true,
+      "name": "electricity_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "2015.08",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "service_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "705.46",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "vat"
+     }
+    ],
+    "total_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR",
+     "included": false
+    },
+    "is_package": false,
+    "partner_data": {
+     "order_comment": "Tryin p-hash.",
+     "order_id": "52multi_book52"
+    },
+    "amount_payable_with_upsells": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "cancellation_info": {
+     "free_cancellation_before": "2025-09-29T06:00:00",
+     "policies": [
+      {
+       "end_at": "2025-09-29T06:00:00",
+       "penalty": {
+        "amount": "0.00",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "0.00",
+         "amount_gross": "0.00",
+         "amount_net": "0.00"
+        }
+       },
+       "start_at": null
+      },
+      {
+       "end_at": null,
+       "penalty": {
+        "amount": "30908.00",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "7727.00",
+         "amount_gross": "38635.00",
+         "amount_net": "30908.00"
+        }
+       },
+       "start_at": "2025-09-29T06:00:00"
+      }
+     ]
+    },
+    "invoice_id": null,
+    "is_checked": false,
+    "meta_data": {
+     "voucher_order_comment": null
+    },
+    "payment_data": {
+     "payment_type": "deposit",
+     "invoice_id": null,
+     "invoice_id_v2": null,
+     "paid_at": null,
+     "payment_by": null,
+     "payment_due": "2025-11-06",
+     "payment_pending": "2025-10-31"
+    },
+    "upsells": [],
+    "has_tickets": false,
+    "user_data": {
+     "email": "mikhail.rudenko@emergingtravel.com",
+     "arrival_datetime": null,
+     "user_comment": null
+    },
+    "amount_sell_b2b2c_commission": null
+   },
+   {
+    "agreement_number": null,
+    "amount_payable": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_payable_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "amount_refunded": {
+     "amount": "30887.20",
+     "currency_code": "EUR"
+    },
+    "amount_sell": {
+     "amount": "30887.20",
+     "currency_code": "EUR"
+    },
+    "amount_sell_b2b2c": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "api_auth_key_id": 1234,
+    "cancelled_at": "2025-09-15T18:24:41",
+    "checkin_at": "2025-09-29",
+    "checkout_at": "2025-09-30",
+    "contract_slug": "only.look.no.book",
+    "created_at": "2025-09-15T18:21:50",
+    "hotel_data": {
+     "hid": 8473727,
+     "order_id": null
+    },
+    "is_cancellable": false,
+    "modified_at": "2025-09-15T18:24:42",
+    "nights": 1,
+    "order_id": 395221637,
+    "order_type": "hotel",
+    "roomnights": 2,
+    "rooms_data": [
+     {
+      "bedding_name": [
+       "double"
+      ],
+      "guest_data": {
+       "adults_number": 1,
+       "children_number": 0,
+       "guests": [
+        {
+         "first_name": "Mikhail",
+         "first_name_original": "Mikhail",
+         "last_name": "Rudenko",
+         "last_name_original": "Rudenko",
+         "is_child": false,
+         "age": null,
+         "id": 1
+        }
+       ]
+      },
+      "meal_name": "nomeal",
+      "has_breakfast": false,
+      "no_child_meal": true,
+      "room_idx": 0,
+      "room_name": "Standard Double room (shared bathroom) (full double bed)"
+     },
+     {
+      "bedding_name": [
+       "double"
+      ],
+      "guest_data": {
+       "adults_number": 1,
+       "children_number": 0,
+       "guests": [
+        {
+         "first_name": "Alan",
+         "first_name_original": "Alan",
+         "last_name": "Tashev",
+         "last_name_original": "Tashev",
+         "is_child": false,
+         "age": null,
+         "id": 3
+        }
+       ]
+      },
+      "meal_name": "nomeal",
+      "has_breakfast": false,
+      "no_child_meal": true,
+      "room_idx": 1,
+      "room_name": "Standard Double room (shared bathroom) (full double bed)"
+     }
+    ],
+    "source": "b2b-api",
+    "status": "cancelled",
+    "supplier_data": {
+     "confirmation_id": "261499472",
+     "name": "Extranet",
+     "order_id": "261499472"
+    },
+    "taxes": [
+     {
+      "amount_tax": {
+       "amount": "781.92",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "city_tax"
+     },
+     {
+      "amount_tax": {
+       "amount": "9.26",
+       "currency_code": "EUR"
+      },
+      "is_included": true,
+      "name": "electricity_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "2015.08",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "service_fee"
+     },
+     {
+      "amount_tax": {
+       "amount": "705.46",
+       "currency_code": "HNL"
+      },
+      "is_included": false,
+      "name": "vat"
+     }
+    ],
+    "total_vat": {
+     "amount": "0.00",
+     "currency_code": "EUR",
+     "included": false
+    },
+    "is_package": false,
+    "partner_data": {
+     "order_comment": "Tryin p-hash.",
+     "order_id": "52multibook52_test52"
+    },
+    "amount_payable_with_upsells": {
+     "amount": "0.00",
+     "currency_code": "EUR"
+    },
+    "cancellation_info": {
+     "free_cancellation_before": "2025-09-29T06:00:00",
+     "policies": [
+      {
+       "end_at": "2025-09-29T06:00:00",
+       "penalty": {
+        "amount": "0.00",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "0.00",
+         "amount_gross": "0.00",
+         "amount_net": "0.00"
+        }
+       },
+       "start_at": null
+      },
+      {
+       "end_at": null,
+       "penalty": {
+        "amount": "30887.20",
+        "currency_code": "EUR",
+        "amount_info": {
+         "amount_commission": "7721.80",
+         "amount_gross": "38609.00",
+         "amount_net": "30887.20"
+        }
+       },
+       "start_at": "2025-09-29T06:00:00"
+      }
+     ]
+    },
+    "invoice_id": null,
+    "is_checked": false,
+    "meta_data": {
+     "voucher_order_comment": null
+    },
+    "payment_data": {
+     "payment_type": "deposit",
+     "invoice_id": null,
+     "invoice_id_v2": null,
+     "paid_at": null,
+     "payment_by": null,
+     "payment_due": "2025-11-06",
+     "payment_pending": "2025-10-31"
+    },
+    "upsells": [],
+    "has_tickets": false,
+    "user_data": {
+     "email": "mikhail.rudenko@emergingtravel.com",
+     "arrival_datetime": null,
+     "user_comment": null
+    },
+    "amount_sell_b2b2c_commission": null
+   }
+  ]
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/order/info",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 29,
+   "requests_number": 30,
+   "reset": "2025-09-24T21:55:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "ordering": {
+    "ordering_type": "desc",
+    "ordering_by": "created_at"
+   },
+   "pagination": {
+    "page_size": 3,
+    "page_number": 1
+   },
+   "search": {
+    "created_at": {
+     "from_date": "2018-12-05T00:00"
+    }
+   },
+   "language": "en"
+  },
+  "method": "POST",
+  "real_ip": "2a09:bac0:1000:623::388:9b",
+  "request_id": "75438e77fd5bb04f01b7876cc21980bb",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2025-09-24T21:54:26.442209"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/post-booking/retrieve-bookings/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

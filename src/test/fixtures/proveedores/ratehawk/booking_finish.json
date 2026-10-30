@@ -1,0 +1,78 @@
+{
+ "data": null,
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/order/booking/finish",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 29,
+   "requests_number": 30,
+   "reset": "2026-08-27T09:20:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "user": {
+    "email": "john.smith@example.com",
+    "comment": "The user comment.",
+    "phone": "12124567899"
+   },
+   "supplier_data": {
+    "first_name_original": "Peter",
+    "last_name_original": "Collins",
+    "phone": "12124567880",
+    "email": "peter.collins@example.com"
+   },
+   "partner": {
+    "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6",
+    "comment": "The partner comment.",
+    "amount_sell_b2b2c": "10"
+   },
+   "language": "en",
+   "rooms": [
+    {
+     "guests": [
+      {
+       "first_name": "Martin",
+       "last_name": "Smith"
+      },
+      {
+       "first_name": "Eliot",
+       "last_name": "Smith",
+       "is_child": true,
+       "age": 11
+      }
+     ]
+    }
+   ],
+   "upsell_data": [
+    {
+     "name": "early_checkin",
+     "uid": "d7b56e81-b874-40ee-b195-e2f73d1ec714"
+    },
+    {
+     "name": "late_checkout",
+     "uid": "c4013ea8-3ffd-4eee-bbbc-37693670031e"
+    }
+   ],
+   "payment_type": {
+    "type": "deposit",
+    "amount": "9",
+    "currency_code": "EUR"
+   },
+   "return_path": "https://example.com"
+  },
+  "method": "POST",
+  "real_ip": "104.30.161.77",
+  "request_id": "9825cb9520644dce46912a48162fb743",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2026-08-27T09:19:05.091214"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/booking/start-booking-process/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

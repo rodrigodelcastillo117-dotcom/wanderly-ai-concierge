@@ -1,0 +1,61 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "amendment-quote-response-price-changed",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "bookingRef": "BR-123456789",
+  "quoteRef": "QR-4891fddc-7e2e-4203-9517-ec75703daa8a",
+  "status": "CONFIRMED",
+  "quoteExpiresAt": "2023-07-21T03:17:37.494535Z",
+  "initialBookingPrice": 75,
+  "quotePriceDifference": {
+   "recommendedRetailPrice": 100,
+   "partnerNetPrice": 100,
+   "bookingFee": 0,
+   "commission": 20,
+   "partnerTotalPrice": 80
+  },
+  "amendedBookingPrice": {
+   "lineItems": [
+    {
+     "ageBand": "ADULT",
+     "numberOfTravelers": 1,
+     "subtotalPrice": {
+      "price": {
+       "recommendedRetailPrice": 75,
+       "partnerNetPrice": 75
+      }
+     }
+    },
+    {
+     "ageBand": "ADULT",
+     "numberOfTravelers": 1,
+     "subtotalPrice": {
+      "price": {
+       "recommendedRetailPrice": 100,
+       "partnerNetPrice": 100
+      }
+     }
+    }
+   ],
+   "totalPrice": {
+    "price": {
+     "recommendedRetailPrice": 175,
+     "partnerNetPrice": 175,
+     "bookingFee": 0,
+     "commission": 35,
+     "partnerTotalPrice": 140
+    }
+   }
+  },
+  "currency": "EUR",
+  "paymentMethod": {
+   "type": "CARD",
+   "identifierType": "CARD_LAST_FOUR",
+   "identifier": 7
+  }
+ }
+}

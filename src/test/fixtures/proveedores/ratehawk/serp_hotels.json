@@ -1,0 +1,412 @@
+{
+ "data": {
+  "hotels": [
+   {
+    "id": "w_dubai_mina_seyahi",
+    "hid": 10004873,
+    "rates": [
+     {
+      "match_hash": "m-1976bb62-0400-5d0d-9a19-7c5b97c0fdcd",
+      "search_hash": null,
+      "daily_prices": [
+       "560.50",
+       "560.50"
+      ],
+      "meal": "breakfast",
+      "meal_data": {
+       "value": "breakfast",
+       "has_breakfast": true,
+       "no_child_meal": false
+      },
+      "payment_options": {
+       "payment_types": [
+        {
+         "amount": "960.00",
+         "show_amount": "1121.00",
+         "currency_code": "EUR",
+         "show_currency_code": "USD",
+         "by": null,
+         "is_need_credit_card_data": false,
+         "is_need_cvc": false,
+         "type": "deposit",
+         "vat_data": {
+          "included": false,
+          "applied": false,
+          "amount": "0.00",
+          "currency_code": "EUR",
+          "value": "0.00"
+         },
+         "tax_data": {
+          "taxes": [
+           {
+            "name": "city_tax",
+            "included_by_supplier": false,
+            "amount": "40.00",
+            "currency_code": "AED"
+           },
+           {
+            "name": "occupancy_tax",
+            "included_by_supplier": true,
+            "amount": "64.06",
+            "currency_code": "USD"
+           },
+           {
+            "name": "service_fee",
+            "included_by_supplier": true,
+            "amount": "96.09",
+            "currency_code": "USD"
+           },
+           {
+            "name": "vat",
+            "included_by_supplier": true,
+            "amount": "45.76",
+            "currency_code": "USD"
+           }
+          ]
+         },
+         "perks": {},
+         "commission_info": {
+          "show": {
+           "amount_gross": "1121.00",
+           "amount_net": "1121.00",
+           "amount_commission": "0.00"
+          },
+          "charge": {
+           "amount_gross": "960.00",
+           "amount_net": "960.00",
+           "amount_commission": "0.00"
+          }
+         },
+         "cancellation_penalties": {
+          "policies": [
+           {
+            "start_at": null,
+            "end_at": "2027-02-19T07:00:00",
+            "amount_charge": "0.00",
+            "amount_show": "0.00",
+            "commission_info": {
+             "show": {
+              "amount_gross": "0.00",
+              "amount_net": "0.00",
+              "amount_commission": "0.00"
+             },
+             "charge": {
+              "amount_gross": "0.00",
+              "amount_net": "0.00",
+              "amount_commission": "0.00"
+             }
+            }
+           },
+           {
+            "start_at": "2027-02-19T07:00:00",
+            "end_at": null,
+            "amount_charge": "960.00",
+            "amount_show": "1121.00",
+            "commission_info": {
+             "show": {
+              "amount_gross": "1121.00",
+              "amount_net": "1121.00",
+              "amount_commission": "0.00"
+             },
+             "charge": {
+              "amount_gross": "960.00",
+              "amount_net": "960.00",
+              "amount_commission": "0.00"
+             }
+            }
+           }
+          ],
+          "free_cancellation_before": "2027-02-19T07:00:00"
+         },
+         "recommended_price": null
+        }
+       ]
+      },
+      "bar_rate_price_data": null,
+      "rg_ext": {
+       "class": 3,
+       "quality": 6,
+       "sex": 0,
+       "bathroom": 2,
+       "bedding": 3,
+       "family": 0,
+       "capacity": 2,
+       "club": 0,
+       "bedrooms": 0,
+       "balcony": 0,
+       "view": 0,
+       "floor": 0
+      },
+      "room_name": "Deluxe Double room (full double bed) (bed type is subject to availability, extra bed not included, Child bed is not included)",
+      "room_name_info": null,
+      "serp_filters": [
+       "has_bathroom"
+      ],
+      "sell_price_limits": null,
+      "allotment": 1,
+      "amenities_data": [
+       "extra-bed-fee",
+       "non-smoking",
+       "child-bed-fee",
+       "not-guaranteed"
+      ],
+      "any_residency": false,
+      "deposit": null,
+      "no_show": null,
+      "room_data_trans": {
+       "main_room_type": "Deluxe Double room",
+       "main_name": "Deluxe Double room",
+       "bathroom": null,
+       "bedding_type": "full double bed",
+       "misc_room_type": "bed type is subject to availability, extra bed not included, Child bed is not included",
+       "beds": [
+        {
+         "bed": "double",
+         "count": 1
+        }
+       ]
+      },
+      "legal_info": null,
+      "is_package": false
+     }
+    ],
+    "bar_price_data": null
+   },
+   {
+    "id": "royal_central_hotel_the_palm",
+    "hid": 9015534,
+    "rates": [
+     {
+      "match_hash": "m-6cd07e8c-8b4f-5491-a6a5-7d251ae8ca0d",
+      "search_hash": null,
+      "daily_prices": [
+       "489.00",
+       "489.00"
+      ],
+      "meal": "breakfast",
+      "meal_data": {
+       "value": "breakfast",
+       "has_breakfast": true,
+       "no_child_meal": false
+      },
+      "payment_options": {
+       "payment_types": [
+        {
+         "amount": "837.00",
+         "show_amount": "978.00",
+         "currency_code": "EUR",
+         "show_currency_code": "USD",
+         "by": null,
+         "is_need_credit_card_data": false,
+         "is_need_cvc": false,
+         "type": "deposit",
+         "vat_data": {
+          "included": false,
+          "applied": false,
+          "amount": "0.00",
+          "currency_code": "EUR",
+          "value": "0.00"
+         },
+         "tax_data": {
+          "taxes": [
+           {
+            "name": "city_tax",
+            "included_by_supplier": false,
+            "amount": "40.00",
+            "currency_code": "AED"
+           },
+           {
+            "name": "occupancy_tax",
+            "included_by_supplier": true,
+            "amount": "55.65",
+            "currency_code": "USD"
+           },
+           {
+            "name": "service_fee",
+            "included_by_supplier": true,
+            "amount": "87.64",
+            "currency_code": "USD"
+           },
+           {
+            "name": "vat",
+            "included_by_supplier": true,
+            "amount": "39.75",
+            "currency_code": "USD"
+           }
+          ]
+         },
+         "perks": {},
+         "commission_info": {
+          "show": {
+           "amount_gross": "978.00",
+           "amount_net": "978.00",
+           "amount_commission": "0.00"
+          },
+          "charge": {
+           "amount_gross": "837.00",
+           "amount_net": "837.00",
+           "amount_commission": "0.00"
+          }
+         },
+         "cancellation_penalties": {
+          "policies": [
+           {
+            "start_at": null,
+            "end_at": "2027-02-18T00:00:00",
+            "amount_charge": "0.00",
+            "amount_show": "0.00",
+            "commission_info": {
+             "show": {
+              "amount_gross": "0.00",
+              "amount_net": "0.00",
+              "amount_commission": "0.00"
+             },
+             "charge": {
+              "amount_gross": "0.00",
+              "amount_net": "0.00",
+              "amount_commission": "0.00"
+             }
+            }
+           },
+           {
+            "start_at": "2027-02-18T00:00:00",
+            "end_at": null,
+            "amount_charge": "837.00",
+            "amount_show": "978.00",
+            "commission_info": {
+             "show": {
+              "amount_gross": "978.00",
+              "amount_net": "978.00",
+              "amount_commission": "0.00"
+             },
+             "charge": {
+              "amount_gross": "837.00",
+              "amount_net": "837.00",
+              "amount_commission": "0.00"
+             }
+            }
+           }
+          ],
+          "free_cancellation_before": "2027-02-18T00:00:00"
+         },
+         "recommended_price": null
+        }
+       ]
+      },
+      "bar_rate_price_data": null,
+      "rg_ext": {
+       "class": 3,
+       "quality": 5,
+       "sex": 0,
+       "bathroom": 2,
+       "bedding": 3,
+       "family": 0,
+       "capacity": 2,
+       "club": 0,
+       "bedrooms": 0,
+       "balcony": 0,
+       "view": 0,
+       "floor": 0
+      },
+      "room_name": "Superior Double room (full double bed) (bed type is subject to availability, Child bed is not included, extra bed not included, child bed not included)",
+      "room_name_info": null,
+      "serp_filters": [
+       "has_bathroom"
+      ],
+      "sell_price_limits": null,
+      "allotment": 1,
+      "amenities_data": [
+       "child-bed-fee",
+       "not-guaranteed",
+       "extra-bed-fee",
+       "non-smoking"
+      ],
+      "any_residency": false,
+      "deposit": null,
+      "no_show": null,
+      "room_data_trans": {
+       "main_room_type": "Superior Double room",
+       "main_name": "Superior Double room",
+       "bathroom": null,
+       "bedding_type": "full double bed",
+       "misc_room_type": "bed type is subject to availability, Child bed is not included, extra bed not included, child bed not included",
+       "beds": [
+        {
+         "bed": "double",
+         "count": 1
+        }
+       ]
+      },
+      "legal_info": null,
+      "is_package": false
+     }
+    ],
+    "bar_price_data": null
+   }
+  ],
+  "total_hotels": 2
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/search/serp/hotels",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 13,
+   "requests_number": 15,
+   "reset": "2026-08-25T14:09:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "checkin": "2027-02-22",
+   "checkout": "2027-02-24",
+   "residency": "gb",
+   "language": "en",
+   "guests": [
+    {
+     "adults": 2,
+     "children": [
+      5
+     ]
+    }
+   ],
+   "hids": [
+    10004873,
+    9015534
+   ],
+   "currency": "USD",
+   "filter": {
+    "star_rating": [
+     4,
+     5
+    ],
+    "kind": [
+     "Hotel",
+     "Resort"
+    ],
+    "meal_type": [
+     "all-inclusive",
+     "super-all-inclusive",
+     "soft-all-inclusive",
+     "ultra-all-inclusive",
+     "breakfast",
+     "half-board"
+    ],
+    "price_from": 100,
+    "price_to": 2000
+   }
+  },
+  "method": "POST",
+  "real_ip": "5.135.60.82",
+  "request_id": "dfb9fff6f831823cf8e747e9fd13df0b",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2026-08-25T14:08:45.629895"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/hotel-search/search-by-hotel-ids/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta de la documentación oficial de ETG (RateHawk). Único cambio: se quitó una coma sobrante que traía el ejemplo y que lo hacía JSON inválido."
+ }
+}
