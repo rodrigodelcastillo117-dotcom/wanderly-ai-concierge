@@ -1,4 +1,5 @@
-// Perfil → Ajustes: vincular Telegram con la cuenta IATOS (código de un solo uso que el bot canjea). Mínimo
+// Perfil → Ajustes: vincular Telegram con la cuenta IATOS (código de un solo uso que el bot canjea). Ya vinculado, Iato
+// completo conversa por ahí (planear, viaje, gastos, clima, eventos) y el operador contesta los problemas. Mínimo
 // indispensable: estado, «Vincular Telegram» (código + abrir el bot), desvincular. Si Telegram no está activo (falta
 // el token del bot), lo dice y no ofrece nada. Administradores: conectar el bot una vez (registra el webhook).
 import { useEffect, useState } from "react";
@@ -60,10 +61,10 @@ export function TelegramLink({ isAdmin = false }: { isAdmin?: boolean }) {
         <h3 id="telegram-title" className="font-medium">Telegram</h3>
       </div>
       {!estado.activo ? (
-        <p className="text-xs text-muted-foreground">Pronto podrás escribirle a IATOS por Telegram si algo sale mal en tu viaje. Todavía no está activo.</p>
+        <p className="text-xs text-muted-foreground">Pronto podrás escribirle a IATOS por Telegram. Todavía no está activo.</p>
       ) : estado.vinculado ? (
         <div className="space-y-2">
-          <p className="text-sm">Vinculado{estado.usuario ? ` como @${estado.usuario}` : ""}. Si algo sale mal en tu viaje, escríbele a{estado.bot ? ` @${estado.bot}` : "l bot de IATOS"}: el operador te contesta ahí 24/7.</p>
+          <p className="text-sm">Vinculado{estado.usuario ? ` como @${estado.usuario}` : ""}. Escríbele a{estado.bot ? ` @${estado.bot}` : "l bot de IATOS"}: Iato te ayuda con tu viaje y, si algo sale mal, el operador te contesta ahí 24/7.</p>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void desvincular()}>Desvincular</Button>
         </div>
       ) : codigo ? (
@@ -77,7 +78,7 @@ export function TelegramLink({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Vincula tu cuenta para escribirle a IATOS por Telegram si tienes un problema en tu viaje (vuelo, traslado, hotel, equipaje, documentos). El operador de IATOS te contesta ahí, 24/7.</p>
+          <p className="text-xs text-muted-foreground">Vincula tu cuenta para hablar con Iato por Telegram: planear, preguntar por tu viaje, gastos (también con la foto del ticket), clima y eventos. Si algo sale mal, el operador de IATOS te contesta ahí, 24/7.</p>
           <Button size="sm" disabled={busy} onClick={() => void pedirCodigo()}>Vincular Telegram</Button>
         </div>
       )}

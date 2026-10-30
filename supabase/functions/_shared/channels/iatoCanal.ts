@@ -62,7 +62,7 @@ export function crearIatoCanal(d: IatoCanalDeps): IatoCanal {
 
   async function conSesion<T>(userId: string, fn: (h: Record<string, string>, tz: string) => Promise<T>, sinSesion: (m: string) => T): Promise<T> {
     const s = await d.sesion(userId);
-    if (!s.ok) return sinSesion(MENSAJE_SIN_SESION[s.code]);
+    if (s.ok === false) return sinSesion(MENSAJE_SIN_SESION[s.code]);
     try {
       const firma = await d.firmar(userId);
       const tz = (await d.zona?.(userId).catch(() => null)) ?? TZ_DEF;

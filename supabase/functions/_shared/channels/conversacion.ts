@@ -208,7 +208,7 @@ export async function atenderCanal(d: CanalDeps, m: InboundMessage): Promise<{ a
       return { accion: "ticket_error" };
     }
     const t = await d.iato.ticket(userId, archivo, m.text);
-    if (!t.ok) {
+    if (t.ok === false) {
       await d.enviar(chat, plano(d, t.mensaje));
       return { accion: "ticket_error" };
     }
@@ -267,7 +267,7 @@ export async function atenderCanal(d: CanalDeps, m: InboundMessage): Promise<{ a
     const c = loc.data as { lat?: number; lng?: number } | null;
     const coords = c && Number.isFinite(c.lat) && Number.isFinite(c.lng) ? { lat: Number(c.lat), lng: Number(c.lng) } : null;
     const r = await d.iato.conversar(userId, { texto, coords, canal: d.canal });
-    if (!r.ok) {
+    if (r.ok === false) {
       await d.enviar(chat, plano(d, r.mensaje));
       return { accion: "iato_error" };
     }
