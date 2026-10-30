@@ -100,7 +100,7 @@ En Telegram, el viajero vincula su cuenta desde la app (**Perfil → Ajustes →
 **Tareas programadas (pg_cron):**
 - `incidentes-vigilante-cada-2-min` → `docs/ops/programar-incidentes.sql`
 - `operador-cada-2-min` → `docs/ops/programar-operador.sql`
-- `reclamos-cron` diario → ver `docs/iatos/IATOS_DERECHOS_RECLAMOS.md`
+- `reclamos-cron` diario → `docs/ops/programar-reclamos.sql` (ver `docs/iatos/IATOS_DERECHOS_RECLAMOS.md`)
 
 ---
 

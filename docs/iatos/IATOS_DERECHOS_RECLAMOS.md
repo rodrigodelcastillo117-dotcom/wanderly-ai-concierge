@@ -80,7 +80,7 @@ Se registra un **segundo webhook** en Resend apuntando a `reclamos-inbound` (sec
 ## 4. Pendientes para activar
 1. Aplicar la migración `20261029090000_reclamos.sql`; desplegar `reclamos`, `reclamos-inbound`, `reclamos-cron` y `concierge-chat`, `reservations-inbound`, `ai-reservations`, `ai-reservations-cron` (comparten `_shared/ai-reservations/service.ts`).
 2. Resend: segundo webhook `email.received` → `reclamos-inbound`; secreto `RECLAMOS_INBOUND_SECRET`. Verificar que `reclamos@traveliatos.life` pueda enviar (o fijar `RECLAMOS_FROM_ADDRESS`).
-3. pg_cron diario para `reclamos-cron` (mismo patrón que `ai-reservations-cron`).
+3. pg_cron diario para `reclamos-cron` (mismo patrón que `ai-reservations-cron`): `docs/ops/programar-reclamos.sql` (tarea `reclamos-seguimiento-diario`, 15:41 UTC = 09:41 en CDMX).
 4. Conectar `nucleoDesdeEntorno` al núcleo de incidentes.
 5. Encender `app_flags.reclamos_enabled` cuando el dueño lo apruebe.
 6. Botón de confirmar envío en la app (hoy el consentimiento se da en el chat con el folio, o por la API `confirmar_envio`).
