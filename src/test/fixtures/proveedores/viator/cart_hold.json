@@ -1,0 +1,60 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-cart-hold-response-viator-form-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "cartRef": "CR-cb9c9d63017a63c96454e4a5b0b153eb",
+  "partnerCartRef": "lW83mqyU",
+  "currency": "AUD",
+  "items": [
+   {
+    "partnerBookingRef": "irk5vCJ7",
+    "bookingRef": "BR-593038025",
+    "status": "BOOKABLE",
+    "lineItems": [
+     {
+      "ageBand": "ADULT",
+      "numberOfTravelers": 2,
+      "subtotalPrice": {
+       "price": {
+        "recommendedRetailPrice": 13.6,
+        "partnerNetPrice": 12.52
+       }
+      }
+     }
+    ],
+    "itemTotalPrice": {
+     "price": {
+      "recommendedRetailPrice": 13.6,
+      "partnerNetPrice": 12.52,
+      "bookingFee": 0,
+      "commission": 1.08,
+      "partnerTotalPrice": 12.52
+     }
+    },
+    "bookingHoldInfo": {
+     "availability": {
+      "status": "HOLD_NOT_PROVIDED"
+     },
+     "pricing": {
+      "status": "HOLDING",
+      "validUntil": "2023-07-21T03:17:37.494535Z"
+     }
+    }
+   }
+  ],
+  "totalHeldPrice": {
+   "price": {
+    "recommendedRetailPrice": 13.6,
+    "partnerNetPrice": 12.52,
+    "bookingFee": 0,
+    "commission": 1.08,
+    "partnerTotalPrice": 12.52
+   }
+  },
+  "paymentSessionToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImVlZTgzNTdmLTJjMWMtNGFmOS1iNGY5LTMzZDgzMGIzODI2ZCJ9.eyJjaGVja291dFNlc3Npb25JZCI6IkNTSS1TLWE1c3ZvNDdub3ZhNHRkc2VidWg2aWkzd2JtIiwibWVyY2hhbnRJZCI6Ik1FUi1WSUFUT1IiLCJjbGllbnRJZCI6IlBBUlRORVI6QVBJLWVuOkFGRklMSUFURTo4MjAxNiIsImFtb3VudCI6MTIuNTIsImN1cnJlbmN5IjoiQVVEIiwibG9jYWxlIjoiZW4iLCJjcmVkaXRDYXJkRW50cnlVcmwiOiJodHRwczovL2FwaS5zdGFnaW5nLnRhcGF5bWVudHMuY29tL3VpL3YxL2NoZWNrb3V0L0NTSS1TLWE1c3ZvNDdub3ZhNHRkc2VidWg2aWkzd2JtL2NjZW50cnkiLCJhdWdtZW50VG9rZW5VcmwiOiJodHRwczovL2NoZWNrb3V0LWFwaS1oYXJlLnBheW1lbnRzLWRldi50YW1nLmNsb3VkL3YxL2NoZWNrb3V0L2F1Z21lbnRlZFBheW1lbnRTZXNzaW9uIiwidGhyZWVEU0RhdGFVcmwiOiJodHRwczovL2NoZWNrb3V0LWFwaS1oYXJlLnBheW1lbnRzLWRldi50YW1nLmNsb3VkL3YxL2NoZWNrb3V0LzNkcyIsImxvZ2dpbmdVcmwiOiJodHRwczovL2NoZWNrb3V0LWFwaS1oYXJlLnBheW1lbnRzLWRldi50YW1nLmNsb3VkL3YxL2NoZWNrb3V0L2xvZyIsImZpbmdlcnByaW50U3VibWlzc2lvblVybCI6Imh0dHBzOi8vY2hlY2tvdXQtYXBpLWhhcmUucGF5bWVudHMtZGV2LnRhbWcuY2xvdWQvdjEvY2hlY2tvdXQvZGV2aWNlRmluZ2VycHJpbnQiLCJwcm9maWxpbmdDb25maWd1cmF0aW9uIjp7ImNsaWVudElkIjoiVmdaZ0ZSMF9SMmhhVVBKV0F6OFlsemZGa2NNIiwiaG9zdG5hbWUiOiJ0ZXN0LmFjY2RhYi5uZXQiLCJmaW5nZXJwcmludElkIjoiSU5BVVRILTlhNTlkMTI4LWQzYjQtNDUyOS1iNmE2LTVmYjk3OWQwNTc3YiJ9LCJwdXJjaGFzZUNvbnRleHRzIjpbXX0.BgBJadCdH95l3Re1ohYujYjHwSaVTds5MQ_H7WfUeMpuuXbTEzIvPF8YtBlDQ-aL66yBirrorol8RetAUb_phhLXO6scsAgsZEmgTPe6-dqbrjB3IkdJcf5bbdUDbyykUkY2Tf4vhYZc3UhR0fOCc_Ibdhpkt7bfA0O7bnTrAHGaE6Tl1328xuGthdSggFBdaNSVPoeEl4CTb2Q1tYotuFlUcLawzQgravgWWfMvPN9V6sDiP17bROSigXw0f3IBKs5JYKKMYpHLSJ370DasuMTJ8_5kXUXq8thXEHJOh0cGurOhx32gDUUuCAuRwBRa9HeEgig7RrN0UmlSs7_iEQ"
+ }
+}

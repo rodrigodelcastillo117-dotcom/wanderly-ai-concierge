@@ -1,0 +1,31 @@
+{
+ "_fuente": {
+  "url": "https://support.travelpayouts.com/hc/en-us/articles/5169505760402-API-of-affiliates-balance-and-payment",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual del artículo oficial de Travelpayouts (actualizado el 22-oct-2026)."
+ },
+ "value": {
+  "actions": [
+   {
+    "action_id": "100:14358982146",
+    "campaign_id": 100,
+    "action_state": "paid",
+    "price": "60.83",
+    "profit": "1.52",
+    "description": "Cape Girardeau (US), 2022-01-20 – 2022-01-21, Agoda",
+    "booked_at": "2021-05-12 06:26:54",
+    "updated_at": "2021-05-12 06:30:58"
+   }
+  ],
+  "total_price": "45364.93",
+  "total_profit": "1794.34",
+  "available_campaigns": [
+   0,
+   75,
+   100,
+   101,
+   157
+  ],
+  "count": 289
+ }
+}

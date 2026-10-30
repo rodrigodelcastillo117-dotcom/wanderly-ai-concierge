@@ -1,0 +1,49 @@
+{
+ "data": {
+  "order_id": 559350847,
+  "partner_order_id": "asd12399235",
+  "item_id": 128903852,
+  "payment_types": [
+   {
+    "amount": "2000.00",
+    "currency_code": "INR",
+    "is_need_credit_card_data": false,
+    "is_need_cvc": false,
+    "type": "deposit",
+    "recommended_price": null
+   }
+  ],
+  "is_gender_specification_required": false,
+  "upsell_data": []
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/order/booking/form",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 29,
+   "requests_number": 30,
+   "reset": "2025-10-21T12:22:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "partner_order_id": "asd12399235",
+   "book_hash": "p-64bf9aa1-e848-48f5-a23c-f7732b90b3c8",
+   "language": "en",
+   "user_ip": "82.29.0.86"
+  },
+  "method": "POST",
+  "real_ip": "104.30.161.77",
+  "request_id": "26f502336760ea6e5a71ed6beae781f5",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2025-10-21T12:21:01.572537"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/booking/create-booking-process/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

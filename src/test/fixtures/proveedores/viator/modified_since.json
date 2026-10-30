@@ -1,0 +1,59 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-modified-since-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "bookings": [
+   {
+    "transactionRef": "1234",
+    "eventType": "CANCELLATION",
+    "acknowledgeBy": "2022-04-08T09:22:48Z",
+    "bookingRef": "BR-204104077",
+    "partnerBookingRef": "BK2041040771234567",
+    "lastUpdated": "2022-04-07T13:25:00Z",
+    "bookedItem": {
+     "productCode": "281620P2",
+     "productOptionCode": "TG1",
+     "travelDate": "2022-05-12",
+     "travelTime": "09:30"
+    },
+    "cancellation": {
+     "cancellationReasonCode": "Supplier_Support.Significant_global_event",
+     "refundDetails": {
+      "itemPrice": 59.4,
+      "refundAmount": 59.4,
+      "refundPercentage": 100,
+      "currencyCode": "AUD"
+     }
+    }
+   },
+   {
+    "transactionRef": "1235",
+    "eventType": "CANCELLATION",
+    "acknowledgeBy": "2022-04-08T09:22:48Z",
+    "bookingRef": "BR-204104078",
+    "partnerBookingRef": "BK2041040771234568",
+    "lastUpdated": "2022-04-08T09:17:48Z",
+    "bookedItem": {
+     "productCode": "172432P11",
+     "productOptionCode": "TG1",
+     "travelDate": "2022-05-14",
+     "travelTime": "09:30"
+    },
+    "cancellation": {
+     "cancellationReasonCode": "Supplier_Support.Weather",
+     "refundDetails": {
+      "itemPrice": 120,
+      "refundAmount": 120,
+      "refundPercentage": 100,
+      "currencyCode": "EUR"
+     }
+    }
+   }
+  ],
+  "nextCursor": "MTYxMjc2OTM4NXwxNTU5MTlQMXxJTkFDVElWRQ=="
+ }
+}

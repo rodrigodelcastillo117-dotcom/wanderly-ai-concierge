@@ -1,0 +1,193 @@
+{
+ "data": {
+  "hotels": [
+   {
+    "id": "conrad_los_angeles",
+    "hid": 10004834,
+    "rates": [
+     {
+      "book_hash": "p-e7029d6b-7b28-4e99-893f-3434d5065f33",
+      "match_hash": "m-afd54df0-5f86-5b45-b011-4a94ccd81e43",
+      "daily_prices": [
+       "329.61",
+       "329.61",
+       "329.61"
+      ],
+      "meal": "nomeal",
+      "meal_data": {
+       "value": "nomeal",
+       "has_breakfast": false,
+       "no_child_meal": true
+      },
+      "payment_options": {
+       "payment_types": [
+        {
+         "amount": "75446.28",
+         "show_amount": "988.82",
+         "currency_code": "USD",
+         "show_currency_code": "USD",
+         "by": null,
+         "is_need_credit_card_data": false,
+         "is_need_cvc": false,
+         "type": "deposit",
+         "vat_data": {
+          "included": false,
+          "applied": false,
+          "amount": "0.00",
+          "currency_code": "USD",
+          "value": "0.00"
+         },
+         "tax_data": {
+          "taxes": [
+           {
+            "name": "occupancy_tax",
+            "included_by_supplier": true,
+            "amount": "136.39",
+            "currency_code": "USD"
+           },
+           {
+            "name": "resort_fee",
+            "included_by_supplier": false,
+            "amount": "135.00",
+            "currency_code": "USD"
+           }
+          ]
+         },
+         "perks": {},
+         "commission_info": {
+          "show": {
+           "amount_gross": "1009.00",
+           "amount_net": "988.82",
+           "amount_commission": "20.18"
+          },
+          "charge": {
+           "amount_gross": "76986.00",
+           "amount_net": "75446.28",
+           "amount_commission": "1539.72"
+          }
+         },
+         "cancellation_penalties": {
+          "policies": [
+           {
+            "start_at": null,
+            "end_at": null,
+            "amount_charge": "75446.28",
+            "amount_show": "988.82",
+            "commission_info": {
+             "show": {
+              "amount_gross": "1009.00",
+              "amount_net": "988.82",
+              "amount_commission": "20.18"
+             },
+             "charge": {
+              "amount_gross": "76986.00",
+              "amount_net": "75446.28",
+              "amount_commission": "1539.72"
+             }
+            }
+           }
+          ],
+          "free_cancellation_before": null
+         },
+         "recommended_price": null
+        }
+       ]
+      },
+      "bar_rate_price_data": null,
+      "rg_ext": {
+       "class": 3,
+       "quality": 17,
+       "sex": 0,
+       "bathroom": 2,
+       "bedding": 3,
+       "family": 0,
+       "capacity": 2,
+       "club": 0,
+       "bedrooms": 0,
+       "balcony": 0,
+       "view": 0,
+       "floor": 0
+      },
+      "room_name": "Premium Double room (full double bed) (king size bed)",
+      "room_name_info": {
+       "original_rate_name": "Premium One King Bed"
+      },
+      "serp_filters": [
+       "has_bathroom"
+      ],
+      "sell_price_limits": null,
+      "allotment": 1,
+      "amenities_data": [
+       "non-smoking",
+       "king-bed"
+      ],
+      "any_residency": false,
+      "deposit": null,
+      "no_show": null,
+      "room_data_trans": {
+       "main_room_type": "Premium Double room",
+       "main_name": "Premium Double room",
+       "bathroom": null,
+       "bedding_type": "full double bed",
+       "misc_room_type": "king size bed",
+       "beds": [
+        {
+         "bed": "double",
+         "count": 1
+        }
+       ]
+      },
+      "legal_info": {
+       "provider": {
+        "name": "",
+        "address": "",
+        "taxpayer_number": "0000000000",
+        "state_registration_number": "0000000000000"
+       },
+       "hotel": {
+        "name": "Conrad Los Angeles",
+        "address": "100 South Grand Avenue, Лос-Анджелес",
+        "taxpayer_number": "0000000000",
+        "state_registration_number": "0000000000000",
+        "work_time": "с 9 до 18 по местному времени"
+       }
+      },
+      "is_package": false
+     }
+    ],
+    "bar_price_data": null
+   }
+  ],
+  "changes": {
+   "price_changed": false
+  }
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/prebook",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 29,
+   "requests_number": 30,
+   "reset": "2026-04-16T20:19:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "hash": "h-d01a824f-dcce-5932-af8d-8bafc6badc3b",
+   "price_increase_percent": 20
+  },
+  "method": "POST",
+  "real_ip": "104.30.161.77",
+  "request_id": "969d452ece3347081865c46265cae077",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2026-04-16T20:18:14.564703"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/hotel-search/prebook-rate-from-hotelpage-step/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

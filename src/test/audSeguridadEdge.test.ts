@@ -27,6 +27,8 @@ const PUBLIC_GATES: Record<string, RegExp> = {
   "ai-reservations": /getAuthUser[\s\S]*icsForLink|icsForLink[\s\S]*getAuthUser/, // JWT en POST, firma en el .ics
   "reclamos-inbound": /handleInbound\([\s\S]*verifySvixSignature\(headers/, // firma Svix propia (RECLAMOS_INBOUND_SECRET)
   // Secreto del webhook de Telegram (X-Telegram-Bot-Api-Secret-Token, comparación en tiempo constante); sin token → 503.
+  // Avisos de proveedores (comisiones): firma HMAC de RateHawk en tiempo constante + token de un solo uso; otro proveedor → 404.
+  "proveedores-webhook": /FIRMA_INVALIDA[\s\S]*provider_webhook_token_once[\s\S]*manejarWebhook\(new URL[\s\S]*igualSeguro\(esperada/,
   "telegram-webhook": /TELEGRAM_OFF[\s\S]*parseInbound!?\(req\)[\s\S]*INVALID_SECRET[\s\S]*sameSecret\(req\.headers\.get\("x-telegram-bot-api-secret-token"\)/,
 };
 // Consumen APIs de pago (IA, Google, SerpApi, Pexels, Travelpayouts, correo).
@@ -44,6 +46,7 @@ describe("funciones Edge: autenticación (config.toml vs código)", () => {
         ? readFileSync(join(FN_DIR, "_shared/ai-reservations/service.ts"), "utf8") : "")
         + (f === "reclamos-inbound" ? readFileSync(join(FN_DIR, "_shared/derechos/servicio.ts"), "utf8") : "")
         + (f === "telegram-webhook" ? readFileSync(join(FN_DIR, "_shared/channels/telegram.ts"), "utf8") : "")
+        + (f === "proveedores-webhook" ? readFileSync(join(FN_DIR, "_shared/proveedores/ratehawk.ts"), "utf8") : "")
         + (f === "booking-go" ? readdirSync(join(FN_DIR, "_shared/booking")).map((x) => readFileSync(join(FN_DIR, "_shared/booking", x), "utf8")).join("\n") : "");
       return PUBLIC_GATES[f] ? !PUBLIC_GATES[f].test(src) : !/isAuthorizedCron\(req\)/.test(src);
     });

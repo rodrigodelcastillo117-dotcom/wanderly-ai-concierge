@@ -1,0 +1,57 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-status-pending-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "status": "PENDING",
+  "bookingRef": "BR-784007177",
+  "partnerBookingRef": "PR-784007177",
+  "currency": "USD",
+  "lineItems": [
+   {
+    "ageBand": "ADULT",
+    "numberOfTravelers": 3,
+    "subtotalPrice": {
+     "price": {
+      "recommendedRetailPrice": 510,
+      "partnerNetPrice": 504.9
+     }
+    }
+   }
+  ],
+  "totalPrice": {
+   "price": {
+    "recommendedRetailPrice": 510,
+    "partnerNetPrice": 504.9,
+    "bookingFee": 0,
+    "commission": 5.1,
+    "partnerTotalPrice": 504.9
+   }
+  },
+  "cancellationPolicy": {
+   "type": "CUSTOM",
+   "description": "If you cancel at least 2 full day(s) before the scheduled departure time, you will receive a full refund. If you cancel within 2 day(s) of the scheduled departure, you will receive a 0% refund.",
+   "cancelIfBadWeather": false,
+   "cancelIfInsufficientTravelers": false,
+   "refundEligibility": [
+    {
+     "dayRangeMin": 2,
+     "percentageRefundable": 100,
+     "startTimestamp": "2025-07-22T09:23:54Z",
+     "endTimestamp": "2025-07-27T07:59:59Z"
+    },
+    {
+     "dayRangeMin": 0,
+     "dayRangeMax": 2,
+     "percentageRefundable": 0,
+     "startTimestamp": "2025-07-27T08:00:00Z",
+     "endTimestamp": "2025-07-29T08:00:00Z"
+    }
+   ]
+  },
+  "nextPollAt": "2025-07-22T11:24:05.764088Z"
+ }
+}

@@ -1,0 +1,18 @@
+{
+ "_fuente": {
+  "url": "https://docs.viator.com/partner-api/technical/",
+  "ejemplo": "bookings-cancel-quote-example",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo copiado tal cual de components.examples de la especificación OpenAPI oficial de Viator Partner API 2.0 (embebida en la página)."
+ },
+ "value": {
+  "bookingId": "BR-581567752",
+  "refundDetails": {
+   "itemPrice": 60.2,
+   "refundAmount": 60.2,
+   "refundPercentage": 100,
+   "currencyCode": "AUD"
+  },
+  "status": "CANCELLABLE"
+ }
+}

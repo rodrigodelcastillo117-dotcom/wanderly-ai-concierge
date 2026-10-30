@@ -1,0 +1,58 @@
+{
+ "data": {
+  "amount_payable": {
+   "amount": "42.73",
+   "amount_info": {
+    "amount_commission": "0",
+    "amount_gross": "0",
+    "amount_net": "0"
+   },
+   "currency_code": "EUR"
+  },
+  "amount_refunded": {
+   "amount": "50.00",
+   "amount_info": {
+    "amount_commission": "10.5",
+    "amount_gross": "12.3",
+    "amount_net": "15.1"
+   },
+   "currency_code": "EUR"
+  },
+  "amount_sell": {
+   "amount": "92.73",
+   "amount_info": {
+    "amount_commission": "20.13",
+    "amount_gross": "30.3",
+    "amount_net": "20.25"
+   },
+   "currency_code": "EUR"
+  }
+ },
+ "debug": {
+  "api_endpoint": {
+   "endpoint": "api/b2b/v3/hotel/order/cancel",
+   "is_active": true,
+   "is_limited": true,
+   "remaining": 29,
+   "requests_number": 30,
+   "reset": "2026-09-29T07:55:00",
+   "seconds_number": 60
+  },
+  "request": {
+   "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6"
+  },
+  "method": "POST",
+  "real_ip": "5.135.60.82",
+  "request_id": "492bf6cbe0e3e769e754ba9d805bfccb",
+  "key_id": 1234,
+  "api_key_id": 1234,
+  "utcnow": "2026-09-29T07:54:19.077553"
+ },
+ "status": "ok",
+ "error": null,
+ "_fuente": {
+  "url": "https://docs.emergingtravel.com/docs/b2b-api/post-booking/cancel-booking/",
+  "consultado": "2026-10-30",
+  "nota": "Ejemplo de respuesta copiado tal cual de la documentación oficial de ETG (RateHawk)."
+ }
+}

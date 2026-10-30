@@ -134,7 +134,12 @@ WITH allowed(f) AS (VALUES ('aceptar_invitacion_viaje'),('admin_cost_metrics'),(
   -- cambian la preferencia de auth.uid() (42501 sin sesión; apagarla deja sin enviar lo programado);
   -- admin_vigilancia_resumen exige auth.uid() en public.admins (_ops_require_admin) y solo lee. Pruebas en
   -- supabase/tests/vigilancia (V21–V23, V27, V30–V32).
-  ('my_vigilancia_prefs'), ('my_vigilancia_prefs_set'), ('admin_vigilancia_resumen')),
+  ('my_vigilancia_prefs'), ('my_vigilancia_prefs_set'), ('admin_vigilancia_resumen'),
+  -- Comisiones (20261030020000_comisiones): admin_commissions_summary y admin_managed_request_decide exigen auth.uid()
+  -- en public.admins (42501 si no); el resumen solo da agregados del mes y solicitudes (sin neto ni datos del viajero
+  -- más allá del texto de su sí); decidir solo aprueba/rechaza una solicitud pendiente, una vez, con historial (no llama
+  -- a ningún proveedor). Pruebas en supabase/tests/comisiones (C18, C26, C27).
+  ('admin_commissions_summary'), ('admin_managed_request_decide')),
 got AS (SELECT DISTINCT p.proname f FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND p.prosecdef AND has_function_privilege('authenticated', p.oid, 'EXECUTE'))
 SELECT CASE WHEN NOT EXISTS (SELECT f FROM got EXCEPT SELECT f FROM allowed)

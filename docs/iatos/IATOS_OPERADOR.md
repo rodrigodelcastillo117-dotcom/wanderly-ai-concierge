@@ -15,7 +15,7 @@ Estado: **construido y probado, APAGADO**. No hay nada desplegado ni migraciones
 5. Le escribe al viajero (app, Telegram, correo) qué hizo, qué sigue y **a qué hora** le vuelve a escribir.
 6. Le escribe al proveedor por correo, solo a un correo **con fuente** (su sitio oficial, la reserva o lo que dio el viajero), y **en el horario del proveedor**; la respuesta vuelve sola al caso.
 7. Prepara reclamaciones formales, pero **solo las envía si el viajero escribe "Sí, envía C-…"**. Para ver los datos del viajero también pide permiso.
-8. **Nunca paga, reserva ni cancela**; no promete reembolsos; no inventa correos, teléfonos ni datos (si lo intenta, el sistema lo bloquea).
+8. **Nunca paga, reserva ni cancela por sí mismo**; si la reserva la gestiona IATOS, puede **pedir** un cambio o cancelación con el sí escrito del viajero y una persona lo aprueba (ver `docs/iatos/IATOS_COMISIONES.md`); no promete reembolsos; no inventa correos, teléfonos ni datos (si lo intenta, el sistema lo bloquea).
 9. **Si duda, pasa el caso a una persona** (dueño o Carlo) con un resumen: salud, seguridad, quejas contra IATOS, si el viajero lo pide, si la IA falla o si llega a un tope de gasto.
 10. Todo queda en la **bitácora** del caso en la Mesa de operaciones: cada acción, cada mensaje, el gasto en IA, y si pasó a una persona y por qué.
 
@@ -40,8 +40,10 @@ Estado: **construido y probado, APAGADO**. No hay nada desplegado ni migraciones
 | `prometer_seguimiento` | Hora en que le vuelve a escribir (si vence, el vigilante avisa al equipo) | 5 min – 24 h |
 | `pedir_humano` | Pasa el caso a una persona con resumen | — |
 | `proponer_cierre` | Pregunta "¿quedó resuelto?" | El caso NO se cierra sin el viajero |
+| `ver_servicios_gestionados` | Reservas que IATOS tiene en la mano (folio R-…, localizador, estado sincronizado, política de cancelación/cambio con fuente; sin neto ni margen) | Solo las del viajero del caso, con el candado del operador |
+| `pedir_cambio_servicio` | **Pide** (no ejecuta) cancelar o cambiar una reserva gestionada | Solo con «Sí, cancela/cambia R-…» escrito por el viajero (la base lo comprueba) y si la política del proveedor lo permite; queda pendiente de aprobación humana |
 
-**No existe ninguna herramienta para pagar, reservar o cancelar.**
+**No existe ninguna herramienta para pagar, reservar o cancelar.** `pedir_cambio_servicio` solo deja una solicitud: la aprueba una persona en el tablero de comisiones y la ejecuta la tarea `reservas-gestionadas` con su bandera.
 
 ### Límites de seguridad (los hace cumplir la base o el código, no el modelo)
 

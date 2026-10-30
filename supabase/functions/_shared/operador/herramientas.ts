@@ -28,8 +28,9 @@ export const OPERADOR_TOOLS: HerramientaOperador[] = [
   {
     name: "pedir_permiso",
     description: "Pide al viajero un permiso explícito (sí/no) por la app y su canal. tipo 'ver_todo' para revisar sus datos; 'enviar_reclamo' para mandar " +
-      "el reclamo con ese folio en su nombre. Su respuesta llega como mensaje nuevo; no supongas que dijo que sí.",
-    input_schema: { type: "object", properties: { tipo: { type: "string", enum: ["ver_todo", "enviar_reclamo"] }, folio: { type: "string", description: "C-XXXXXX si es enviar_reclamo" }, mensaje: { type: "string", description: "La pregunta, breve y clara, en el idioma del viajero" } }, required: ["tipo", "mensaje"] },
+      "el reclamo con ese folio en su nombre; 'cancelar_servicio' o 'cambiar_servicio' (folio R-XXXXXX) antes de pedir_cambio_servicio. " +
+      "Su respuesta llega como mensaje nuevo; no supongas que dijo que sí.",
+    input_schema: { type: "object", properties: { tipo: { type: "string", enum: ["ver_todo", "enviar_reclamo", "cancelar_servicio", "cambiar_servicio"] }, folio: { type: "string", description: "C-XXXXXX si es enviar_reclamo; R-XXXXXX (folio de la reserva gestionada) si es cancelar_servicio o cambiar_servicio" }, mensaje: { type: "string", description: "La pregunta, breve y clara, en el idioma del viajero" } }, required: ["tipo", "mensaje"] },
   },
   {
     name: "revisar_derechos_vuelo",
@@ -108,6 +109,22 @@ export const OPERADOR_TOOLS: HerramientaOperador[] = [
     name: "prometer_seguimiento",
     description: "Fija la hora en que vuelves a escribirle (siguiente paso visible al viajero). Si vence sin avance, el vigilante avisa al equipo.",
     input_schema: { type: "object", properties: { siguiente_paso: { type: "string" }, minutos: { type: "number", description: "5 a 1440" } }, required: ["siguiente_paso", "minutos"] },
+  },
+  {
+    name: "ver_servicios_gestionados",
+    description: "Reservas que IATOS tiene en la mano para este viajero (hotel, tour, traslado… reservadas por API con el proveedor): folio R-XXXXXX, " +
+      "localizador del proveedor, estado sincronizado, fechas, precio pagado y política de cancelación/cambio con su fuente. Si no hay, la reserva NO es de IATOS: dilo.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "pedir_cambio_servicio",
+    description: "PIDE (no ejecuta) cancelar o cambiar una reserva gestionada por IATOS. Requiere que el viajero haya escrito en el caso «Sí, cancela R-XXXXXX» o " +
+      "«Sí, cambia R-XXXXXX» (pídelo antes con pedir_permiso) y que la política del proveedor lo permita. Queda pendiente de que una persona del equipo " +
+      "lo apruebe; no prometas el resultado ni reembolsos: di que una persona lo confirma.",
+    input_schema: { type: "object", properties: {
+      folio: { type: "string", description: "R-XXXXXX (de ver_servicios_gestionados)" }, accion: { type: "string", enum: ["cancelacion", "cambio"] },
+      detalle: { type: "string", description: "Qué cambio pide (nueva fecha, número de personas…) o el motivo de la cancelación" },
+    }, required: ["folio", "accion"] },
   },
   {
     name: "pedir_humano",
@@ -236,12 +253,16 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       return { ok: true, fuente: "cuenta IATOS del viajero (con su permiso)", datos };
     }
     case "pedir_permiso": {
-      const tipo = a.tipo === "enviar_reclamo" ? "enviar_reclamo" : "ver_todo";
-      const folio = s(a.folio, 10);
+      const tipo = a.tipo === "enviar_reclamo" || a.tipo === "cancelar_servicio" || a.tipo === "cambiar_servicio" ? a.tipo : "ver_todo";
+      const folio = s(a.folio, 10)?.toUpperCase() ?? null;
       if (tipo === "enviar_reclamo" && !folio) return { ok: false, error: "falta el folio C-XXXXXX" };
+      if ((tipo === "cancelar_servicio" || tipo === "cambiar_servicio") && !/^R-[A-Z0-9]{6}$/.test(folio ?? "")) return { ok: false, error: "falta el folio R-XXXXXX de la reserva gestionada" };
       if (ctx.mensajesViajero >= MAX_MENSAJES_POR_CORRIDA) return { ok: false, error: "Ya le escribiste suficiente en esta corrida; espera su respuesta." };
       const pregunta = s(a.mensaje, 1200) ?? "";
-      const extra = tipo === "enviar_reclamo" ? `\n\nSi estás de acuerdo, responde: «Sí, envía ${folio}».` : "\n\nResponde «sí» para darme permiso o «no» si prefieres que no.";
+      const extra = tipo === "enviar_reclamo" ? `\n\nSi estás de acuerdo, responde: «Sí, envía ${folio}».`
+        : tipo === "cancelar_servicio" ? `\n\nSi quieres que la cancelemos, responde: «Sí, cancela ${folio}». Una persona de IATOS la confirma con el proveedor.`
+        : tipo === "cambiar_servicio" ? `\n\nSi quieres que pidamos el cambio, responde: «Sí, cambia ${folio}». Una persona de IATOS lo confirma con el proveedor.`
+        : "\n\nResponde «sí» para darme permiso o «no» si prefieres que no.";
       const bad = revisarSaliente(ctx, pregunta);
       if (bad) return { ok: false, error: bad };
       const r = await mensajeAlViajero(ctx, pregunta + extra, false, { permiso: tipo, folio });
@@ -384,6 +405,39 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       if (!r.ok) return { ok: false, code: (r as { code: string }).code };
       ctx.seguimiento = { texto, due: due.toISOString() };
       return { ok: true, hora: due.toISOString() };
+    }
+    case "ver_servicios_gestionados": {
+      const r = await d.db.rpc("managed_bookings_for_case", { _incident: ctx.incidentId, _owner: d.owner });
+      const data = r.data as { ok?: boolean; code?: string; reservas?: unknown[] } | null;
+      if (r.error || !data?.ok) return { ok: false, code: data?.code ?? "NO_DISPONIBLE" };
+      const reservas = Array.isArray(data.reservas) ? data.reservas : [];
+      ctx.conocido.push(JSON.stringify(reservas));
+      return reservas.length
+        ? { ok: true, fuente: "libro de reservas gestionadas de IATOS (estado sincronizado con el proveedor)", reservas }
+        : { ok: true, reservas: [], nota: "Este viajero no tiene reservas gestionadas por IATOS: no podemos cancelarlas ni cambiarlas por él. Dilo claro y di qué SÍ puedes hacer (contactar al proveedor, sus derechos)." };
+    }
+    case "pedir_cambio_servicio": {
+      const folio = (s(a.folio, 10) ?? "").toUpperCase();
+      const accion = a.accion === "cambio" ? "cambio" : a.accion === "cancelacion" ? "cancelacion" : null;
+      if (!/^R-[A-Z0-9]{6}$/.test(folio) || !accion) return { ok: false, error: "folio R-XXXXXX y accion cancelacion|cambio" };
+      // El sí se busca SOLO en mensajes reales del viajero (la base lo vuelve a comprobar).
+      const verbo = accion === "cancelacion" ? "cancel" : "cambi";
+      const m = mensajesDelViajero(ctx.caso.events).reverse().find((e) => {
+        const t = String(e.body ?? "").toLowerCase();
+        return t.includes(folio.toLowerCase()) && t.includes(verbo) && /^[^a-z0-9]*s[ií]([^a-z0-9]|$)/.test(t);
+      });
+      if (!m) return { ok: false, code: "CONSENT_REQUIRED", instruccion: `No se pide nada sin su sí. Usa pedir_permiso tipo ${accion === "cancelacion" ? "cancelar_servicio" : "cambiar_servicio"} con folio ${folio}.` };
+      const detalle = s(a.detalle, 400);
+      const r = await d.db.rpc("managed_booking_request_change", {
+        _incident: ctx.incidentId, _owner: d.owner, _ref_code: folio, _kind: accion, _consent_event: m.id, _details: detalle ? { detalle } : {},
+      });
+      const data = r.data as { ok?: boolean; code?: string; motivo?: string; status?: string; politica?: Record<string, unknown> } | null;
+      if (r.error || !data) return { ok: false, code: "NO_SE_GUARDO" };
+      if (!data.ok) return { ok: false, code: data.code, motivo: data.motivo ?? null,
+        instruccion: data.code === "NOT_ALLOWED" ? "La política del proveedor no lo permite por API: explícaselo y, si quiere, pedir_humano." : undefined };
+      ctx.esperando = ctx.esperando ?? "usuario";
+      return { ok: true, estado: data.status, politica: data.politica ?? null,
+        nota: "Pedido registrado: una persona del equipo lo aprueba y se hace con el proveedor. No prometas reembolso ni hora exacta; di que le avisamos en cuanto quede." };
     }
     case "pedir_humano": {
       const resumen = s(a.resumen, 450) ?? "El operador pide a una persona";
