@@ -126,13 +126,13 @@ export function vueloDeCandidato(c: CandidatoVuelo, ahora: Date): FilaNueva | nu
 // ───────────────────────────── Frecuencia ─────────────────────────────
 
 /**
- * Cuándo toca la siguiente revisión (null = dejar de vigilar). Costo por vuelo ≈ 15 búsquedas:
+ * Cuándo toca la siguiente revisión (null = dejar de vigilar). Costo por vuelo ≈ 15–18 búsquedas (vuelo de 3 a 11 h):
  *   > 48 h antes      nada (la primera revisión es a las 48 h)
  *   48–24 h           una (a las 48 h) y la siguiente a las 24 h
  *   24–6 h            cada 6 h
  *   6–2 h             cada hora
  *   2–0 h             cada 30 min
- *   en el aire        cada 90 min hasta 30 min después de la llegada (desvíos); sin llegada conocida, hasta 8 h
+ *   en el aire        cada 2 h hasta 30 min después de la llegada (desvíos); sin llegada conocida, hasta 8 h
  *                     después de la salida (o 2 h si la salida era solo estimada)
  * Tras 3 fallas seguidas de la fuente, al menos 1 h; tras 6, al menos 3 h. Nunca se salta un umbral (48/24/6/2/0 h).
  */
@@ -156,7 +156,7 @@ export function proximaRevision(
     const llegada = v.llegada_at ? Date.parse(v.llegada_at) : NaN;
     const fin = Number.isFinite(llegada) ? llegada + 30 * MIN : salida + (v.salida_exacta ? 8 : 2) * H;
     if (t >= fin) return null;
-    gap = 90 * MIN;
+    gap = 2 * H;
   }
   if (fallas >= 6) gap = Math.max(gap, 3 * H);
   else if (fallas >= 3) gap = Math.max(gap, 1 * H);
@@ -286,7 +286,7 @@ export function resumenDerechos(e: Evaluacion): ResumenDerechos {
   const regimenes = e.regimenes.filter((r) => r.aplica !== "depende" || e.regimenes.length <= 2).map((r) => r.nombre);
   const p = e.principal;
   const monto = p?.monto ? ` (${p.monto.tipo === "hasta" ? "hasta " : p.monto.tipo === "minimo" ? "al menos " : ""}${p.monto.valor} ${p.monto.moneda})` : "";
-  const principal = p ? `${ETIQUETA_CERTEZA[p.certeza]}: ${p.titulo}${monto}${p.depende_de ? ` — depende de ${p.depende_de}` : ""}` : null;
+  const principal = p ? `${ETIQUETA_CERTEZA[p.certeza]}: ${p.titulo}${monto}${p.depende_de ? ` — depende de: ${p.depende_de.charAt(0).toLowerCase()}${p.depende_de.slice(1)}` : ""}` : null;
   const otros = e.derechos.filter((d) => d !== p).slice(0, 3).map((d) => `${ETIQUETA_CERTEZA[d.certeza]}: ${d.titulo}`);
   const ahora = e.ahora.slice(0, 3);
   const texto = [
