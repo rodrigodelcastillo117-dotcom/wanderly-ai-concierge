@@ -19,6 +19,8 @@ export function notificationTarget(n: { type: string; related_id: string | null;
   if (n.type === "social_respuesta") return n.related_id ? `/dashboard/social/amigo/${n.related_id}#actividad` : "/dashboard/social";
   // Reservas IA (correo al restaurante): la tarjeta vive en Mis reservas.
   if (n.type === "ai_reservation") return "/dashboard/reservas#reservas-ia";
+  // Vigilancia proactiva (vuelo, check-in, documentos, clima, alertas, reconfirmaciones): el viaje; sin viaje, el concierge.
+  if (n.type === "vigilancia") return n.related_id ? `/dashboard/viajes/${n.related_id}` : "/dashboard/concierge?tab=solicitudes";
   // Avisos del sistema a administradores (p. ej. se acabaron los créditos de IA): el panel de admin.
   if (n.type === "system_alert") return "/dashboard/admin";
   return null;

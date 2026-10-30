@@ -171,3 +171,11 @@ describe("confirmaciones previas", () => {
     expect(t.cuerpo).toMatch(/asegurarlo antes de que llegues/);
   });
 });
+
+describe("hora del servicio en la reconfirmación", () => {
+  it("la hora local guardada por Reservas IA (ISO) se escribe legible en el idioma del proveedor", async () => {
+    const { cuandoLocal } = await import("../../supabase/functions/_shared/vigilancia/confirmaciones");
+    expect(cuandoLocal({ servicio_at: "2026-11-02T20:30:00Z", servicio_local: "2026-11-02T21:30", zona_horaria: "Europe/Madrid" }, "es")).toBe("2 de noviembre, 21:30");
+    expect(cuandoLocal({ servicio_at: "2026-11-02T20:30:00Z", servicio_local: null, zona_horaria: "Europe/Madrid" }, "en")).toMatch(/November 2.*21:30/);
+  });
+});

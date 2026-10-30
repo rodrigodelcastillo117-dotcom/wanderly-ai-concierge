@@ -26,6 +26,7 @@ import { Tooltip as InlineTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { TelegramLink } from "@/components/canales/TelegramLink";
+import { ContactoProveedoresPref } from "@/components/vigilancia/ContactoProveedoresPref";
 import { InviteFriendsCard } from "@/components/InviteFriendsCard";
 import { FriendsPrivacySection } from "@/components/social/FriendsPrivacySection";
 import { dnaForDisplay } from "../../supabase/functions/_shared/dnaVoice";
@@ -401,6 +402,7 @@ const Profile = () => {
                 <li><button type="button" onClick={openOpinion} aria-haspopup="dialog" className="w-full text-left glass-card rounded-xl p-4 hover:border-primary/40 transition"><span className="block font-medium">{OPINION_CTA}</span><span className="block text-xs text-muted-foreground mt-0.5">Lo lee una persona del equipo IATOS.</span></button></li>
               </ul>
               <TelegramLink isAdmin={isAdmin} />
+              <ContactoProveedoresPref />
             </section>
 
             {isAdmin && (
