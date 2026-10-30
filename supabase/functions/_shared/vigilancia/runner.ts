@@ -251,7 +251,7 @@ async function procesarEvento(d: VigilanciaDeps, f: FilaVigilada, ev: EventoVuel
       if (r.created) await d.alertarEquipo(r.id).catch((e) => s.errores.push(`alerta equipo: ${safeErrorMessage(e)}`));
       if (r.assignee === "iato_ops") await d.despertarOperador(r.id).catch(() => undefined);
     } else {
-      s.errores.push(`incidente ${f.vuelo}: ${r.code}`);
+      s.errores.push(`incidente ${f.vuelo}: ${(r as { code?: string }).code}`);
     }
   } else if (f.incidente_id) {
     // Cambio de puerta/terminal con un caso abierto del mismo vuelo: a su bitácora.
@@ -347,7 +347,7 @@ export async function abrirPreventivo(d: VigilanciaDeps, c: Pick<Confirmacion, "
     respuestaInmediata: t.cuerpo, canal: "app",
   });
   if (!r.ok) {
-    s?.errores.push(`preventivo ${c.id}: ${r.code}`);
+    s?.errores.push(`preventivo ${c.id}: ${(r as { code?: string }).code}`);
     return null;
   }
   await rpc(d, "vigilancia_confirmacion_actualizar", { _id: c.id, _p: { estado: motivo === "sin_respuesta" ? "sin_respuesta" : "problema", incidente_id: r.id } });
