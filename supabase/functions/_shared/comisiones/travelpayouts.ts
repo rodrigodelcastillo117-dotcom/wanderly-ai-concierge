@@ -105,7 +105,7 @@ export async function sincronizarTravelpayouts(d: SyncTpDeps): Promise<SyncTpRes
       const res = await d.fetchImpl(`${TP_FINANCE}${ruta}`, { headers: { "X-Access-Token": d.token!, Accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
       if (res.status === 401 || res.status === 403) return { ok: false, code: "TOKEN_RECHAZADO", motivo: `Travelpayouts respondió ${res.status} (token).` };
       if (res.status === 429) return { ok: false, code: "LIMITE", motivo: "Travelpayouts: límite de peticiones (429)." };
-      if (!res.ok) return { ok: false, code: "HTTP", motivo: `Travelpayouts respondió HTTP ${res.status}.` };
+      if (res.ok === false) return { ok: false, code: "HTTP", motivo: `Travelpayouts respondió HTTP ${res.status}.` };
       return { ok: true, j: await res.json() };
     } catch (e) {
       return { ok: false, code: "RED", motivo: String((e as Error)?.message ?? e).slice(0, 120) };
@@ -122,7 +122,7 @@ export async function sincronizarTravelpayouts(d: SyncTpDeps): Promise<SyncTpRes
   const maxPag = d.maxPaginas ?? 10;
   for (let p = 0, offset = 0; p < maxPag; p++, offset += 300) {
     const r = await get(`/get_user_actions_affecting_balance?currency=usd&from=${desde}&until=${hasta}&offset=${offset}&limit=300`);
-    if (!r.ok) return fallar(r.code, r.motivo);
+    if (r.ok === false) return fallar(r.code, r.motivo);
     if (!Array.isArray(r.j?.actions)) return fallar("FORMATO_INESPERADO", "La respuesta no trae 'actions' (¿cambió la API?).");
     out.acciones += r.j.actions.length;
     for (const a of r.j.actions) {
@@ -149,7 +149,7 @@ export async function sincronizarTravelpayouts(d: SyncTpDeps): Promise<SyncTpRes
       const ids: string[] = [];
       for (let p = 0, offset = 0; p < 3; p++, offset += 300) {
         const r = await get(`/get_user_actions_affecting_payment?payment_uuid=${encodeURIComponent(pg.payment_uuid)}&offset=${offset}&limit=300`);
-        if (!r.ok || !Array.isArray(r.j?.actions)) break;
+        if (r.ok === false || !Array.isArray(r.j?.actions)) break;
         for (const a of r.j.actions) if (typeof a?.action_id === "string") ids.push(a.action_id);
         if (r.j.actions.length < 300) break;
       }

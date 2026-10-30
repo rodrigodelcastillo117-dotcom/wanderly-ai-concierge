@@ -131,7 +131,7 @@ describe("Viator · consultar, cancelar, cambiar, avisos", () => {
     const { ad } = viator({ "GET /amendment/check/BR-1001": () => r(amendCheckNo.value) });
     const res = await ad.cambiar("BR-1001", {}, SIN_BANDERA);
     expect(res).toMatchObject({ ok: false, code: "NO_SOPORTADO" });
-    expect(!res.ok && res.motivo).toMatch(/UNSUPPORTED_PRODUCT/);
+    expect(res.ok === false && res.motivo).toMatch(/UNSUPPORTED_PRODUCT/);
   });
 
   it("avisos (/bookings/modified-since): cancelaciones del proveedor como estado y cursor siguiente", async () => {

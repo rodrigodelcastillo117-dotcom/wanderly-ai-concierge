@@ -121,7 +121,7 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
     if (res.status === 401) return falla("SIN_CONFIGURAR", "Viator rechazó la llave (401).", { http: 401 });
     if (res.status === 403) return falla("NIVEL_INSUFICIENTE", "La llave de Viator no tiene acceso a esto (403): hace falta el nivel Full + Booking.", { http: 403 });
     if (res.status === 404) return falla("NO_ENCONTRADA", "Viator no encontró esa reserva.", { http: 404 });
-    if (!res.ok || !j) return falla("PROVEEDOR_ERROR", `Viator respondió HTTP ${res.status}.`, { http: res.status, detalle: typeof j?.message === "string" ? j.message.slice(0, 200) : null });
+    if (res.ok === false || !j) return falla("PROVEEDOR_ERROR", `Viator respondió HTTP ${res.status}.`, { http: res.status, detalle: typeof j?.message === "string" ? j.message.slice(0, 200) : null });
     return { ok: true, data: j, http: res.status };
   }
 
@@ -132,10 +132,10 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
     async nivel() {
       if (!configurado) return { nivel: "sin_llave", detalle: "Sin VIATOR_API_KEY." };
       const a = await llamar("GET", "/bookings/cancel-reasons");
-      if (a.ok) return { nivel: "full_booking", detalle: "/bookings/cancel-reasons respondió 200 (solo Full + Booking y merchants)." };
+      if (a.ok !== false) return { nivel: "full_booking", detalle: "/bookings/cancel-reasons respondió 200 (solo Full + Booking y merchants)." };
       if (a.code === "SIN_CONFIGURAR") return { nivel: "llave_invalida", detalle: "401: la llave no es válida o aún no está activa (Viator tarda hasta 24 h)." };
       const b = await llamar("GET", "/products/modified-since?count=1");
-      if (b.ok) return { nivel: "full", detalle: "/bookings/cancel-reasons 403 y /products/modified-since 200: Full (sin reservas)." };
+      if (b.ok !== false) return { nivel: "full", detalle: "/bookings/cancel-reasons 403 y /products/modified-since 200: Full (sin reservas)." };
       if (b.code === "NIVEL_INSUFICIENTE") return { nivel: "basic", detalle: "/bookings/cancel-reasons 403 y /products/modified-since 403: Basic (solo búsqueda y enlaces)." };
       return { nivel: "desconocido", detalle: `${a.motivo} / ${b.motivo}` };
     },
@@ -155,7 +155,7 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
         productCode, travelDate, ...(optionCode ? { productOptionCode: optionCode } : {}), ...(startTime ? { startTime } : {}),
         currency: "USD", paxMix: [{ ageBand: "ADULT", numberOfTravelers: adultos }],
       });
-      if (!r.ok) return r;
+      if (r.ok === false) return r;
       const item = (Array.isArray(r.data?.bookableItems) ? r.data.bookableItems : []).find((i: { available?: boolean }) => i?.available);
       if (!item) return falla("NO_ENCONTRADA", "Sin disponibilidad para esa fecha.");
       const p = item?.totalPrice?.price ?? {};
@@ -180,14 +180,14 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
           ...(startTime ? { startTime } : {}), travelDate, paxMix: [{ ageBand: "ADULT", numberOfTravelers: adultos }] }],
         paymentDataSubmissionMode: "VIATOR_FORM", hostingUrl: "https://traveliatos.life",
       });
-      if (!hold.ok) return hold;
+      if (hold.ok === false) return hold;
       const item = hold.data?.items?.[0];
       if (item?.status !== "BOOKABLE") return falla("NO_ENCONTRADA", "Viator no pudo apartar ese tour.");
       const book = await llamar("POST", "/bookings/cart/book", {
         cartRef: hold.data.cartRef, bookerInfo: { firstName: s.huespedes[0]?.nombre ?? "", lastName: s.huespedes[0]?.apellido ?? "" },
         communication: { email: s.contacto.email, phone: s.contacto.telefono }, items: [{ bookingRef: item.bookingRef }], paymentToken: s.token_pago,
       });
-      if (!book.ok) return book;
+      if (book.ok === false) return book;
       const it = book.data?.items?.[0] ?? {};
       return { ok: true, reserva: reservaViator({ ...it, currency: book.data?.currency, travelDate }, entorno, ahora()) };
     },
@@ -196,7 +196,7 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
       if (!configurado) return sinConfig;
       if (!/^BR-\d{3,20}$/.test(idProveedor)) return falla("ENTRADA_INVALIDA", "bookingRef de Viator (BR-…).");
       const r = await llamar("POST", "/bookings/status", { bookingRef: idProveedor });
-      if (!r.ok) return r;
+      if (r.ok === false) return r;
       return { ok: true, reserva: reservaViator(r.data, entorno, ahora()) };
     },
 
@@ -206,12 +206,12 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
       if (bloqueo) return bloqueo;
       if (!/^BR-\d{3,20}$/.test(idProveedor)) return falla("ENTRADA_INVALIDA", "bookingRef de Viator (BR-…).");
       const q = await llamar("GET", `/bookings/${encodeURIComponent(idProveedor)}/cancel-quote`);
-      if (!q.ok) return q;
+      if (q.ok === false) return q;
       if (q.data?.status === "CANCELLED") return { ok: true, estado: "cancelada", reembolso: null, moneda: null, detalle: { ya_cancelada: true } };
       if (q.data?.status !== "CANCELLABLE") return falla("NO_CANCELABLE", "Viator dice que esta reserva ya no se puede cancelar (el tour ya pasó).");
       const motivo = opciones?.motivo && /^[A-Za-z_]+\.[A-Za-z_]+$/.test(opciones.motivo) ? opciones.motivo : VIATOR_MOTIVO_DEFAULT;
       const c = await llamar("POST", `/bookings/${encodeURIComponent(idProveedor)}/cancel`, { reasonCode: motivo });
-      if (!c.ok) return c;
+      if (c.ok === false) return c;
       if (c.data?.status !== "ACCEPTED") return falla("PROVEEDOR_ERROR", "Viator no aceptó la cancelación (DECLINED).");
       const rd = q.data?.refundDetails ?? {};
       return { ok: true, estado: "cancelada", reembolso: num(rd.refundAmount), moneda: rd.currencyCode ?? null,
@@ -224,18 +224,18 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
       if (bloqueo) return bloqueo;
       if (!/^BR-\d{3,20}$/.test(idProveedor)) return falla("ENTRADA_INVALIDA", "bookingRef de Viator (BR-…).");
       const chk = await llamar("GET", `/amendment/check/${encodeURIComponent(idProveedor)}`);
-      if (!chk.ok) return chk;
+      if (chk.ok === false) return chk;
       if (!chk.data?.isAmendable) return falla("NO_SOPORTADO", `Viator no permite cambiar esta reserva (${String(chk.data?.reason ?? "sin motivo")}).`);
       const { tope_diferencia, ...pedido } = cambio as Record<string, unknown> & { tope_diferencia?: number };
       const quote = await llamar("POST", "/amendment/quote", { bookingRef: idProveedor, ...pedido });
-      if (!quote.ok) return quote;
+      if (quote.ok === false) return quote;
       const dif = num(quote.data?.quotePriceDifference?.recommendedRetailPrice) ?? 0;
       const tope = typeof tope_diferencia === "number" ? tope_diferencia : 0;
       if (dif > tope) {
         return falla("NO_SOPORTADO", `El cambio cuesta ${dif} más: una persona debe aprobar ese monto antes.`, { detalle: String(quote.data?.quoteRef ?? "") });
       }
       const am = await llamar("POST", `/amendment/amend/${encodeURIComponent(String(quote.data?.quoteRef ?? ""))}`);
-      if (!am.ok) return am;
+      if (am.ok === false) return am;
       if (am.data?.status !== "AMENDED") return falla("PROVEEDOR_ERROR", `Viator rechazó el cambio (${String(am.data?.rejectionReasonCode ?? "REJECTED")}).`);
       return { ok: true, estado: "confirmada", detalle: { diferencia: dif, cotizacion: quote.data?.quoteRef ?? null } };
     },
@@ -244,7 +244,7 @@ export function crearViatorReservas(d: ViatorReservasDeps): AdaptadorProveedor &
     async avisos(cursor) {
       if (!configurado) return { ok: false, eventos: [], siguiente: null, code: "SIN_CONFIGURAR" };
       const r = await llamar("GET", `/bookings/modified-since${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
-      if (!r.ok) return { ok: false, eventos: [], siguiente: cursor ?? null, code: r.code };
+      if (r.ok === false) return { ok: false, eventos: [], siguiente: cursor ?? null, code: r.code };
       const eventos = (Array.isArray(r.data?.bookings) ? r.data.bookings : []).map((b: { bookingRef?: string; eventType?: string }) => ({
         bookingRef: String(b?.bookingRef ?? ""), evento: String(b?.eventType ?? ""), estado: estadoDeEventoViator(b?.eventType),
       })).filter((e: { bookingRef: string }) => e.bookingRef);

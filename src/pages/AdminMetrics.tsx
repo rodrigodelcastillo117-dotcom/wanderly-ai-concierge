@@ -7,6 +7,7 @@ import { AdminDenied } from "@/components/AdminGate";
 import { ServiceHealthCard } from "@/components/ServiceHealthCard";
 import { AdminCostCard } from "@/components/AdminCostCard";
 import { AdminReferralRewardsCard } from "@/components/AdminReferralRewardsCard";
+import { AdminCommissionsCard } from "@/components/AdminCommissionsCard";
 import { Button } from "@/components/ui/button";
 
 type Weekly = { week: string; signups: number; trips: number; bookings: number };
@@ -245,6 +246,8 @@ const AdminMetrics = () => {
           </div>
           <AdminReferralRewardsCard />
         </Section>
+
+        <AdminCommissionsCard />
 
         <AdminCostCard />
 

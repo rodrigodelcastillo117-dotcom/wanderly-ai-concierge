@@ -177,7 +177,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
     // deno-lint-ignore no-explicit-any
     const j: any = await res.json().catch(() => null);
     const err = typeof j?.error === "string" && j.error ? j.error : null;
-    if (!res.ok || !j || err || (j.status && j.status !== "ok" && j.status !== "processing" && j.status !== "3ds")) {
+    if (res.ok === false || !j || err || (j.status && j.status !== "ok" && j.status !== "processing" && j.status !== "3ds")) {
       const code = err === "order_not_found" ? "NO_ENCONTRADA" : err === "order_not_cancellable" ? "NO_CANCELABLE"
         : res.status === 401 || res.status === 403 ? "SIN_CONFIGURAR" : "PROVEEDOR_ERROR";
       return falla(code, `RateHawk respondió ${err ?? `HTTP ${res.status}`}.`, { http: res.status, detalle: err });
@@ -192,7 +192,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
       ordering: { ordering_type: "desc", ordering_by: "created_at" }, pagination: { page_size: 1, page_number: 1 },
       search: { partner_order_ids: [idProveedor] }, language: "en",
     });
-    if (!r.ok) return r;
+    if (r.ok === false) return r;
     const orden = Array.isArray(r.data?.data?.orders) ? r.data.data.orders[0] : null;
     if (!orden) return falla("NO_ENCONTRADA", "RateHawk no tiene esa orden.");
     return { ok: true, reserva: reservaDeOrden(orden, entorno, ahora()) };
@@ -213,7 +213,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
         checkin, checkout, residency: String(q.residencia ?? "mx").toLowerCase().slice(0, 2), language: "en",
         guests: [{ adults: adultos, children: [] }], hids, currency: String(q.moneda ?? "USD").toUpperCase().slice(0, 3),
       });
-      if (!r.ok) return r;
+      if (r.ok === false) return r;
       return { ok: true, ofertas: ofertasDeHoteles(r.data?.data, ahora(), "RateHawk search/serp/hotels") };
     },
 
@@ -223,7 +223,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
       const ruta = idOferta.startsWith("h-") ? "/api/b2b/v3/hotel/prebook/" : "/api/b2b/v3/serp/prebook/";
       // Sin subir el precio en silencio: si cambió, se dice (price_changed) y no se toma otra tarifa más cara.
       const r = await llamar(ruta, { hash: idOferta, price_increase_percent: 0 });
-      if (!r.ok) return r;
+      if (r.ok === false) return r;
       const oferta = ofertasDeHoteles(r.data?.data, ahora(), `RateHawk ${ruta.includes("serp") ? "serp/prebook" : "hotel/prebook"}`)[0];
       if (!oferta) return falla("NO_ENCONTRADA", "La tarifa ya no está disponible.");
       return { ok: true, oferta, cambio_precio: r.data?.data?.changes?.price_changed === true };
@@ -239,7 +239,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
       const form = await llamar("/api/b2b/v3/hotel/order/booking/form/", {
         partner_order_id: s.partner_order_id, book_hash: s.id_oferta, language: "en", user_ip: s.ip_usuario ?? "127.0.0.1",
       });
-      if (!form.ok) return form;
+      if (form.ok === false) return form;
       const pago = tipoPagoAgencia(form.data?.data?.payment_types);
       if (!pago) return falla("NO_SOPORTADO", "La tarifa solo acepta pago con tarjeta en el momento; IATOS no maneja tarjetas: la hace una persona.");
       const fin = await llamar("/api/b2b/v3/hotel/order/booking/finish/", {
@@ -249,16 +249,16 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
         rooms: [{ guests: s.huespedes.map((h) => ({ first_name: h.nombre, last_name: h.apellido, ...(h.nino ? { is_child: true, age: h.edad ?? 0 } : {}) })) }],
         payment_type: { type: pago.type, amount: pago.amount, currency_code: pago.currency_code },
       });
-      if (!fin.ok) return fin;
+      if (fin.ok === false) return fin;
       // finish/status: ok | processing | 3ds | error (cada 5 s, como recomienda la documentación).
       const intentos = Math.max(1, d.intentosEstado ?? 24);
       for (let i = 0; i < intentos; i++) {
         const st = await llamar("/api/b2b/v3/hotel/order/booking/finish/status/", { partner_order_id: s.partner_order_id });
-        if (!st.ok) return st;
+        if (st.ok === false) return st;
         const estado = String(st.data?.status ?? "");
         if (estado === "ok") {
           const c = await consultar(s.partner_order_id);
-          return c.ok ? { ok: true, reserva: c.reserva } : c;
+          return c.ok === false ? c : { ok: true, reserva: c.reserva };
         }
         if (estado === "3ds") return falla("NO_SOPORTADO", "El proveedor pidió 3D Secure (pago con tarjeta): IATOS no lo maneja.");
         if (estado !== "processing") return falla("PROVEEDOR_ERROR", `La reserva terminó con estado ${estado || "desconocido"}.`);
@@ -275,7 +275,7 @@ export function crearRatehawk(d: RatehawkDeps): AdaptadorProveedor {
       if (bloqueo) return bloqueo;
       if (!idProveedor || idProveedor.length < 3 || idProveedor.length > 256) return falla("ENTRADA_INVALIDA", "partner_order_id inválido.");
       const r = await llamar("/api/b2b/v3/hotel/order/cancel/", { partner_order_id: idProveedor });
-      if (!r.ok) return r;
+      if (r.ok === false) return r;
       const d0 = r.data?.data ?? {};
       return {
         ok: true, estado: "cancelada" as EstadoGestionado,

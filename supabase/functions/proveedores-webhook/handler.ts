@@ -24,7 +24,7 @@ export async function manejarWebhook(proveedor: string | null, body: unknown, d:
   let estado = w.estado_proveedor;
   if (estado.startsWith("consultar:")) {
     const c = await ad.consultar(w.id);
-    if (!c.ok) return { status: 200, body: { ok: true, ignorado: c.code } };
+    if (c.ok === false) return { status: 200, body: { ok: true, ignorado: c.code } };
     estado = c.reserva.estado_proveedor;
   }
   const r = await d.rpc("managed_booking_apply_status", {
