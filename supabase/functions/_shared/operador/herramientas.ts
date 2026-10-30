@@ -202,7 +202,12 @@ async function consentir(ctx: ContextoOperador, kind: string, check: (t: string)
   return { ok: true, eventId: m.id, texto: String(m.body ?? "") };
 }
 
-const appUrl = (id: string) => `/dashboard/concierge?tab=requests&id=${id}`;
+/**
+ * Enlace al caso para el viajero. El Concierge solo reconoce ?tab=members y ?tab=solicitudes (tabFrom en
+ * src/pages/Concierge.tsx); «Mis solicitudes» lleva la vista al caso del ?id=. Antes era ?tab=requests y abría el chat.
+ * Mismo formato que la vigilancia (_shared/vigilancia/runner.ts). Prueba: src/test/enlaceCasoOperador.test.tsx.
+ */
+export const appUrlCaso = (id: string) => `/dashboard/concierge?tab=solicitudes&id=${encodeURIComponent(id)}`;
 
 async function mensajeAlViajero(ctx: ContextoOperador, texto: string, urgente: boolean, data: Record<string, unknown> = {}) {
   const cuerpo = `${texto.trim()}\n\n${FIRMA_VIAJERO}`;
@@ -212,7 +217,7 @@ async function mensajeAlViajero(ctx: ContextoOperador, texto: string, urgente: b
   });
   let canales: unknown[] = [];
   if (ctx.deps.avisarViajero) {
-    canales = await ctx.deps.avisarViajero(ctx.userId, { titulo: `IATOS · tu caso ${ctx.incidentId.replace(/-/g, "").slice(0, 8).toUpperCase()}`, texto: cuerpo, url: appUrl(ctx.incidentId), urgente }, ctx.incidentId)
+    canales = await ctx.deps.avisarViajero(ctx.userId, { titulo: `IATOS · tu caso ${ctx.incidentId.replace(/-/g, "").slice(0, 8).toUpperCase()}`, texto: cuerpo, url: appUrlCaso(ctx.incidentId), urgente }, ctx.incidentId)
       .catch((e) => [{ ok: false, error: String((e as Error)?.message ?? e).slice(0, 120) }]);
   }
   ctx.mensajesViajero++;

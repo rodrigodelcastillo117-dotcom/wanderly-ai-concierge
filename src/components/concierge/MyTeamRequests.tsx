@@ -1,7 +1,7 @@
 // "Mis solicitudes" (Concierge): lo que el usuario le pidió a una persona del equipo IATOS, con el
 // estado REAL (my_team_requests: solo lo suyo), la respuesta del equipo y el comprobante si lo hay.
 // Honesto: mientras está abierta dice que todavía no es una reserva; no promete tiempos.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Clock, Loader2, MessageSquare, RefreshCw, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cachedMyTeamRequests, formatRequested, invalidateMyTeamRequests, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
@@ -112,6 +112,17 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
     setRows(r.data);
   }, []);
   useEffect(() => { void load(); }, [load]);
+  // Enlace a un caso (?tab=solicitudes&id=<caso>, lo mandan el Operador IA y la vigilancia): al cargar la lista se lleva
+  // la vista a ese caso, una sola vez. Se lee de window.location para no exigir un Router a quien lo pinta.
+  const [focusId] = useState<string | null>(() => {
+    try { return new URLSearchParams(window.location.search).get("id"); } catch { return null; }
+  });
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focusId || focused.current || !rows?.some((r) => r.id === focusId)) return;
+    focused.current = true;
+    document.getElementById(`solicitud-${focusId}`)?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }, [focusId, rows]);
 
   return (
     <section aria-labelledby="mis-solicitudes" className={`space-y-3 ${compact ? "" : "max-w-2xl mx-auto"}`}>
@@ -143,7 +154,7 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
             const when = formatRequested(r.requested_for);
             const place = r.place && r.place !== r.title ? r.place : null;
             return (
-              <li key={`${r.source}-${r.id}`} data-testid="team-request" className="rounded-2xl border border-white/10 bg-card p-4 space-y-2">
+              <li key={`${r.source}-${r.id}`} id={`solicitud-${r.id}`} aria-current={focusId && r.id === focusId ? "true" : undefined} data-testid="team-request" className="rounded-2xl border border-white/10 bg-card p-4 space-y-2">
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-primary text-[10px] tracking-[0.25em] uppercase">{opsTypeLabel(r.type)}</p>
