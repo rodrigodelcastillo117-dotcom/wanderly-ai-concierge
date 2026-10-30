@@ -8,6 +8,7 @@ import { airportCityName } from "../airports.ts";
 import { timeZoneFor, utcOffsetMinutes } from "../worldClock.ts";
 import { type CasoVuelo, ETIQUETA_CERTEZA, type Evaluacion, evaluarVuelo } from "../derechos/motor.ts";
 import { airlineName } from "../airlines.ts";
+import { flightsReserve } from "../serpBrake.ts";
 
 const H = 3_600_000;
 const MIN = 60_000;
@@ -26,8 +27,23 @@ export type ConfigVigilancia = {
   sin_respuesta_horas: number;
 };
 
+/**
+ * Tope diario de SerpApi sugerido para la vigilancia según SERPAPI_DAILY_BUDGET (el tope global de la cuenta, serpBrake.ts):
+ * la mitad del tope del día, sin pasar de lo que el freno deja fuera de la reserva de vuelos (20 %, mínimo 2), así
+ * quedan búsquedas para vuelos, hoteles y mapas. Sin tope global configurado se asume el plan gratis (250/mes →
+ * SERPAPI_DAILY_BUDGET = 8 → 4). Tabla por plan en docs/ops/programar-vigilancia.sql.
+ */
+export function topeVigilanciaSugerido(dailyBudget: number | null | undefined): number {
+  const b = Math.floor(Number(dailyBudget) || 0);
+  if (b <= 0) return 4;
+  const normal = b - flightsReserve(b);
+  return Math.max(0, Math.min(normal, Math.max(1, Math.floor(b / 2))));
+}
+
 export const CONFIG_POR_OMISION: ConfigVigilancia = {
-  enabled: true, serp_tope_diario: 30, avisos_tope_diario: 3, hora_desde: 8, hora_hasta: 21, retraso_aviso_min: 60,
+  // 4 búsquedas al día: coherente con el plan gratis de SerpApi (SERPAPI_DAILY_BUDGET = 8). Antes 30, que el freno global
+  // nunca habría dejado gastar con ese plan.
+  enabled: true, serp_tope_diario: 4, avisos_tope_diario: 3, hora_desde: 8, hora_hasta: 21, retraso_aviso_min: 60,
   retraso_incidente_min: 120, incidente_por_puerta: false, confirmar_desde_horas: 48, confirmacion_limite_horas: 8, sin_respuesta_horas: 12,
 };
 

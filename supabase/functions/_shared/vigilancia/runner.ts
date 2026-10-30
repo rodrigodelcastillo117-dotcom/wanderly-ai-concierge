@@ -38,6 +38,12 @@ export type VigilanciaDeps = {
   db: IncidentDb;
   /** Estado del vuelo (SerpApi con la caché compartida de 10 min y el freno de la cuenta). */
   consultarVuelo: (vuelo: string, fecha: string, ruta: string | null) => Promise<FlightOutcome>;
+  /**
+   * Freno global de la cuenta de SerpApi (serpBrake.ts, prioridad "normal": se detiene antes de la reserva de vuelos de
+   * SERPAPI_DAILY_BUDGET / SERPAPI_MONTHLY_BUDGET, o 1 h si SerpApi dijo que no quedan búsquedas). Con freno no se
+   * consulta: los vuelos se sueltan sin contarse como falla y se anota en la bitácora. Sin la dependencia, no hay freno.
+   */
+  frenoSerp?: () => Promise<"budget" | "quota" | null>;
   /** Aviso dentro de la app (notify_once). true si se insertó. */
   notificarApp: (n: { user_id: string; title: string; body: string; related_id: string | null; dedup_key: string }) => Promise<boolean>;
   /** Push + su canal vinculado (Telegram) + correo (si urgente o si nada más llegó). */
@@ -58,7 +64,9 @@ export type VigilanciaDeps = {
 export type Resumen = {
   apagado?: boolean;
   vuelos: { sincronizados: number; revisados: number; consultas: number; con_dato: number; no_concluyentes: number; eventos: number;
-    incidentes: number; sin_cupo: boolean; cupo?: { usados: number; tope: number; restantes: number } };
+    incidentes: number; sin_cupo: boolean; cupo?: { usados: number; tope: number; restantes: number };
+    /** Freno global de SerpApi que detuvo las consultas en esta corrida. */
+    freno?: "budget" | "quota" };
   confirmaciones: { nuevas: number; enviadas: number; programadas: number; sin_consentimiento: number; preventivos: number; vencidas: number };
   avisos: { encolados: number; enviados: number; esperando: number; vencidos: number };
   errores: string[];
@@ -114,17 +122,26 @@ async function faseVuelos(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen) 
   if (claim?.sin_cupo) {
     s.vuelos.sin_cupo = true;
     await evento(d, { user_id: null, ambito: "sistema", tipo: "sin_cupo", clave: `sin_cupo:${diaUTC(ahora)}`,
-      resumen: `Se agotó el cupo diario de SerpApi de la vigilancia (${claim.tope} búsquedas). Los vuelos pendientes se revisan mañana o al subir vigilancia_config.serp_tope_diario.`,
+      resumen: `Se agotó el cupo diario de SerpApi de la vigilancia (${claim.tope} búsquedas). Los vuelos pendientes se revisan mañana o al subir vigilancia_config.serp_tope_diario (sugerido según el plan: docs/ops/programar-vigilancia.sql).`,
       datos: { tope: claim.tope, usados: claim.usados } });
   }
 
-  // 3) Revisar (un mismo vuelo y fecha, una sola consulta por corrida aunque lo sigan varias personas).
+  // 3) Revisar (un mismo vuelo y fecha, una sola consulta por corrida aunque lo sigan varias personas). Antes de cada
+  //    consulta nueva se respeta el freno global de la cuenta: si está puesto no se consulta, se sueltan los vuelos que
+  //    faltan (sin contarlos como falla; se revisan cuando vuelva el cupo) y se anota.
   const cache = new Map<string, Promise<FlightOutcome>>();
-  for (const f of items) {
+  for (const [i, f] of items.entries()) {
     try {
-      s.vuelos.revisados++;
       const k = `${f.vuelo}|${f.fecha}`;
       let p = cache.get(k);
+      if (!p) {
+        const freno = await frenoGlobal(d);
+        if (freno) {
+          await sinCupoGlobal(d, s, freno, items.slice(i));
+          return;
+        }
+      }
+      s.vuelos.revisados++;
       if (!p) {
         s.vuelos.consultas++;
         p = d.consultarVuelo(f.vuelo, f.fecha, f.origen && f.destino ? `${f.origen}-${f.destino}` : null)
@@ -139,9 +156,39 @@ async function faseVuelos(d: VigilanciaDeps, cfg: ConfigVigilancia, s: Resumen) 
   }
 }
 
+/** Freno global de SerpApi (null = se puede consultar). Si el freno no responde, se permite (igual que serpBrake). */
+async function frenoGlobal(d: VigilanciaDeps): Promise<"budget" | "quota" | null> {
+  if (!d.frenoSerp) return null;
+  try { return await d.frenoSerp(); } catch (e) { d.log?.("vigilancia: el freno de SerpApi no respondió", safeErrorMessage(e)); return null; }
+}
+
+const MOTIVO_FRENO: Record<"budget" | "quota", string> = {
+  budget: "se llegó al tope de búsquedas de IATOS (SERPAPI_DAILY_BUDGET / SERPAPI_MONTHLY_BUDGET, menos la reserva para búsquedas de vuelos)",
+  quota: "SerpApi respondió que la cuenta ya no tiene búsquedas (pausa de 1 h)",
+};
+
+/** Sin cupo global: suelta los vuelos sin contarlos como revisión ni falla y lo anota una vez al día por motivo. */
+async function sinCupoGlobal(d: VigilanciaDeps, s: Resumen, freno: "budget" | "quota", pendientes: FilaVigilada[]) {
+  s.vuelos.sin_cupo = true;
+  s.vuelos.freno = freno;
+  for (const f of pendientes) {
+    const r = await d.db.rpc("vigilancia_vuelo_guardar", { _id: f.id, _p: {} });
+    if (r.error) s.errores.push(`vuelo ${f.id}: ${r.error.message}`);
+  }
+  await evento(d, { user_id: null, ambito: "sistema", tipo: "sin_cupo_global", clave: `sin_cupo_global:${diaUTC(d.ahora())}:${freno}`,
+    resumen: `Sin cupo de SerpApi: ${MOTIVO_FRENO[freno]}. No se consultó; ${pendientes.length} vuelo(s) se revisan cuando haya cupo.`,
+    datos: { freno, pendientes: pendientes.length } });
+}
+
 async function revisarVuelo(d: VigilanciaDeps, cfg: ConfigVigilancia, f: FilaVigilada, o: FlightOutcome, s: Resumen) {
   const ahora = d.ahora();
   const prev = (f.estado ?? {}) as EstadoVuelo;
+  if (o.kind === "quota") {
+    // SerpApi sin búsquedas (o el freno la detuvo): no es una falla del vuelo ni de la fuente; se suelta y se anota.
+    s.vuelos.revisados--;
+    await sinCupoGlobal(d, s, "quota", [f]);
+    return;
+  }
   if (o.kind !== "ok") {
     // Fuente no concluyente: no se inventa nada ni se alarma. Cerca de la salida, se dice UNA vez con calma.
     s.vuelos.no_concluyentes++;

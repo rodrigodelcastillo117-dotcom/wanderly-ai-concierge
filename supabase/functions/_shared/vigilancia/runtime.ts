@@ -1,10 +1,10 @@
 // Vigilancia proactiva · conexión real (Deno). Arma VigilanciaDeps con: base (service_role), SerpApi con la caché
 // compartida de 10 min y el freno de la cuenta (serpRuntime.ts; cada búsqueda real queda en ai_usage_log como
-// 'vigilancia-cron', que es lo que cuenta el cupo diario), push web, Telegram si está prendido, correo (Resend), avisos
+// 'vigilancia-cron', que es lo que cuenta el cupo diario; el freno global se respeta además antes de cada consulta), push web, Telegram si está prendido, correo (Resend), avisos
 // al equipo (incident-runtime.ts), el Operador IA, MET Norway y las alertas oficiales (GOV.UK / State Dept, caché
 // compartida de 6 h, sin traducción con IA). La lógica vive en runner.ts y entrante.ts (puras).
 import { fetchFlightStatus } from "../flight-serpapi.ts";
-import { dbCacheStore, serpFetchFor } from "../serpRuntime.ts";
+import { accountBrake, dbCacheStore, serpFetchFor } from "../serpRuntime.ts";
 import { pushToUser } from "../push.ts";
 import { sendEmail } from "../email.ts";
 import { deliverIncidentAlerts } from "../incident-alerts.ts";
@@ -25,6 +25,9 @@ export function buildVigilanciaDeps(): VigilanciaDeps {
   const db = dbDe(admin);
   const key = env("SERPAPI_PRIVATE_KEY");
   const serp = serpFetchFor("vigilancia-cron", null);
+  // Freno global de la cuenta (prioridad "normal": deja la reserva para búsquedas de vuelos). runner.ts lo consulta
+  // antes de cada búsqueda nueva; con freno no consulta y lo anota.
+  const freno = accountBrake(dbCacheStore(), "normal");
   const channels = incidentChannels();
   const alertDeps = incidentAlertDeps(admin);
   const siteUrl = env("SITE_URL") ?? "https://traveliatos.life";
@@ -33,6 +36,7 @@ export function buildVigilanciaDeps(): VigilanciaDeps {
     consultarVuelo: (vuelo, fecha, ruta) => key
       ? fetchFlightStatus(key, vuelo, fecha, ruta ?? undefined, { fetch: serp.fetch, timeoutMs: 10_000 })
       : Promise.resolve({ kind: "provider_error", message: "serpapi_not_configured" }),
+    frenoSerp: () => freno.paused(),
     notificarApp: async (n) => {
       const { data, error } = await admin.rpc("notify_once", { p_user_id: n.user_id, p_type: "vigilancia", p_title: n.title.slice(0, 140),
         p_body: n.body, p_related_id: n.related_id, p_dedup_key: n.dedup_key });

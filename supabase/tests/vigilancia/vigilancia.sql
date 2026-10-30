@@ -46,9 +46,9 @@ INSERT INTO public.tracked_flights (user_id, flight, flight_date, route, active)
   ('0f000000-0000-0000-0000-00000000000b', 'UX99', current_date + 10, 'MAD-MEX', true);
 
 -- ═══ Bandera y configuración ═══
-SELECT vgx.ok('V1 bandera vigilancia_enabled encendida y configuración por omisión (30 búsquedas/día, 3 avisos/día, 8–21 h)',
+SELECT vgx.ok('V1 bandera vigilancia_enabled encendida y configuración por omisión (4 búsquedas/día, 3 avisos/día, 8–21 h)',
   (SELECT value = 'true'::jsonb FROM public.app_flags WHERE key = 'vigilancia_enabled')
-  AND (SELECT serp_tope_diario = 30 AND avisos_tope_diario = 3 AND hora_desde = 8 AND hora_hasta = 21 AND NOT incidente_por_puerta FROM public.vigilancia_config));
+  AND (SELECT serp_tope_diario = 4 AND avisos_tope_diario = 3 AND hora_desde = 8 AND hora_hasta = 21 AND NOT incidente_por_puerta FROM public.vigilancia_config));
 
 SET ROLE service_role; SELECT vgx.as_service();
 -- ═══ Candidatos ═══
@@ -80,14 +80,14 @@ SELECT vgx.ok('V4 alta idempotente: no duplica ni pisa la salida exacta, el viaj
 INSERT INTO vgx.r SELECT 'c1', public.vigilancia_vuelos_reclamar(10, now());
 SELECT vgx.ok('V5 reclamo: los dos vencidos, primero el que sale antes, con el cupo del día',
   jsonb_array_length(vgx.v('c1')->'items') = 2 AND vgx.v('c1')->'items'->0->>'vuelo' = 'UX91'
-  AND (vgx.v('c1')->>'tope')::int = 30 AND (vgx.v('c1')->>'restantes')::int = 30, vgx.v('c1')::text);
+  AND (vgx.v('c1')->>'tope')::int = 4 AND (vgx.v('c1')->>'restantes')::int = 4, vgx.v('c1')::text);
 SELECT vgx.ok('V6 un vuelo reclamado no lo toma otra corrida (5 min)', jsonb_array_length(public.vigilancia_vuelos_reclamar(10, now())->'items') = 0);
 SELECT vgx.ok('V7 guardar: estado, próxima revisión y suelta el reclamo; columnas fuera de la lista no se tocan',
   (public.vigilancia_vuelo_guardar((vgx.vuelo('UX91')).id, jsonb_build_object('estado', jsonb_build_object('status', 'retrasado', 'banda', 2),
      'ultimo_resultado', 'ok', 'contar', true, 'proxima_revision_at', now() - interval '1 minute', 'user_id', '0f000000-0000-0000-0000-00000000000a'))->>'ok')::boolean
   AND (vgx.vuelo('UX91')).estado->>'status' = 'retrasado' AND (vgx.vuelo('UX91')).claimed_at IS NULL AND (vgx.vuelo('UX91')).revisiones = 1
   AND (vgx.vuelo('UX91')).user_id = '0f000000-0000-0000-0000-00000000000b');
-INSERT INTO public.ai_usage_log (user_id, function, provider, model, searches) VALUES (NULL, 'vigilancia-cron', 'serpapi', 'google', 30);
+INSERT INTO public.ai_usage_log (user_id, function, provider, model, searches) VALUES (NULL, 'vigilancia-cron', 'serpapi', 'google', 4);
 INSERT INTO vgx.r SELECT 'c2', public.vigilancia_vuelos_reclamar(10, now());
 SELECT vgx.ok('V8 cupo diario agotado (ai_usage_log de vigilancia-cron): no se reclama nada y lo dice (sin_cupo)',
   jsonb_array_length(vgx.v('c2')->'items') = 0 AND (vgx.v('c2')->>'sin_cupo')::boolean AND (vgx.v('c2')->>'restantes')::int = 0, vgx.v('c2')::text);
@@ -232,7 +232,7 @@ SELECT vgx.as_user('0f000000-0000-0000-0000-00000000000c');
 INSERT INTO vgx.r SELECT 'mesa', public.admin_vigilancia_resumen();
 SELECT vgx.ok('V31 administrador: vuelos vigilados con viajero y ruta, confirmaciones, eventos recientes y cupo del día',
   jsonb_array_length(vgx.v('mesa')->'vuelos') >= 1 AND vgx.v('mesa')->'vuelos'->0 ? 'ruta' AND jsonb_array_length(vgx.v('mesa')->'confirmaciones') = 2
-  AND jsonb_array_length(vgx.v('mesa')->'eventos') >= 2 AND (vgx.v('mesa')->'cupo'->>'tope')::int = 30 AND (vgx.v('mesa')->>'enabled')::boolean,
+  AND jsonb_array_length(vgx.v('mesa')->'eventos') >= 2 AND (vgx.v('mesa')->'cupo'->>'tope')::int = 4 AND (vgx.v('mesa')->>'enabled')::boolean,
   left(vgx.v('mesa')::text, 400));
 RESET ROLE;
 SET ROLE anon; SELECT set_config('request.jwt.claim.role', 'anon', false), set_config('request.jwt.claim.sub', '', false);

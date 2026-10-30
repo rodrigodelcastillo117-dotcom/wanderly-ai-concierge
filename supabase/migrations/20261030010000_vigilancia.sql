@@ -34,7 +34,9 @@ ON CONFLICT (key) DO NOTHING;
 -- ───────────────────────────── 1. Configuración ─────────────────────────────
 CREATE TABLE IF NOT EXISTS public.vigilancia_config (
   id                        boolean PRIMARY KEY DEFAULT true CHECK (id),
-  serp_tope_diario          int NOT NULL DEFAULT 30 CHECK (serp_tope_diario BETWEEN 0 AND 1000),
+  -- 4/día: coherente con el plan gratis de SerpApi (250/mes, SERPAPI_DAILY_BUDGET = 8; el freno global deja 6 fuera de la
+  -- reserva de vuelos). Sugerido por plan en docs/ops/programar-vigilancia.sql (topeVigilanciaSugerido en vigilancia/vuelos.ts).
+  serp_tope_diario          int NOT NULL DEFAULT 4 CHECK (serp_tope_diario BETWEEN 0 AND 1000),
   avisos_tope_diario        int NOT NULL DEFAULT 3 CHECK (avisos_tope_diario BETWEEN 1 AND 10),
   hora_desde                int NOT NULL DEFAULT 8 CHECK (hora_desde BETWEEN 0 AND 23),
   hora_hasta                int NOT NULL DEFAULT 21 CHECK (hora_hasta BETWEEN 1 AND 24),

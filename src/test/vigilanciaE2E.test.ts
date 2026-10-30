@@ -5,6 +5,8 @@
 // de puerta; fuente no concluyente; traslado sin confirmar → incidente preventivo; sin consentimiento → no se contacta.
 import { beforeEach, describe, expect, it } from "vitest";
 import { correrVigilancia, type VigilanciaDeps } from "../../supabase/functions/_shared/vigilancia/runner";
+import { CONFIG_POR_OMISION, topeVigilanciaSugerido } from "../../supabase/functions/_shared/vigilancia/vuelos";
+import { flightsReserve } from "../../supabase/functions/_shared/serpBrake";
 import { respuestaConfirmacion } from "../../supabase/functions/_shared/vigilancia/entrante";
 import type { FlightData, FlightOutcome } from "../../supabase/functions/_shared/flight-serpapi";
 import { esCorreoDeReclamos, rutaEntrante } from "../../supabase/functions/_shared/derechos/rutas";
@@ -18,7 +20,7 @@ let seq = 0;
 const uuid = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
 
 class FakeDb {
-  cfg: Row = { enabled: true, serp_tope_diario: 30, avisos_tope_diario: 3, hora_desde: 8, hora_hasta: 21, retraso_aviso_min: 60,
+  cfg: Row = { enabled: true, serp_tope_diario: 4, avisos_tope_diario: 3, hora_desde: 8, hora_hasta: 21, retraso_aviso_min: 60,
     retraso_incidente_min: 120, incidente_por_puerta: false, confirmar_desde_horas: 48, confirmacion_limite_horas: 8, sin_respuesta_horas: 12 };
   candidatos: Row[] = [];
   vuelos: Row[] = [];
@@ -279,11 +281,81 @@ describe("vuelos de punta a punta", () => {
     expect(m.llamadas.serp).toBe(0);
     expect(m.db.vuelos[0].proxima_revision_at).toBe("2026-10-31T10:00:00.000Z");
     m.setNow("2026-11-01T12:00:00Z");
-    m.db.usados = 30; // cupo del día agotado
+    m.db.usados = 4; // cupo del día agotado
     const r = await correrVigilancia(m.deps, ["vuelos"]);
     expect(m.llamadas.serp).toBe(0);
     expect(r.vuelos.sin_cupo).toBe(true);
     expect(m.db.eventos.some((e) => e.tipo === "sin_cupo" && e.user_id === null)).toBe(true);
+  });
+});
+
+describe("freno global de SerpApi (serpBrake: SERPAPI_DAILY_BUDGET con la reserva de vuelos, o cuota agotada)", () => {
+  beforeEach(() => { seq = 0; });
+  const enVentana = () => {
+    const m = montar("2026-11-01T12:00:00Z"); // 22 h antes: le toca revisión
+    m.db.candidatos = [vueloDelViaje, { ...vueloDelViaje, vuelo: "AM0001", user_id: "33333333-3333-4333-8333-333333333333", trip_id: null }];
+    return m;
+  };
+
+  it("con el freno puesto no se consulta, el vuelo no se cuenta como falla ni se avisa, y se anota una vez al día", async () => {
+    const m = enVentana();
+    let preguntas = 0;
+    m.deps.frenoSerp = async () => { preguntas++; return "budget"; };
+    const r = await correrVigilancia(m.deps, ["vuelos", "entregar"]);
+    expect(preguntas).toBeGreaterThan(0);
+    expect(m.llamadas.serp).toBe(0);
+    expect(r.vuelos).toMatchObject({ consultas: 0, no_concluyentes: 0, sin_cupo: true, freno: "budget" });
+    expect(m.db.vuelos.every((v) => v.claimed_at === null && v.fallas_seguidas === 0 && v.revisiones === 0 && v.activo)).toBe(true);
+    const nota = m.db.eventos.filter((e) => e.tipo === "sin_cupo_global");
+    expect(nota).toHaveLength(1);
+    expect(nota[0]).toMatchObject({ user_id: null, ambito: "sistema", clave: "sin_cupo_global:2026-11-01:budget" });
+    expect(nota[0].resumen).toMatch(/SERPAPI_DAILY_BUDGET/);
+    expect(m.llamadas.push).toHaveLength(0);
+    // Otra corrida el mismo día: tampoco consulta y no repite la nota.
+    await correrVigilancia(m.deps, ["vuelos"]);
+    expect(m.llamadas.serp).toBe(0);
+    expect(m.db.eventos.filter((e) => e.tipo === "sin_cupo_global")).toHaveLength(1);
+    // Al soltarse el freno, los mismos vuelos se revisan.
+    m.deps.frenoSerp = async () => null;
+    m.responder(widget(), widget());
+    await correrVigilancia(m.deps, ["vuelos"]);
+    expect(m.llamadas.serp).toBe(2);
+  });
+
+  it("si el freno se pone a media corrida, deja de consultar y suelta los vuelos que faltaban", async () => {
+    const m = enVentana();
+    m.responder(widget());
+    let n = 0;
+    m.deps.frenoSerp = async () => (n++ === 0 ? null : "quota");
+    const r = await correrVigilancia(m.deps, ["vuelos"]);
+    expect(m.llamadas.serp).toBe(1);
+    expect(r.vuelos).toMatchObject({ consultas: 1, sin_cupo: true, freno: "quota" });
+    const pendiente = m.db.vuelos.find((v) => v.revisiones === 0)!;
+    expect(pendiente).toMatchObject({ claimed_at: null, fallas_seguidas: 0, activo: true });
+    expect(m.db.eventos.some((e) => e.clave === "sin_cupo_global:2026-11-01:quota")).toBe(true);
+  });
+
+  it("SerpApi responde «sin búsquedas» (quota): no es una falla del vuelo ni dispara el aviso de fuente no concluyente", async () => {
+    const m = montar("2026-11-02T06:00:00Z"); // 4 h antes
+    m.db.candidatos = [vueloDelViaje];
+    for (const t of ["2026-11-02T06:00:00Z", "2026-11-02T07:00:00Z", "2026-11-02T08:00:00Z"]) {
+      m.setNow(t);
+      m.db.vuelos.forEach((v) => (v.proxima_revision_at = t));
+      m.responder({ kind: "quota", message: "Your account has run out of searches." });
+      const r = await correrVigilancia(m.deps, ["vuelos", "entregar"]);
+      expect(r.vuelos.sin_cupo).toBe(true);
+    }
+    expect(m.llamadas.push).toHaveLength(0);
+    expect(m.db.vuelos[0]).toMatchObject({ fallas_seguidas: 0, activo: true, claimed_at: null });
+    expect(m.db.eventos.some((e) => e.tipo === "fuente_no_concluyente")).toBe(false);
+  });
+
+  it("tope propio por omisión coherente con el plan gratis (SERPAPI_DAILY_BUDGET = 8 → 4 para la vigilancia)", () => {
+    expect(CONFIG_POR_OMISION.serp_tope_diario).toBe(4);
+    expect(topeVigilanciaSugerido(8)).toBe(4);
+    // El tope de la vigilancia nunca pasa de lo que el freno deja a lo «normal» (tope del día menos la reserva de vuelos).
+    for (const b of [8, 20, 160, 500]) expect(topeVigilanciaSugerido(b)).toBeLessThanOrEqual(b - flightsReserve(b));
+    expect(topeVigilanciaSugerido(null)).toBe(4);
   });
 });
 
