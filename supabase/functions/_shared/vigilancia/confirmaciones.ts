@@ -95,6 +95,12 @@ const EL: Record<string, string> = { es: " el", en: " on", fr: " le", pt: " em",
 
 /** Fecha y hora del servicio en la hora local del proveedor (si no la tenemos ya escrita). */
 export function cuandoLocal(c: Pick<Confirmacion, "servicio_at" | "servicio_local" | "zona_horaria">, lang: string): string {
+  const iso = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(c.servicio_local ?? "");
+  if (iso) {
+    // Reservas IA guarda la hora local del lugar como "2026-11-02T21:30": se escribe "2 de noviembre, 21:30".
+    const dia = new Date(`${iso[1]}T12:00:00Z`).toLocaleDateString(lang === "es" ? "es-MX" : lang, { day: "numeric", month: "long", timeZone: "UTC" });
+    return `${dia}, ${iso[2]}`;
+  }
   if (c.servicio_local) return c.servicio_local;
   const d = new Date(c.servicio_at);
   try {

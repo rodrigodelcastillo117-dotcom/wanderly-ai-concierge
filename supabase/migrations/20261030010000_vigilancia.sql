@@ -446,7 +446,8 @@ $$;
 
 -- Confirmaciones: nacen de lo que tiene un proveedor CONOCIDO con correo verificado y hora del servicio:
 --   * Reservas IA confirmadas (mesa o experiencia): correo del lugar con su fuente (venue_email_source.url).
---   * bookings con raw_payload.contacto_proveedor {correo, fuente{kind,url|booking}, zona_horaria} (traslado/tour).
+--   * bookings (restaurant, activity, car, other) con raw_payload.contacto_proveedor {correo, fuente{kind,url|booking},
+--     zona_horaria, idioma, tipo: traslado|tour|restaurante|actividad}.
 -- Solo servicios que empiezan dentro de las próximas confirmar_desde_horas.
 CREATE OR REPLACE FUNCTION public.vigilancia_confirmaciones_sync(_now timestamptz DEFAULT now())
 RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -471,15 +472,17 @@ BEGIN
     INSERT INTO public.vigilancia_confirmaciones (user_id, trip_id, origen, origen_id, tipo, proveedor, correo, fuente, zona_horaria, idioma,
       servicio_at, personas, referencia)
     SELECT b.user_id, b.trip_id, 'booking', b.id::text,
-           CASE WHEN b.category ~* 'transfer|traslado|transport' THEN 'traslado' WHEN b.category ~* 'restaur' THEN 'restaurante'
-                WHEN b.category ~* 'tour' THEN 'tour' ELSE 'actividad' END,
+           CASE WHEN b.raw_payload->'contacto_proveedor'->>'tipo' IN ('traslado','tour','restaurante','actividad') THEN b.raw_payload->'contacto_proveedor'->>'tipo'
+                WHEN b.category = 'restaurant' THEN 'restaurante' WHEN b.category = 'car' THEN 'traslado' WHEN b.category = 'activity' THEN 'tour'
+                ELSE 'actividad' END,
            left(coalesce(b.raw_payload->'contacto_proveedor'->>'nombre', b.provider), 200),
            b.raw_payload->'contacto_proveedor'->>'correo', b.raw_payload->'contacto_proveedor'->'fuente',
            nullif(b.raw_payload->'contacto_proveedor'->>'zona_horaria', ''),
-           coalesce(nullif(b.raw_payload->'contacto_proveedor'->>'idioma', ''), 'en'),
-           b.start_at, nullif(b.raw_payload->>'personas', '')::int, left(coalesce(b.confirmation_code, b.partner_reference), 80)
+           CASE WHEN b.raw_payload->'contacto_proveedor'->>'idioma' IN ('es','en','fr','pt','it','de') THEN b.raw_payload->'contacto_proveedor'->>'idioma' ELSE 'en' END,
+           b.start_at, CASE WHEN coalesce(b.raw_payload->>'personas', '') ~ '^[0-9]{1,2}$' THEN (b.raw_payload->>'personas')::int END,
+           left(coalesce(b.confirmation_code, b.partner_reference), 80)
       FROM public.bookings b
-     WHERE b.category ~* 'transfer|traslado|transport|tour|actividad|activity|experien|restaur'
+     WHERE b.category IN ('restaurant','activity','car','other')
        AND coalesce(b.status, '') !~* 'cancel'
        AND jsonb_typeof(b.raw_payload->'contacto_proveedor') = 'object'
        AND coalesce(b.raw_payload->'contacto_proveedor'->>'correo', '') <> ''
