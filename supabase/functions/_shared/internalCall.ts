@@ -5,9 +5,16 @@
 // búsquedas en vivo del usuario. Un encabezado normal lo podría falsificar cualquiera desde el
 // navegador; por eso va firmado con HMAC usando la service key (que el cliente nunca tiene), atado
 // al usuario y con caducidad de 10 minutos.
+//
+// Canales (30-oct-2026): telegram-webhook y whatsapp-webhook llaman a concierge-chat EN NOMBRE del usuario
+// vinculado (con una sesión real de ese usuario: RLS intacta) y firman además "canal_telegram" /
+// "canal_whatsapp" atado a ese mismo user_id. La firma solo cambia el formato (JSON, sin SSE) y la cubeta por IP
+// (la IP es la de nuestro servidor); NO salta cuotas, plan ni permisos. Un propósito nunca vale por otro: una firma
+// de canal no sirve como "analysis" (que sí evita gastar búsquedas en vivo).
 
 export const INTERNAL_HEADER = "x-iatos-internal";
-export type InternalPurpose = "analysis";
+export const INTERNAL_PURPOSES = ["analysis", "canal_telegram", "canal_whatsapp"] as const;
+export type InternalPurpose = typeof INTERNAL_PURPOSES[number];
 const MAX_AGE_MS = 10 * 60 * 1000;
 
 async function hmacHex(secret: string, message: string): Promise<string> {
@@ -27,7 +34,7 @@ export async function verifyInternal(
   header: string | null | undefined, secret: string, userId: string, nowMs = Date.now(),
 ): Promise<InternalPurpose | null> {
   if (!header || !secret || !userId) return null;
-  const m = /^(analysis)\.(\d{10,16})\.([0-9a-f]{64})$/.exec(header.trim());
+  const m = /^(analysis|canal_telegram|canal_whatsapp)\.(\d{10,16})\.([0-9a-f]{64})$/.exec(header.trim());
   if (!m) return null;
   const ts = Number(m[2]);
   if (!Number.isFinite(ts) || Math.abs(nowMs - ts) > MAX_AGE_MS) return null;
