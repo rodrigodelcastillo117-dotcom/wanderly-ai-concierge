@@ -7,6 +7,8 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { HUIXQUILUCAN, VIAJE } from "./fixtures/conciergeHuixquilucan";
 import { localISODate } from "@/lib/localDate";
+// El regreso va 10 días después de "hoy": el del caso (1-nov-2026) ya quedó antes de la salida (desde el 2-nov-2026).
+import { addIsoDays } from "@/lib/multiCityText";
 
 const stream = vi.fn();
 vi.mock("@/components/DashboardLayout", () => ({ DashboardLayout: ({ children }: any) => <div>{children}</div> }));
@@ -49,7 +51,7 @@ import Concierge from "@/pages/Concierge";
 
 beforeEach(() => {
   // El viaje empieza HOY (fecha local de la prueba), como en el caso del 22 de octubre.
-  (globalThis as any).__trip = { ...VIAJE, fecha_salida: localISODate() };
+  (globalThis as any).__trip = { ...VIAJE, fecha_salida: localISODate(), fecha_regreso: addIsoDays(localISODate(), 10) };
   stream.mockReset();
   Element.prototype.scrollTo = vi.fn() as any;
   Object.defineProperty(navigator, "geolocation", {

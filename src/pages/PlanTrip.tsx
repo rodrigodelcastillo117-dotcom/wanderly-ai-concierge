@@ -455,6 +455,10 @@ const PlanTrip = () => {
   const routeCities = (proposal && routeBase && !routeBase.edited ? proposal.cities : null) ?? routeBase?.cities
     ?? (writtenRoute && writtenRoute.length >= 2 ? writtenRoute : isMultiCity(parsedRoute) ? parsedRoute.cities : proposal?.cities ?? []);
   const routeOn = routeCities.length >= 2 && (routeBase ? routeBase.asRoute : true);
+  // Las preguntas de «lugar por confirmar» solo se ven dentro del cuadro de la ruta (2+ ciudades). Si no hay
+  // ruta, no detienen nada: un «Siguiente» gris sin pregunta a la vista dejaba a la persona atorada (aviso de
+  // Lovable, 4-nov-2026). Lo que no es lugar lo lee Iato con la frase completa.
+  const refBlocking = routeCities.length >= 2 ? refPending : [];
   const routeDays = routeBase?.days ?? parsedRoute.days;
   const proposalNights = proposal && proposal.cities.join("|") === routeCities.join("|") && routeTotalNights ? weightedNights(proposal.weights, routeTotalNights) : null;
   const routeNights = routeOn ? fitNights(routeBase?.nights ?? proposalNights, routeCities.length, routeTotalNights) : null;
@@ -573,7 +577,7 @@ const PlanTrip = () => {
   const analizar = () => {
     if (!destino || !fechaSalida || !fechaRegreso || !ciudadOrigen) return;
     // Un país, región o lugar sin resolver no se descarta ni se genera solo.
-    if (refPending.length) return;
+    if (refBlocking.length) return;
 
     // roadtrip: road trip por una región curada → ruta en coche con sus paradas y estas fechas.
     const rt = detectRoadTrip(destino);
@@ -1153,7 +1157,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
         icon: MapPin,
         title: "¿A dónde quieres ir?",
         sub: "Un destino ('Tokio'), una travesía ('Roma → Florencia') o tu idea completa ('Oaxaca del 12 al 16 de diciembre, 2 personas').",
-        canNext: () => destino.trim().length > 1 && refPending.length === 0,
+        canNext: () => destino.trim().length > 1 && refBlocking.length === 0,
         render: () => {
           const intent = detectRouteIntent(destino);
           const knownRoute = routeCities.length >= 2;

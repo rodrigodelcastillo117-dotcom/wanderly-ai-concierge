@@ -8,6 +8,8 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { HUIXQUILUCAN, VIAJE } from "./fixtures/conciergeHuixquilucan";
 import { localISODate } from "@/lib/localDate";
+// El regreso va 10 días después de "hoy": el del caso (1-nov-2026) ya quedó antes de la salida (desde el 2-nov-2026).
+import { addIsoDays } from "@/lib/multiCityText";
 import { TOOL_DEFS, toAnthropicTools, toOpenAiTools, validateToolInput, type JsonSchema } from "../../supabase/functions/concierge-chat/toolDefs";
 import { buildChips } from "@/lib/conciergeChips";
 import { HERRAMIENTAS_IATO, PESTANAS_IATO } from "./candadoInventario";
@@ -116,7 +118,7 @@ let where = "";
 const Where = () => { const l = useLocation(); where = l.search; return null; };
 
 beforeEach(() => {
-  (globalThis as any).__trip = { ...VIAJE, fecha_salida: localISODate() };
+  (globalThis as any).__trip = { ...VIAJE, fecha_salida: localISODate(), fecha_regreso: addIsoDays(localISODate(), 10) };
   stream.mockReset();
   Element.prototype.scrollTo = vi.fn() as any;
   Object.defineProperty(navigator, "geolocation", {
@@ -138,7 +140,7 @@ describe("CANDADO · pantalla de Iato", () => {
     const list = await screen.findByRole("list", { name: "Atajos" });
     const botones = within(list).getAllByRole("button");
     // Los mismos atajos que arma buildChips para ese viaje (no se esconde ninguno).
-    expect(botones.length).toBe(buildChips({ ...VIAJE, fecha_salida: localISODate() } as any, localISODate(), { away: true }).length);
+    expect(botones.length).toBe(buildChips({ ...VIAJE, fecha_salida: localISODate(), fecha_regreso: addIsoDays(localISODate(), 10) } as any, localISODate(), { away: true }).length);
     expect(botones.length).toBeGreaterThanOrEqual(9);
     // El cuadro para escribirle a Iato.
     expect(document.querySelector("textarea, input[type=text]")).not.toBeNull();

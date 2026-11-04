@@ -1,5 +1,6 @@
 // Detecta si una frase de viaje es a un único destino o multi-destino.
 // Heurística pura (sin red): rápida y suficiente para casos comunes en español.
+import { stripTripExtras } from "@/lib/tripExtras";
 
 const SEPARATORS = [
   /\s*(?:->|→|=>)\s*/i,
@@ -56,16 +57,20 @@ export const detectRouteIntent = (input: string): RouteIntent => {
     return { mode: "single", destinations: [text] as [string] };
   }
 
+  // "Cancún, todo incluido" / "Oaxaca, con niños": el tipo de viaje no es una segunda parada. Solo se busca
+  // multi en lo que queda; el destino único conserva la frase completa (Iato lee el resto).
+  const places = stripTripExtras(text).replace(/(?:\s*,\s*)+/g, ", ").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
+
   // 1) Conectores explícitos (→, "luego", "después")
   for (const re of SEPARATORS) {
-    if (re.test(text)) {
-      const parts = text.split(re).map(cleanCity).filter(looksLikeCity);
+    if (re.test(places)) {
+      const parts = places.split(re).map(cleanCity).filter(looksLikeCity);
       if (parts.length >= 2) return { mode: "multi", destinations: dedupe(parts) };
     }
   }
 
   // 2) "de X a Y a Z"
-  const fromTo = text.match(
+  const fromTo = places.match(
     /(?:de|desde)?\s*([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?)\s+a\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?)(?:\s+a\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ\s]+?))?(?:[\s,.!?]|$)/,
   );
   if (fromTo) {
@@ -74,7 +79,7 @@ export const detectRouteIntent = (input: string): RouteIntent => {
   }
 
   // 3) Lista por comas / "y" / "+" / "/" — case-insensitive
-  const cleaned = text.replace(/^.*?(?:ir|viajar|visitar|conocer|pasar(?:e|é)?)\s+(?:a|al|en|por)\s+/i, "");
+  const cleaned = places.replace(/^.*?(?:ir|viajar|visitar|conocer|pasar(?:e|é)?)\s+(?:a|al|en|por)\s+/i, "");
   const flexible = cleaned
     .split(/\s*,\s*|\s+y\s+|\s*\+\s*|\s*\/\s*/i)
     .map(cleanCity)
@@ -88,6 +93,6 @@ export const detectRouteIntent = (input: string): RouteIntent => {
   //    solo destino.
 
   // Default: single
-  const single = cleanCity(cleaned);
+  const single = places === text ? cleanCity(cleaned) : "";
   return { mode: "single", destinations: [single || text] as [string] };
 };

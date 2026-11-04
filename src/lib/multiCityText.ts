@@ -22,6 +22,8 @@ import { sameCity, splitNights } from "../../supabase/functions/_shared/booking/
 import { COUNTRIES as PICKER_COUNTRIES } from "@/lib/countriesCities";
 import { countryRouteFor, ROUTE_CITIES } from "@/lib/countryRoutes";
 import { findRegion } from "../../supabase/functions/_shared/regions.ts";
+import { TRIP_EXTRAS } from "@/lib/tripExtras";
+export { TRIP_EXTRAS };
 
 const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   .replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -130,10 +132,11 @@ export function durationOf(text: string): { days: number | null; nights: number 
   return { days, nights: Math.max(1, days - 1) };
 }
 
-/** Quita de la frase lo que no es lugar (duración, fechas, viajeros) dejando un separador. */
+/** Quita de la frase lo que no es lugar (duración, fechas, viajeros, tipo de viaje) dejando un separador. */
 export function stripNonPlaces(text: string): string {
   const word = "(?:\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta)";
   return text
+    .replace(TRIP_EXTRAS, " , ")
     .replace(new RegExp(`\\b(?:por\\s+|durante\\s+|en\\s+)?${word}\\s*(?:d[ií]as?|d|noches?|semanas?)\\b`, "gi"), " , ")
     .replace(new RegExp(`\\b(?:del?\\s+)?\\d{1,2}\\s+(?:de\\s+(?:${MONTHS})\\s+)?(?:al?|-|–)\\s+(?:el\\s+)?\\d{1,2}\\s+de\\s+(?:${MONTHS})(?:\\s+(?:de|del)\\s+\\d{4})?`, "gi"), " , ")
     .replace(new RegExp(`\\b(?:el\\s+)?\\d{1,2}\\s+de\\s+(?:${MONTHS})(?:\\s+(?:de|del)\\s+\\d{4})?`, "gi"), " , ")
