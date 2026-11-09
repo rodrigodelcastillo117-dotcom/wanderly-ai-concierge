@@ -91,10 +91,17 @@ const PROMESA = [
   /\b(te|le)\s+garantiz\w+\b/, /\bgarantizado\b/, /\bte\s+aseguro\s+que\b/,
   /\bwe (will|have) (refund|refunded|paid|cancel|cancelled|canceled)\b/, /\bi (have )?(refunded|cancelled|canceled|booked)\b/, /\bguarantee(d)?\b/,
 ];
+// «te cancelaron», «le devolvieron», «les pagaron»: cuentan lo que hizo el proveedor (3.ª persona del plural en pasado),
+// no una promesa de IATOS. Sin esto, «Lamento que te cancelaron el vuelo» se rechazaba y el viajero se quedaba sin respuesta.
+const RELATO_DE_OTRO = /(aron|ieron)$/;
+
 export function promesaIndebida(texto: string): string | null {
   const t = normalizeText(texto);
-  const m = PROMESA.map((r) => r.exec(t)).find(Boolean);
-  return m ? m[0] : null;
+  for (const r of PROMESA) {
+    const g = new RegExp(r.source, r.flags.includes("g") ? r.flags : r.flags + "g");
+    for (const m of t.matchAll(g)) if (!RELATO_DE_OTRO.test(m[0])) return m[0];
+  }
+  return null;
 }
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;

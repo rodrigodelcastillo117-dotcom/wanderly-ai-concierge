@@ -91,8 +91,9 @@ export const OPERADOR_TOOLS: HerramientaOperador[] = [
   },
   {
     name: "buscar_contacto_proveedor",
-    description: "Busca el contacto OFICIAL de un proveedor (hotel, chofer, tour, restaurante): su sitio, Google Places o la reserva del viajero. Devuelve contacto_id con la fuente. Nunca adivines un correo.",
-    input_schema: { type: "object", properties: { nombre: { type: "string" }, tipo: { type: "string", enum: TIPOS_PROVEEDOR }, ciudad: { type: "string" }, pais: { type: "string" } }, required: ["nombre", "tipo"] },
+    description: "Busca el contacto OFICIAL de un proveedor (hotel, chofer, tour, restaurante): su sitio, Google Places o la reserva del viajero. Devuelve contacto_id con la fuente. Nunca adivines un correo. " +
+      "Si el viajero no dijo el nombre, llámala solo con el tipo: revisa sus reservas (no busca en internet sin nombre).",
+    input_schema: { type: "object", properties: { nombre: { type: "string" }, tipo: { type: "string", enum: TIPOS_PROVEEDOR }, ciudad: { type: "string" }, pais: { type: "string" } }, required: ["tipo"] },
   },
   {
     name: "escribir_proveedor",
@@ -232,6 +233,14 @@ function revisarSaliente(ctx: ContextoOperador, texto: string): string | null {
   return null;
 }
 
+/** Qué le falta a preparar_reclamo para poder armar la carta (lo mismo que exige derechos/servicio.ts). */
+export function faltanParaReclamo(a: Record<string, unknown>): string[] {
+  const v = (k: string) => typeof a[k] === "string" && (a[k] as string).trim().length > 0;
+  if (a.tipo === "servicio") return [!v("problema") && "problema", !v("proveedor") && "proveedor (nombre)"].filter(Boolean) as string[];
+  return [!v("aerolinea") && "aerolínea", !v("origen") && "ciudad de origen (IATA)", !v("destino") && "ciudad de destino (IATA)"]
+    .filter(Boolean) as string[];
+}
+
 /** Resultado de un reclamo para el modelo: lo que necesita para decidir (sin la carta en HTML, que es enorme). */
 function compactarReclamo(r: Record<string, unknown>): Record<string, unknown> {
   const c = (r.claim ?? {}) as Record<string, unknown>;
@@ -291,6 +300,11 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       const conocido = pedido ? [...ctx.contactos.values()].find((c) => c.email?.toLowerCase() === pedido) : null;
       if (pedido && !conocido) return { ok: false, code: "CORREO_SIN_FUENTE", error: "Ese correo no viene de ninguna fuente del caso. Prepara el reclamo sin correo (queda para su formulario oficial) o pide al viajero el correo que le dio el proveedor." };
       const fuente = conocido ? (conocido.fuente.kind === "mensaje_usuario" ? "usuario_confirmado" : conocido.fuente.kind === "reserva" ? "reserva" : "correo_del_proveedor") : null;
+      // Antes, si faltaba algo, la IA solo veía «BAD_REQUEST» y no sabía qué preguntar (evaluación real, 9-nov-2026).
+      const faltan = faltanParaReclamo(a);
+      if (faltan.length) return { ok: false, code: "FALTAN_DATOS", faltan,
+        instruccion: `Para preparar el reclamo faltan: ${faltan.join(", ")}. Pregúntale al viajero SOLO eso, en un mensaje corto; ` +
+          "si lo sabes por lo que contó, ponlo tú (ciudades en código IATA). No inventes datos." };
       const r = await runReclamosTool("preparar_reclamo", { ...a, correo_proveedor: conocido?.email ?? null, fuente_correo: fuente, trip_id: inc.trip_id },
         { userId: ctx.userId, lector: { from: () => { throw new Error("sin lector"); } } as never, deps, hoy }) as Record<string, unknown>;
       return compactarReclamo(r);
@@ -352,15 +366,26 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
     }
     case "buscar_contacto_proveedor": {
       const nombreP = s(a.nombre, 120);
-      if (!nombreP) return { ok: false, error: "falta el nombre" };
       const tipo = (TIPOS_PROVEEDOR.includes(a.tipo as TipoProveedor) ? a.tipo : "otro") as TipoProveedor;
       const encontrados: ContactoProveedor[] = [];
       if (d.contactosDeReservas) {
-        for (const c of await d.contactosDeReservas(ctx.userId, inc.trip_id).catch(() => [])) {
-          if (c.proveedor.toLowerCase().includes(nombreP.toLowerCase().slice(0, 12)) || nombreP.toLowerCase().includes(c.proveedor.toLowerCase().slice(0, 12))) encontrados.push(registrarContacto(ctx, c));
+        const deReservas = await d.contactosDeReservas(ctx.userId, inc.trip_id).catch(() => []);
+        if (nombreP) {
+          for (const c of deReservas) {
+            if (c.proveedor.toLowerCase().includes(nombreP.toLowerCase().slice(0, 12)) || nombreP.toLowerCase().includes(c.proveedor.toLowerCase().slice(0, 12))) encontrados.push(registrarContacto(ctx, c));
+          }
+        } else {
+          // Sin nombre: solo si en SUS reservas hay exactamente un proveedor de ese tipo (evaluación real, 9-nov-2026: «nadie fue a
+          // recogerme» con el traslado en su reserva). Con dos o más no se elige: se le pregunta cuál.
+          const delTipo = deReservas.filter((c) => c.tipo === tipo);
+          if (delTipo.length === 1) encontrados.push(registrarContacto(ctx, delTipo[0]));
+          else if (delTipo.length > 1) return { ok: false, code: "VARIOS", proveedores: delTipo.map((c) => c.proveedor),
+            mensaje: "Tiene varias reservas de ese tipo: pregúntale al viajero cuál es y vuelve a buscar con el nombre." };
         }
       }
-      if (!encontrados.some((c) => c.email) && d.buscarContacto) {
+      if (!nombreP && !encontrados.length) return { ok: false, code: "FALTA_NOMBRE",
+        mensaje: "No hay una reserva suya de ese tipo y sin el nombre no se busca en internet (sería adivinar). Pregúntale al viajero el nombre del proveedor; mientras, haz lo demás." };
+      if (nombreP && !encontrados.some((c) => c.email) && d.buscarContacto) {
         const ubic = (inc.payload?.ubicacion ?? {}) as { ciudad?: string; pais?: string };
         const c = await d.buscarContacto({ nombre: nombreP, ciudad: s(a.ciudad, 80) ?? ubic.ciudad ?? null, pais: s(a.pais, 2) ?? ubic.pais ?? null, tipo }).catch(() => null);
         if (c) encontrados.push(registrarContacto(ctx, { ...c, tipo }));

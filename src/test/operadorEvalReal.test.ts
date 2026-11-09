@@ -79,3 +79,86 @@ describe("evaluación real: una queja por un vuelo es con la aerolínea, no con 
     expect(d.queja?.subtipo).toBe("servicio_iatos");
   });
 });
+
+// Segunda evaluación real (9-nov-2026, 95 escenarios): lo que encontró.
+describe("evaluación real 2: «te cancelaron» no es una promesa", () => {
+  it("contar lo que hizo la aerolínea pasa; prometer sigue bloqueado", async () => {
+    const { promesaIndebida } = await import("../../supabase/functions/_shared/operador/politica");
+    expect(promesaIndebida("Lamento que te cancelaron el vuelo otra vez")).toBeNull();
+    expect(promesaIndebida("Si no te devolvieron el dinero, lo reclamamos")).toBeNull();
+    expect(promesaIndebida("Ya te reembolsamos los 200 euros")).toBeTruthy();
+    expect(promesaIndebida("Te cancelo la reserva ahora")).toBeTruthy();
+    expect(promesaIndebida("Te garantizo el reembolso")).toBeTruthy();
+  });
+});
+
+describe("evaluación real 2: preparar_reclamo dice qué falta", () => {
+  it("sin origen ni destino no responde «BAD_REQUEST» sino la lista de lo que hay que preguntar", async () => {
+    const { faltanParaReclamo } = await import("../../supabase/functions/_shared/operador/herramientas");
+    expect(faltanParaReclamo({ tipo: "vuelo", aerolinea: "IB", vuelo: "IB6403" })).toEqual(["ciudad de origen (IATA)", "ciudad de destino (IATA)"]);
+    expect(faltanParaReclamo({ tipo: "vuelo", aerolinea: "IB", origen: "MAD", destino: "MEX" })).toEqual([]);
+    expect(faltanParaReclamo({ tipo: "servicio", problema: "cobro_doble" })).toEqual(["proveedor (nombre)"]);
+  });
+
+  it("en el bucle: la IA recibe FALTAN_DATOS con la instrucción de preguntar solo eso", async () => {
+    const modelo = guion([[{ name: "preparar_reclamo", input: { tipo: "vuelo", evento: "cancelacion", aerolinea: "IB", vuelo: "IB6403" } }], "ok"]);
+    const h = arnes({ modelo });
+    const r = await h.reportar({ descripcion: "Vuelo IB6403 cancelado otra vez", origen: "usuario", canal: "app" });
+    if (!r.ok) throw new Error("sin caso");
+    await trabajarCaso(h.deps, r.id, "nuevo");
+    const tras = textoDe(modelo.llamadas[1]);
+    expect(tras).toMatch(/FALTAN_DATOS/);
+    expect(tras).toMatch(/ciudad de origen/);
+    expect(tras).not.toMatch(/BAD_REQUEST/);
+  });
+});
+
+describe("evaluación real 2: sin nombre del proveedor, busca en SUS reservas por tipo", () => {
+  const TRASLADO = { proveedor: "Traslados Madrid", tipo: "traslado" as const, email: "reservas@trasladosmadrid.example", telefono: null, sitio: null,
+    tz: "Europe/Madrid", idioma: "es", fuente: { kind: "reserva" as const, booking: "TC-1" } };
+
+  it("un traslado en sus reservas → lo encuentra y le escribe, sin buscar en internet", async () => {
+    const modelo = guion([
+      [{ name: "buscar_contacto_proveedor", input: { tipo: "traslado" } }],
+      [{ name: "escribir_proveedor", input: { contacto_id: "K1", asunto: "Recogida no realizada", mensaje: "Buenos días, nadie llegó a recoger a Ana Viajera en el hotel. ¿Pueden confirmar?", idioma: "es" } }],
+      "ok",
+    ]);
+    const h = arnes({ modelo, sim: { contactos: [TRASLADO], contactoBusqueda: HOTEL } });
+    const r = await h.reportar({ descripcion: "Nadie fue a recogerme al hotel para el traslado", origen: "usuario", canal: "app" });
+    if (!r.ok) throw new Error("sin caso");
+    await trabajarCaso(h.deps, r.id, "nuevo");
+    expect(h.db.outbox.map((o) => o.to)).toEqual(["reservas@trasladosmadrid.example"]);
+  });
+
+  it("sin reservas de ese tipo y sin nombre → pide el nombre; no adivina con internet", async () => {
+    const modelo = guion([[{ name: "buscar_contacto_proveedor", input: { tipo: "hotel", ciudad: "Madrid" } }], "ok"]);
+    const h = arnes({ modelo, sim: { contactos: [TRASLADO], contactoBusqueda: HOTEL } });
+    const r = await h.reportar({ descripcion: "El hotel de Madrid dice que no tengo reserva", origen: "usuario", canal: "app" });
+    if (!r.ok) throw new Error("sin caso");
+    await trabajarCaso(h.deps, r.id, "nuevo");
+    const tras = textoDe(modelo.llamadas[1]);
+    expect(tras).toMatch(/FALTA_NOMBRE/);
+    expect(tras).not.toMatch(/hotelromacentro/);
+  });
+
+  it("dos traslados en sus reservas → no elige: pregunta cuál", async () => {
+    const modelo = guion([[{ name: "buscar_contacto_proveedor", input: { tipo: "traslado" } }], "ok"]);
+    const h = arnes({ modelo, sim: { contactos: [TRASLADO, { ...TRASLADO, proveedor: "Shuttle Barajas", email: "info@shuttlebarajas.example" }] } });
+    const r = await h.reportar({ descripcion: "El chofer no llegó", origen: "usuario", canal: "app" });
+    if (!r.ok) throw new Error("sin caso");
+    await trabajarCaso(h.deps, r.id, "nuevo");
+    expect(textoDe(modelo.llamadas[1])).toMatch(/VARIOS/);
+    expect(h.db.outbox).toEqual([]);
+  });
+});
+
+describe("evaluación real 2: los adversarios de «IA rota» no se califican con la IA real", () => {
+  it("se reportan como solo_simulado, sin llamar al modelo ni contar en el resumen", async () => {
+    const { correrTandaEval } = await import("../../supabase/functions/_shared/operador/eval/servidor");
+    const modelo = vi.fn(async () => ({ ok: false as const, status: 500, data: null }));
+    const t = await correrTandaEval({ solo: ["X07"], desde: 0, cantidad: 1, tope_usd: 1 }, { modelo: modelo as never, reloj: { fijar: () => {}, soltar: () => {} } as never });
+    expect(t.escenarios[0]).toMatchObject({ id: "X07", omitido: "solo_simulado", fallas: [] });
+    expect(modelo).not.toHaveBeenCalled();
+    expect(t.resumen.total).toBe(0);
+  });
+});

@@ -14,6 +14,13 @@ export const EVAL_TOPE_USD_MAX = 5;
 export const EVAL_CANTIDAD_POR_OMISION = 1;
 export const EVAL_CANTIDAD_MAX = 4;
 
+/**
+ * Adversarios que SIMULAN una IA rota (se cae, se cicla, se niega, ignora al viajero, gasta de más). Con la IA real no hay
+ * nada que simular: la red de seguridad para esos casos se prueba con el modelo simulado (src/test/operadorEval.test.ts).
+ * En la evaluación real se reportan como «solo_simulado» sin gastar (antes contaban como fallas de escalamiento).
+ */
+export const ADVERSARIOS_SOLO_SIMULADOS = new Set(["bucle_infinito", "ia_caida", "ignora_viajero", "gasto_excesivo", "se_niega"]);
+
 export type PedidoEval = { solo: string[]; desde: number; cantidad: number; tope_usd: number };
 
 /** Lee y acota lo que pide el administrador. Nunca más de EVAL_CANTIDAD_MAX escenarios ni de EVAL_TOPE_USD_MAX. */
@@ -34,7 +41,7 @@ export function leerPedidoEval(body: unknown): { ok: true; pedido: PedidoEval } 
 
 export type ResultadoTanda = {
   ok: true;
-  escenarios: Array<{ id: string; fallas: string[]; gasto_usd: number; llamadas: number; incompleto: boolean; detalle: Record<string, unknown>; bitacora?: string[] }>;
+  escenarios: Array<{ id: string; fallas: string[]; gasto_usd: number; llamadas: number; incompleto: boolean; detalle: Record<string, unknown>; bitacora?: string[]; omitido?: "solo_simulado" }>;
   resumen: { sin_fallas: number; total: number; por_criterio: Record<string, number> };
   gasto_usd: number; tope_usd: number; cortado_por_tope: boolean;
   /** Índice para pedir la siguiente tanda (null = ya no hay más). */
@@ -61,6 +68,10 @@ export async function correrTandaEval(p: PedidoEval, d: { modelo: ModeloOperador
   const escenarios: ResultadoTanda["escenarios"] = [];
   for (const s of lista) {
     if (gasto >= p.tope_usd) { cortado = true; break; }
+    if (s.adversario && ADVERSARIOS_SOLO_SIMULADOS.has(s.adversario)) {
+      escenarios.push({ id: s.id, fallas: [], gasto_usd: 0, llamadas: 0, incompleto: false, detalle: { adversario: s.adversario }, omitido: "solo_simulado" });
+      continue;
+    }
     const g0 = gasto, l0 = llamadas, c0 = cortado;
     try {
       const r = await evaluarEscenario(s, modelo, { fijarReloj: d.reloj.fijar });
@@ -75,7 +86,7 @@ export async function correrTandaEval(p: PedidoEval, d: { modelo: ModeloOperador
   }
   const fin = p.solo.length ? null : p.desde + escenarios.length;
   return {
-    ok: true, escenarios, resumen: resumenEvaluacion(escenarios), gasto_usd: redondo(gasto), tope_usd: p.tope_usd, cortado_por_tope: cortado,
+    ok: true, escenarios, resumen: resumenEvaluacion(escenarios.filter((e) => !e.omitido)), gasto_usd: redondo(gasto), tope_usd: p.tope_usd, cortado_por_tope: cortado,
     siguiente: fin !== null && fin < todos.length ? fin : null, total_escenarios: todos.length,
   };
 }

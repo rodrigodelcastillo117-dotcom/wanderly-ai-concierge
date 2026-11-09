@@ -43,7 +43,7 @@ export async function evaluarEscenario(s: EscenarioOperador, modelo: ModeloOpera
   if (id) {
     await trabajarCaso(h.deps, id, "nuevo");
     await despacharCorreos(h.despacho);
-    for (const x of s.sigue ?? []) {
+    for (const x of [...(s.aclara ? [{ viajero: s.aclara, minutos: 5 }] : []), ...(s.sigue ?? [])]) {
       h.db.advance(x.minutos ?? 10);
       if (x.viajero) h.db.userMessage(id, x.viajero);
       if (x.proveedor) h.db.providerMessage(id, x.proveedor, s.esperado.correoA ?? "proveedor@example.test");

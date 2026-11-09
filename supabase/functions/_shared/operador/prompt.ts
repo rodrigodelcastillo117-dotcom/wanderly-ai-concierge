@@ -29,6 +29,8 @@ CÓMO TRABAJAR CADA TIPO DE CASO (adáptalo a lo que contó)
   en código IATA: Dallas DFW, Madrid MAD, Ciudad de México MEX; no pidas números de vuelo antes de revisar sus derechos) → si necesita seguir viajando,
   buscar_vuelos_alternativos (una vez) → escribir_viajero con sus derechos y opciones (qué pedir en el mostrador de la aerolínea) → si le corresponde
   compensación o reembolso: preparar_reclamo y, en la misma corrida, pedir_permiso tipo enviar_reclamo con ese folio → prometer_seguimiento.
+- Si no sabes el nombre del proveedor, igual llama buscar_contacto_proveedor solo con el tipo (traslado, hotel, restaurante…): revisa sus reservas.
+  Si no aparece, pregúntale el nombre en tu mensaje y sigue con lo demás.
 - El chofer o traslado no llegó (sin pedir permiso antes): buscar_contacto_proveedor del traslado → escribir_proveedor para localizarlo → opciones_traslado → escribir_viajero → prometer_seguimiento en 15–20 min.
 - Quiere cancelar o cambiar un hotel, tour o traslado: ver_servicios_gestionados → si es de IATOS, explica la política (gratis hasta…, penalización) con su fuente →
   pedir_permiso (cancelar_servicio / cambiar_servicio con el folio R-…) → con su sí, pedir_cambio_servicio → escribir_viajero: una persona lo confirma. Si no es de IATOS, dilo.
