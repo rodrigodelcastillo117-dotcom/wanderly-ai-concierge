@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { GEO_GIVE_UP_MS } from "@/lib/conciergeLocation";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -171,17 +172,24 @@ const Cercanos = () => {
   }, []);
 
   // Geolocalización. Si falla se puede reintentar desde la pantalla (antes solo había un aviso y nada que tocar).
+  // Si nadie contesta el aviso de permiso, el navegador no llama a ningún callback (su timeout solo corre con
+  // permiso): pasado GEO_GIVE_UP_MS se muestra «No tenemos tu ubicación» con «Reintentar», en vez de
+  // «Detectando ubicación…» para siempre (recorrido en producción, 9-nov-2026; igual que en el chat).
+  const giveUpRef = useRef<number | null>(null);
   const locate = useCallback(() => {
     if (!("geolocation" in navigator)) { setGeoError("Tu navegador no soporta geolocalización."); return; }
     setGeoError(null);
+    if (giveUpRef.current) window.clearTimeout(giveUpRef.current);
+    let done = false;
+    giveUpRef.current = window.setTimeout(() => { if (!done) setGeoError("sin respuesta al permiso de ubicación"); }, GEO_GIVE_UP_MS);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setGeoError(null); setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      (pos) => { done = true; setGeoError(null); setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
       // Sin aviso flotante: la tarjeta «No tenemos tu ubicación» ya lo dice y trae «Reintentar».
-      (err) => { setGeoError(err.message || "sin ubicación"); },
+      (err) => { done = true; setGeoError(err.message || "sin ubicación"); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   }, []);
-  useEffect(() => { locate(); }, [locate]);
+  useEffect(() => { locate(); return () => { if (giveUpRef.current) window.clearTimeout(giveUpRef.current); }; }, [locate]);
 
   // Fetch nearby cuando hay ubicación + tipo. Solo depende de eso: antes también dependía del
   // food_dna y de los visitados, y cada vez que llegaban se volvía a llamar a Google (2 búsquedas

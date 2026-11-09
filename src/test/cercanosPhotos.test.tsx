@@ -198,3 +198,21 @@ describe("miniaturas en la lista de Cercanos", () => {
     }
   });
 });
+
+describe("Cerca de ti sin respuesta al permiso de ubicación", () => {
+  // Recorrido en producción (9-nov-2026): si nadie contesta el aviso del navegador, el navegador no llama a nada y la
+  // pantalla decía «Detectando ubicación…» para siempre. Ahora, pasados GEO_GIVE_UP_MS, sale «Reintentar».
+  it("a los pocos segundos muestra «No tenemos tu ubicación» con Reintentar", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: () => { /* nadie contesta */ } } });
+      render(<MemoryRouter><Cercanos /></MemoryRouter>);
+      expect(screen.queryByText("No tenemos tu ubicación")).toBeNull();
+      await vi.advanceTimersByTimeAsync(13_000);
+      expect(screen.getByText("No tenemos tu ubicación")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Reintentar/ })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

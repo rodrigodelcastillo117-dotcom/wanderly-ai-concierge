@@ -379,8 +379,9 @@ export function itineraryWindow(trip: any, todayISO: string) {
 }
 
 /** Precio guardado del viaje: de qué fuente y cuándo se consultó, en la hora del usuario (N-P2-1). */
-function savedPriceInfo(item: any, tz?: string | null) {
-  const at = typeof item?.consultado_at === "string" ? item.consultado_at : null;
+function savedPriceInfo(item: any, tz?: string | null, fallbackAt?: string | null) {
+  // Sin hora propia, la de la cotización del viaje (como la página del viaje: purchasePlan `checked`).
+  const at = typeof item?.consultado_at === "string" ? item.consultado_at : typeof fallbackAt === "string" && fallbackAt ? fallbackAt : null;
   const fuente = item?.fuente_precio ?? item?.fuente ?? null;
   if (!at && !fuente) return {};
   const local = at ? (formatLocalStamp(at, tz) ?? at.slice(0, 10)) : null;
@@ -418,7 +419,7 @@ export function compactTripForPrompt(trip: any, extras: {
     aerolinea: v?.aerolinea, numero_vuelo: v?.numero_vuelo ?? v?.numero, fecha: v?.fecha ?? v?.fecha_salida,
     from: v?.from ?? v?.aeropuerto_origen, to: v?.to ?? v?.aeropuerto_destino ?? v?.ciudad, hora_salida: v?.hora_salida,
     hora_llegada: v?.hora_llegada, terminal: v?.terminal, pnr: v?.pnr, precio_por_persona: v?.precio_por_persona,
-    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva, ...(Number(v?.precio_por_persona) > 0 ? savedPriceInfo(v, extras.tz) : {}),
+    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva, ...(Number(v?.precio_por_persona) > 0 ? savedPriceInfo(v, extras.tz, trip.created_at) : {}),
   }));
   const ground = legs.length > 0 && !legs.some(isAirLeg);
   const transporte = ground
@@ -428,16 +429,29 @@ export function compactTripForPrompt(trip: any, extras: {
     nombre: h?.nombre, ciudad: h?.ciudad, direccion: cut(h?.direccion, 120), barrio: h?.barrio,
     check_in: h?.check_in ?? h?.checkin, check_out: h?.check_out ?? h?.checkout, precio_por_noche: h?.precio_por_noche,
     booking_link: h?.booking_link, lat: h?.lat, lng: h?.lng, desde_pdf: h?.desde_pdf, estado_reserva: h?.estado_reserva,
-    ...(Number(h?.precio_por_noche) > 0 ? savedPriceInfo(h, extras.tz) : {}),
+    ...(Number(h?.precio_por_noche) > 0 ? savedPriceInfo(h, extras.tz, trip.created_at) : {}),
   }));
   const restaurantes = asArray(trip.restaurantes_json).slice(0, 5).map((r: any) => compactItem({ nombre: r?.nombre, cocina: r?.cocina, cta_action: r?.cta_action }));
-  const tours = asArray(extras.tours ?? trip.tours_json).slice(0, 4).map((t: any) => compactItem({ nombre: t?.nombre, estado_reserva: t?.estado_reserva }));
+  // Con su precio (recorrido en producción, 9-nov-2026: Iato decía «los tours no tienen precio guardado» y la página
+  // del viaje los muestra de $450 a $2,200 por persona).
+  const tours = asArray(extras.tours ?? trip.tours_json).slice(0, 6).map((t: any) => compactItem({
+    nombre: t?.nombre, estado_reserva: t?.estado_reserva,
+    precio_por_persona: Number(t?.precio_por_persona ?? t?.precio) > 0 ? Number(t?.precio_por_persona ?? t?.precio) : undefined,
+    fuente_precio: t?.fuente_precio ?? undefined,
+  }));
+  // Cómo se llega al total del viaje (MXN), por categoría, como en la página del viaje: así Iato puede desglosarlo.
+  const d = trip.desglose_presupuesto && typeof trip.desglose_presupuesto === "object" ? trip.desglose_presupuesto : null;
+  const desglose = d ? Object.fromEntries(Object.entries(d).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Math.round(Number(v))])) : null;
   const tips = asArray(trip.tips_personalizados).slice(0, 3).map((t) => cut(t, 160));
   return compactItem({
     id: trip.id, destino: trip.destino, pais_destino: trip.pais_destino, ciudad_origen: trip.ciudad_origen,
     fecha_salida: trip.fecha_salida, fecha_regreso: trip.fecha_regreso, num_viajeros: trip.num_viajeros,
     estado_reservas: extras.estado_reservas ? compactItem({ estado: extras.estado_reservas.estado, por_tipo: extras.estado_reservas.por_tipo }) : undefined,
     presupuesto_objetivo: trip.presupuesto_objetivo, total_estimado: trip.total_estimado, moneda: trip.moneda,
+    desglose_total_mxn: desglose && Object.keys(desglose).length ? desglose : undefined,
+    desglose_nota: desglose && Object.keys(desglose).length
+      ? "Suma del total por categoría. Vuelos y hoteles con precio_consultado son cotizados (di cuándo); lo demás (comida, transporte local, extras y tours sin fuente) es estimado."
+      : undefined,
     transporte,
     vuelos: vuelos.length ? vuelos : undefined,
     hospedaje: hospedaje.length ? hospedaje : undefined,
