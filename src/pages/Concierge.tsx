@@ -26,7 +26,7 @@ import { TakeMeFromContext } from "@/components/concierge/TakeMeThereButton";
 import { IatoMemoryPanel } from "@/components/concierge/IatoMemoryPanel";
 import { SafeMarkdown } from "@/components/concierge/SafeMarkdown";
 import { TripContextSelector, type ContextTrip } from "@/components/concierge/TripContextSelector";
-import { resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
+import { pinVigente, resolveActiveTrip, tripLabel, type ActiveTripReason } from "@/lib/activeTrip";
 import { localISODate } from "@/lib/localDate";
 import { ConciergeHeading } from "@/components/concierge/ConciergeHeading";
 import { notifyAccessChanged } from "@/hooks/useSubscription";
@@ -151,7 +151,7 @@ const Concierge = () => {
   
   const [trips, setTrips] = useState<ContextTrip[]>([]);
   // Viaje elegido por el usuario (profiles.active_trip_id). null = Iato decide.
-  const [pinnedId, setPinnedId] = useState<string | null>(() => {
+  const [pinGuardado, setPinnedId] = useState<string | null>(() => {
     try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
   });
   // Viaje del que trató la última respuesta (lo nombró el usuario): el selector lo sigue (N-P2-8).
@@ -199,6 +199,8 @@ const Concierge = () => {
   }, [user, allowed, refreshTick]);
 
   const todayLocal = localISODate();
+  // Un viaje fijado que ya terminó no cuenta (pinVigente): ni en el selector ni en lo que se le manda a Iato.
+  const pinnedId = useMemo(() => pinVigente(trips, pinGuardado, todayLocal), [trips, pinGuardado, todayLocal]);
   const tripContext = useMemo(
     () => resolveActiveTrip(trips, { pinnedId, todayLocal }),
     [trips, pinnedId, todayLocal],

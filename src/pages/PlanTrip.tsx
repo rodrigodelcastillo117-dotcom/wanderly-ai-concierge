@@ -203,6 +203,9 @@ const PlanTrip = () => {
   const [emociones, setEmociones] = useState<string[]>([]);
   const [emocionLibre, setEmocionLibre] = useState("");
   const [analizando, setAnalizando] = useState(false);
+  // Por qué falló la última generación (recorrido en producción, 9-nov-2026: tras ~2 min de espera el aviso
+  // flotante se iba en segundos y la pantalla volvía al paso 3 sin decir nada). Queda junto al botón hasta reintentar.
+  const [fallo, setFallo] = useState<string | null>(null);
   const [interpretando, setInterpretando] = useState(false);
   // Resumen "Entendí…" de la frase completa (se conserva al recargar: preferencia local del navegador).
   const [review, setReview] = useState<ReviewState | null>(() => {
@@ -371,6 +374,7 @@ const PlanTrip = () => {
     setDestino(args.destino);
     setAnalysisSummary(analysisSummaryOf(args));
     setAnalizando(true);
+    setFallo(null);
     try {
       // Misma llave al reintentar o recargar: si el viaje ya se guardó, no se cobra otro análisis.
       const request_key = getRequestKey("analizar-viaje", args);
@@ -402,7 +406,7 @@ const PlanTrip = () => {
     } catch (e: any) {
       console.error(e);
       // Límite del plan → diálogo con "Conocer IATOS PRO"; fallo técnico → "intenta de nuevo".
-      await toastFunctionError(e, "No pudimos generar el análisis. Intenta de nuevo.");
+      { const info = await toastFunctionError(e, "No pudimos generar el análisis. Intenta de nuevo."); setFallo(info.freeLimit ? null : info.message); }
       setAnalizando(false);
     } finally {
       inFlightRef.current = false;
@@ -510,6 +514,7 @@ const PlanTrip = () => {
     setRouteEdit({ text: label, cities: routeCities, nights: routeNights, asRoute: true, days: routeDays, textNights: routeBase?.textNights ?? parsedRoute.nights, country: routeCountry, edited: true });
     setAnalysisSummary(analysisSummaryOf({ ciudad_origen: ciudadOrigen, fecha_salida: fechaSalida, fecha_regreso: fechaRegreso, num_viajeros: numViajeros }));
     setAnalizando(true);
+    setFallo(null);
     try {
       const { tripId } = await generateMultiDestTrip(supabase, {
         userId: user?.id ?? null, origin: ciudadOrigen, stops: routeCities, fechaSalida, fechaRegreso, viajeros: numViajeros,
@@ -522,7 +527,7 @@ const PlanTrip = () => {
       navigate(`/dashboard/viajes/${tripId}`, { replace: true });
     } catch (e: any) {
       console.error(e);
-      await toastFunctionError(e, "No pudimos generar la ruta. Intenta de nuevo.");
+      { const info = await toastFunctionError(e, "No pudimos generar la ruta. Intenta de nuevo."); setFallo(info.freeLimit ? null : info.message); }
       setAnalizando(false);
     } finally {
       inFlightRef.current = false;
@@ -537,6 +542,7 @@ const PlanTrip = () => {
     setDestino(spec.paradas.filter((x) => x.rol === "estancia").map((x) => x.ciudad).join(" → "));
     setAnalysisSummary(analysisSummaryOf({ ciudad_origen: spec.origen ?? "", fecha_salida: spec.fecha_salida ?? "", fecha_regreso: spec.fecha_regreso ?? "", num_viajeros: spec.viajeros ?? 2 }));
     setAnalizando(true);
+    setFallo(null);
     try {
       const { tripId, flujo } = await generateFromSpec(supabase as any, spec, { userId: user?.id ?? null, travelClass: claseParam, presupuesto });
       if (!tripId) throw new Error("Sin viaje guardado");
@@ -547,7 +553,7 @@ const PlanTrip = () => {
       navigate(`/dashboard/viajes/${tripId}`, { replace: true });
     } catch (e: any) {
       console.error(e);
-      await toastFunctionError(e, "No pudimos generar tu viaje. Tu resumen sigue aquí: intenta de nuevo.");
+      { const info = await toastFunctionError(e, "No pudimos generar tu viaje. Tu resumen sigue aquí: intenta de nuevo."); setFallo(info.freeLimit ? null : info.message); }
       // Cotización directa (sin resumen en pantalla): el texto y lo entendido quedan en el resumen para
       // reintentar o corregir; nunca se pierde lo escrito.
       if (!reviewRef.current) openReview({ spec, aviso: null, fp });
@@ -693,7 +699,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
     } catch (e: any) {
       console.error(e);
       // Mensaje humano: el texto técnico del error (red, servidor) no se muestra.
-      await toastFunctionError(e, "No pudimos elegir un destino. Intenta de nuevo o escribe uno tú.");
+      { const info = await toastFunctionError(e, "No pudimos elegir un destino. Intenta de nuevo o escribe uno tú."); setFallo(info.freeLimit ? null : info.message); }
       setEligiendoDestino(false);
     }
   };
@@ -1580,6 +1586,11 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
                   </span>
                 )}
               </Button>
+              {fallo && step === stepsConfig.length - 1 && !analizando && (
+                <p role="alert" data-testid="plan-fallo" className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+                  {fallo}
+                </p>
+              )}
 
               {isEmocionMode && step === 0 && (
                 <p className="text-center text-[11px] text-muted-foreground mt-5 inline-flex items-center justify-center gap-2 w-full tracking-wide">

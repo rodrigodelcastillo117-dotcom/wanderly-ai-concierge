@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { resolveActiveTrip, type ActiveTripResult, type TripLike } from "@/lib/activeTrip";
+import { pinVigente, resolveActiveTrip, type ActiveTripResult, type TripLike } from "@/lib/activeTrip";
 import { fetchPinnedTripId, savePinnedTripId, type PinResult } from "@/lib/activeTripStore";
 import { localISODate } from "@/lib/localDate";
 import { beginCritical } from "@/lib/idleGate";
@@ -56,7 +56,9 @@ export function useActiveTrip<T extends TripLike = TripLike>(
   }, [enabled, user?.id, columns]);
 
   const todayLocal = localISODate();
-  const resolved = useMemo(() => resolveActiveTrip(trips, { pinnedId, todayLocal }), [trips, pinnedId, todayLocal]);
+  // Un viaje fijado que ya terminó no se muestra como activo en ninguna pantalla (pinVigente).
+  const pinEfectivo = useMemo(() => pinVigente(trips, pinnedId, todayLocal), [trips, pinnedId, todayLocal]);
+  const resolved = useMemo(() => resolveActiveTrip(trips, { pinnedId: pinEfectivo, todayLocal }), [trips, pinEfectivo, todayLocal]);
 
   const pin = useCallback(async (id: string | null) => {
     setPinnedId(id);
@@ -64,5 +66,5 @@ export function useActiveTrip<T extends TripLike = TripLike>(
     return savePinnedTripId(user.id, id);
   }, [user?.id]);
 
-  return { trips, pinnedId, resolved, trip: resolved.trip, loading, pin };
+  return { trips, pinnedId: pinEfectivo, resolved, trip: resolved.trip, loading, pin };
 }

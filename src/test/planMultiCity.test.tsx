@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({ inserts: [] as any[], invokes: [] as any[] }));
+const db = vi.hoisted(() => ({ inserts: [] as any[], invokes: [] as any[], falla: null as null | { status: number; body: unknown } }));
 
 const LOGISTICS = {
   fx_usd_mxn: 18,
@@ -45,6 +45,13 @@ vi.mock("@/integrations/supabase/client", () => {
   const invoke = async (fn: string, opts: any) => {
     db.invokes.push({ fn, body: opts?.body });
     if (fn === "logistics-plan" && opts?.body?.action === "snapshot") return { data: { ok: true }, error: null };
+    if (fn === "logistics-plan" && db.falla) {
+      // Como supabase-js: FunctionsHttpError con la respuesta del servidor en .context.
+      const err: any = new Error("Edge Function returned a non-2xx status code");
+      err.name = "FunctionsHttpError";
+      err.context = new Response(JSON.stringify(db.falla.body), { status: db.falla.status, headers: { "Content-Type": "application/json" } });
+      return { data: null, error: err };
+    }
     if (fn === "logistics-plan") return { data: { logistics: LOGISTICS }, error: null };
     return { data: null, error: null };
   };
@@ -82,7 +89,7 @@ const renderPlan = () => render(
 // El Slider (Radix) mide con ResizeObserver, que jsdom no trae.
 (globalThis as any).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
 
-beforeEach(() => { db.inserts.length = 0; db.invokes.length = 0; sessionStorage.clear(); });
+beforeEach(() => { db.inserts.length = 0; db.invokes.length = 0; db.falla = null; sessionStorage.clear(); });
 
 describe("Planeador: 'paris roma y atenas 10 dias'", () => {
   it("dice lo que entendió, deja ajustar orden y noches, y genera la ruta como multi-destino", async () => {
@@ -208,5 +215,27 @@ describe("Planeador: 'paris roma y atenas 10 dias'", () => {
     fireEvent.change(screen.getByLabelText("Regreso"), { target: { value: "2026-11-08" } });
     expect(await screen.findByTestId("plan-multicity-corto")).toHaveTextContent("Tus fechas dan 2 noches: no alcanzan para 3 ciudades");
     expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+  });
+});
+
+describe("Planeador: si la ruta falla, el motivo se queda a la vista", () => {
+  // Recorrido en producción (9-nov-2026): tras ~2 min, logistics-plan respondió 503 y el aviso flotante se fue en
+  // segundos; la pantalla volvió al paso 3 sin decir nada. Ahora el mensaje del servidor queda junto al botón.
+  it("muestra el mensaje del servidor junto al botón y lo quita al reintentar", async () => {
+    db.falla = { status: 503, body: { code: "SERVICE_UNAVAILABLE", message: "No pudimos completar esto en este momento y no se descontó de tu plan. Intenta de nuevo en unos minutos." } };
+    renderPlan();
+    fireEvent.change(screen.getByLabelText("¿A dónde quieres ir?"), { target: { value: "paris roma y atenas 10 dias" } });
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    await waitFor(() => expect(screen.getByTestId("origen")).toHaveTextContent("Ciudad de México"));
+    fireEvent.change(screen.getByLabelText("Salida"), { target: { value: "2026-11-06" } });
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Generar ruta de 3 ciudades/ }));
+    const fallo = await screen.findByTestId("plan-fallo");
+    expect(fallo).toHaveTextContent("no se descontó de tu plan");
+    expect(fallo).toHaveAttribute("role", "alert");
+    db.falla = null;
+    fireEvent.click(screen.getByRole("button", { name: /Generar ruta de 3 ciudades/ }));
+    await screen.findByText("VIAJE");
+    expect(screen.queryByTestId("plan-fallo")).toBeNull();
   });
 });

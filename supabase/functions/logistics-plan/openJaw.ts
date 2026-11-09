@@ -107,8 +107,13 @@ export function pickTiers(results: any[]): Record<Tier, any> | null {
   const median = price(sorted[Math.floor((sorted.length - 1) / 2)]);
   const pool = sorted.filter((r) => r !== ahorro && price(r) >= median);
   const premium = [...(pool.length ? pool : sorted.slice(1))].sort((a, b) => minutes(a) - minutes(b) || stopsOf(a) - stopsOf(b) || price(a) - price(b))[0] ?? ahorro;
-  const mid = sorted.filter((r) => r !== ahorro && r !== premium);
-  const equilibrio = mid.length ? mid[Math.floor((mid.length - 1) / 2)] : premium;
+  // «Equilibrado» va entre los dos: más barato que «Más cómodo» y, de esos, el más cómodo (menos tiempo y escalas).
+  // Antes era la mediana de lo que sobraba y podía costar MÁS que «Más cómodo» (recorrido en producción, 9-nov-2026:
+  // Aeroméxico «Equilibrado» $35,188 vs Iberia directo «Más cómodo» $33,910). Sin uno así, es el mismo vuelo.
+  const mid = sorted.filter((r) => r !== ahorro && r !== premium && price(r) < price(premium));
+  const equilibrio = mid.length
+    ? [...mid].sort((a, b) => minutes(a) - minutes(b) || stopsOf(a) - stopsOf(b) || price(a) - price(b))[0]
+    : premium;
   return { ahorro, equilibrio, premium };
 }
 

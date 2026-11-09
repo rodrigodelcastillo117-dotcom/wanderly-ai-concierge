@@ -103,14 +103,14 @@ describe("open-jaw real en Google Flights: tramos, aeropuertos y parámetros", (
 });
 
 describe("los 3 tiers salen de resultados REALES", () => {
-  it("ahorro = el más barato, equilibrio = precio medio, premium = el más rápido; aerolínea, horarios, escalas, total y enlace", async () => {
+  it("ahorro = el más barato, premium = el más rápido, equilibrio = el más cómodo de los que cuestan menos que premium; aerolínea, horarios, escalas, total y enlace", async () => {
     const { q } = await quote();
     expect(q.live).toBe(true);
     const flights = (q as any).flights;
     expect(flights.map((f: any) => f.tier)).toEqual(["ahorro", "equilibrio", "premium"]);
-    expect(flights.map((f: any) => f.airline_suggested)).toEqual(["Iberia", "British Airways", "Air France"]);
-    expect(flights.map((f: any) => f.price_total_mxn)).toEqual([38940, 45990, 58700]);
-    expect(flights.map((f: any) => f.price_per_person_mxn)).toEqual([19470, 22995, 29350]);
+    expect(flights.map((f: any) => f.airline_suggested)).toEqual(["Iberia", "Air France", "Air France"]);
+    expect(flights.map((f: any) => f.price_total_mxn)).toEqual([38940, 41210, 58700]);
+    expect(flights.map((f: any) => f.price_per_person_mxn)).toEqual([19470, 20605, 29350]);
     const [a, , p] = flights;
     expect(a.salida).toBe("2027-03-02 18:05");
     expect(a.llegada).toBe("2027-03-03 16:45");
@@ -143,17 +143,17 @@ describe("el total del viaje usa ese precio", () => {
   it("servidor (desglose), filas del viaje, Comprar y el total de la página dan lo mismo, sin 'Incluye estimados: vuelos'", async () => {
     const { q } = await quote();
     const logistics = logisticsWith((q as any).flights);
-    expect(logistics.desglose_presupuesto.vuelos).toBe(45990);
+    expect(logistics.desglose_presupuesto.vuelos).toBe(41210);
     expect(logistics.pricing_sources.vuelos).toBe("google_flights");
     const trip = savedTrip(logistics);
     const v = trip.vuelos_json.find((x: any) => x.tier === "equilibrio");
-    expect(v.precio_por_persona * 2).toBe(45990);
-    expect(v.aerolinea).toBe("British Airways");
+    expect(v.precio_por_persona * 2).toBe(41210);
+    expect(v.aerolinea).toBe("Air France");
     expect(v.fuente_precio).toBe("en_vivo");
     expect(v.aeropuerto_nota).toBe("Regresas desde Florencia (FLR), a 56 km de Siena");
     const sel = { selVuelo: trip.vuelos_json.indexOf(v), selHospedaje: -1, selTours: new Set<number>(), selHoteles: {} as Record<string, number> };
     const desglose = computeTripDesglose(trip, { ...sel, nochesHospedaje: 10 } as any, 2);
-    expect(desglose.vuelos).toBe(45990);
+    expect(desglose.vuelos).toBe(41210);
     expect(tripTotals(trip, 2, desglose).total).toBe(logistics.total_estimado_mxn);
     const items = buildBuyFlow(trip, sel, {}, { quoteCreatedAt: null }).items;
     const s = tripTotalSummary({ trip, sel, desglose, items, now: new Date(NOW + 60_000) });
