@@ -46,6 +46,7 @@ import { flightsTotalMxn, openJawSearchBody, openJawTiers, planOpenJaw } from ".
 // Crucero/ferry entre paradas: noches a bordo sin hotel y precio por cotizar con la naviera.
 import { applySeaLegs, normalizeSeaLegs, seaNights, seaNightsAfter, seaPromptBlock } from "./seaLegs.ts";
 import { nochesEnVuelo, primeraCiudadDesdeLlegada } from "./llegada.ts";
+import { porQueHotelVivo } from "./porQueHotel.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -954,7 +955,9 @@ Entrega JSON con:
           ...(h.property_token ? { property_token: h.property_token } : {}),
           ...(typeof h.link === "string" && /^https:\/\//.test(h.link) ? { website: h.link } : {}),
           fuente_precio: "serpapi",
-          por_que: (hospedaje.find((x: any) => x?.tier === tier)?.por_que) ?? "Tarifa real consultada hoy en Google Hotels.",
+          // El «por qué» de la IA describe SU hotel de ese nivel: solo se usa si es el mismo hotel. Si Google Hotels
+          // dio otro, se dice lo que sí se sabe (recorrido Japón 9-nov-2026: MIMARU Ikebukuro descrito «en Nihonbashi»).
+          por_que: porQueHotelVivo(h, hospedaje.find((x: any) => x?.tier === tier)),
         };
         const cheap = sorted[0];
         const mid = sorted[Math.floor(sorted.length / 2)] ?? cheap;
@@ -1025,13 +1028,14 @@ Entrega JSON con:
         hospedajeMxn += usdToMxn(Number(byTier.price_per_night_usd) * (Number(pd.nights) || 1) * rooms);
       }
       (pd.experiencias ?? []).forEach((e: any) => {
-        experienciasMxn += usdToMxn((Number(e.price_per_person_usd) || 0) * viajeros);
+        // Por persona redondeado × viajeros: lo mismo que muestra Comprar ($1,768 c/u × 2 = $3,536, no $3,537).
+        experienciasMxn += usdToMxn(Number(e.price_per_person_usd) || 0) * viajeros;
       });
     });
 
     let transporteMxn = 0;
     internalWithSea.forEach((l: any) => {
-      transporteMxn += usdToMxn((Number(l.price_per_person_usd) || 0) * viajeros);
+      transporteMxn += usdToMxn(Number(l.price_per_person_usd) || 0) * viajeros;
     });
 
     const comidaBruta = usdToMxn(COMIDA_USD_PP_DIA[selectedTier] * nights * viajeros);
@@ -1078,6 +1082,8 @@ Entrega JSON con:
       selected_tier: selectedTier,
       presupuesto_rango: presupuestoRango,
       fx_usd_mxn: fxUsd,
+      // Tramos y experiencias: precio por persona en MXN redondeado × viajeros (Comprar lo usa para cuadrar con el total).
+      redondeo_por_persona: true,
       nights,
       desglose_presupuesto: desglose,
       total_estimado_mxn: totalMxn,

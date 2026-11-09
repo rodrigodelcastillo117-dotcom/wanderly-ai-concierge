@@ -155,6 +155,8 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
   const name = String(x?.nombre ?? (kind === "restaurante" ? "Restaurante" : "Experiencia")).replace(` · ${city}`, "").trim();
   const tipo = kind === "restaurante" ? (x?.cocina || "Restaurante") : (x?.duracion || "Experiencia");
   const price = priceText(kind, x, trip);
+  // Sin precio real no suma nada al total: «Agregar al total» confundía (recorrido Japón 9-nov-2026, «Precio en el sitio»).
+  const conPrecio = kind === "experiencia" && Number(x?.precio_por_persona) > 0 && tourHasRealPrice(x);
   const rating = ratingText(x);
   const action = actionFor(i);
   const chosen = isChosen(i);
@@ -196,7 +198,7 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
           {onChoose && (
             <button type="button" onClick={() => onChoose(i)} aria-pressed={chosen} data-testid="pick-elegir"
               className={`inline-flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-lg border px-3 text-xs transition ${chosen ? "border-primary bg-primary/15 text-foreground" : "border-border/70 hover:border-primary/50"}`}>
-              {chosen ? <><Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {kind === "experiencia" ? "En tu total" : "Elegido"}</> : kind === "experiencia" ? "Agregar al total" : "Elegir"}
+              {chosen ? <><Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {kind !== "experiencia" ? "Elegido" : conPrecio ? "En tu total" : "En tu plan"}</> : kind !== "experiencia" ? "Elegir" : conPrecio ? "Agregar al total" : "Agregar a mi plan"}
             </button>
           )}
         </div>

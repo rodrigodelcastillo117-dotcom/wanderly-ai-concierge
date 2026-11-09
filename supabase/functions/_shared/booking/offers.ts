@@ -579,6 +579,8 @@ export type VenueInfo = {
   channel_source?: VenueInfo["source"] | null;
   prive_experience_id?: string | null;
   prive_slug?: string | null;
+  /** Google: false = no toma reservaciones (se llega directo); entonces no se ofrece TheFork ni OpenTable. */
+  reservable?: boolean | null;
 };
 
 const VENUE_TRUST: Record<VenueInfo["source"], SourceTrust> = {
@@ -656,7 +658,12 @@ export function offerFromVenue(
   }
   // La búsqueda por nombre solo si el lugar no tiene su propia página de reservas: si la tiene, esa es
   // la correcta (una búsqueda en otra plataforma podría llevar a un homónimo).
-  if (product === "restaurant" && official.length === 0) {
+  // Google dice que no toma reservaciones: no se manda a buscarlo en TheFork/OpenTable (recorrido Japón 9-nov-2026:
+  // «No toma reservaciones (llega directo)» junto a «Buscar en OpenTable»).
+  const noReserva = (v as { reservable?: unknown }).reservable === false;
+  if (product === "restaurant" && official.length === 0 && noReserva) {
+    // solo sitio, teléfono y Maps
+  } else if (product === "restaurant" && official.length === 0) {
     // La plataforma que cubre el país (TheFork en España e Italia, OpenTable en EE. UU.…); en México y
     // donde no hay una, ninguna búsqueda: el sitio, el teléfono y la ficha de Maps del lugar.
     const iso = (country && /^[A-Z]{2}$/i.test(country) ? country.toUpperCase() : null) ?? countryIsoName(country) ?? countryIsoName(ctx.trip?.pais_destino)
@@ -717,7 +724,8 @@ export function offerFromTripRestaurant(r: any, ctx: OfferContext & { city?: str
   const name = String(r?.nombre ?? "").replace(` · ${city}`, "").trim() || "Restaurante";
   // Sin ai_url: el cta_action de un viaje lo escribió la IA (o es el sitio/ficha de Google, que ya llega
   // por ctx.venue). Auditoría de lugares reales: 33 % de esos enlaces estaban rotos o eran de otro lugar.
-  return offerFromVenue(ctx.venue ?? { name, city, country: ctx.country ?? null }, "restaurant",
+  const reservable = typeof r?.reservable === "boolean" ? { reservable: r.reservable } : {};
+  return offerFromVenue(ctx.venue ? { ...ctx.venue, ...reservable } : { name, city, country: ctx.country ?? null, ...reservable }, "restaurant",
     { ...ctx, price_label: str(r?.rango_precio), id_extra: [ctx.trip?.id, ctx.index ?? ""] });
 }
 
@@ -744,6 +752,7 @@ export function venueFromTripPlace(r: any, city?: string | null, countryName?: s
     name: String(r.nombre ?? "").replace(` · ${city}`, ""), city: city ?? r.ciudad ?? null, country,
     place_id: r.place_id, website: typeof r.website === "string" ? r.website : null,
     phone: typeof r.telefono === "string" ? r.telefono : null, source: "google_places", verified_at: r.consultado_at ?? null,
+    ...(typeof r.reservable === "boolean" ? { reservable: r.reservable } : {}),
   };
 }
 

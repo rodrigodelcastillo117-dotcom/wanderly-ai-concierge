@@ -82,6 +82,21 @@ describe("TripPicksCarousel", () => {
     expect(screen.getAllByTestId("pick-elegir")[0]).toHaveTextContent("En tu total");
   });
 
+  it("experiencia sin precio real: «Agregar a mi plan» (no suma al total) y luego «En tu plan»", () => {
+    const tours = [{ nombre: "Sensō-ji", duracion: "2.5 horas", ciudad: "Tokio", precio_por_persona: 300, estado_dato: "ESTIMADO" }];
+    const chosen = new Set<number>();
+    const onChoose = vi.fn((i: number) => chosen.add(i));
+    const { rerender } = render(<TripPicksCarousel kind="experiencia" city="Tokio" list={tours} indices={[0]} taste={null} trip={trip}
+      actionFor={() => null} isChosen={(i) => chosen.has(i)} onChoose={onChoose} />);
+    expect(screen.getAllByTestId("pick-price")[0]).toHaveTextContent("Precio en el sitio");
+    fireEvent.click(screen.getByRole("button", { name: "Agregar a mi plan" }));
+    expect(onChoose).toHaveBeenCalledWith(0);
+    rerender(<TripPicksCarousel kind="experiencia" city="Tokio" list={tours} indices={[0]} taste={null} trip={trip}
+      actionFor={() => null} isChosen={(i) => chosen.has(i)} onChoose={onChoose} />);
+    expect(screen.getAllByTestId("pick-elegir")[0]).toHaveTextContent("En tu plan");
+    expect(screen.queryByText("Agregar al total")).toBeNull();
+  });
+
   it("flechas en computadora: avanzan una tarjeta", () => {
     render(<TripPicksCarousel kind="restaurante" city="París" list={rest} indices={[0, 1]} taste={null} trip={trip}
       actionFor={() => null} isChosen={() => false} />);

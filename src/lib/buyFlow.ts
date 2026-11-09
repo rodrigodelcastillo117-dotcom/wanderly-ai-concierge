@@ -194,8 +194,12 @@ export function legStep(trip: any, from: string, to: string, date: string | null
   const chosen = choices.find((c) => c.mode === chosenMode) ?? quotedPick ?? groundPick ?? choices[0] ?? null;
   const fx = Number(trip?.itinerario_json?.logistics?.fx_usd_mxn) || 0;
   const chosenPlan = chosen ? planOf(chosen.mode) : null;
-  // Mismo redondeo que logistics-plan (usdToMxn(precio × viajeros)) para que el peso cuadre con el total.
-  const legPrice = chosenPlan?.quoted && chosenPlan.priceUsdPp && fx > 0 ? Math.round(chosenPlan.priceUsdPp * travelers * fx)
+  // Mismo redondeo que logistics-plan (usdToMxn(precio por persona) × viajeros): el total cuadra con el precio por
+  // persona que se ve ($1,768 c/u × 2 = $3,536; antes $3,537, recorrido Japón 9-nov-2026).
+  // Planes de antes (sin redondeo_por_persona) se sumaron como round(precio × viajeros): se respeta para que cuadren con su total guardado.
+  const porPersona = trip?.itinerario_json?.logistics?.redondeo_por_persona === true;
+  const legPrice = chosenPlan?.quoted && chosenPlan.priceUsdPp && fx > 0
+    ? (porPersona ? Math.round(chosenPlan.priceUsdPp * fx) * travelers : Math.round(chosenPlan.priceUsdPp * travelers * fx))
     : chosen?.pricePp ? chosen.pricePp * travelers : null;
   const item: PurchaseItem = {
     key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: chosen?.mode === "tren" ? "train" : chosen?.mode === "coche" ? "car" : "flight",

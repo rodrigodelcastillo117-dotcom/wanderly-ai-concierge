@@ -194,3 +194,18 @@ describe("Página del viaje con el fixture", () => {
     expect(chosen).toHaveTextContent("$2,158");
   });
 });
+
+describe("3. Redondeo por persona (recorrido Japón 9-nov-2026: $1,768 c/u × 2 mostraba $3,537)", () => {
+  it("plan nuevo (redondeo_por_persona): el tramo = precio por persona redondeado × viajeros", () => {
+    const trip = makeTrip();
+    trip.itinerario_json.logistics = { ...logistics, redondeo_por_persona: true };
+    const flow = buildBuyFlow(trip, { selVuelo: -1, selHospedaje: -1, selTours: new Set() });
+    const legs = flow.steps.filter((s): s is LegStep => s.kind === "traslado");
+    const fx = logistics.fx_usd_mxn;
+    logistics.internal_transport.forEach((t: any, i: number) => {
+      const c = legs[i].choices.find((x) => x.mode === legs[i].chosen)!;
+      expect(legs[i].item.price).toBe(c.pricePp! * 2);
+      expect(legs[i].item.price).toBe(Math.round(t.price_per_person_usd * fx) * 2);
+    });
+  });
+});

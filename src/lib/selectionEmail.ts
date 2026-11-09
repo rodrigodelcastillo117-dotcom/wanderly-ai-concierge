@@ -48,8 +48,13 @@ export const NOT_READY_LABEL = "Elige tu vuelo y hotel para enviarte el resumen"
  */
 export function notReadyLabel(missing: string[]): string {
   if (!missing.length || (missing.length === 2 && missing[0] === "tu vuelo" && missing[1] === "tu hotel")) return NOT_READY_LABEL;
-  const xs = missing.slice(0, 3);
-  const list = xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
+  // Todos los hoteles que faltan en una frase («hoteles en Tokio, Kioto y Osaka»): antes se cortaba en 3 y se perdía
+  // Osaka sin decirlo (recorrido Japón 9-nov-2026).
+  const y = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+  const hoteles = missing.filter((m) => /^hotel en /.test(m)).map((m) => m.slice("hotel en ".length));
+  const otros = missing.filter((m) => !/^hotel en /.test(m));
+  const xs = hoteles.length >= 2 ? [...otros, `hoteles en ${y(hoteles)}`] : missing;
+  const list = xs.length > 4 ? `${xs.slice(0, 3).join(", ")} y ${xs.length - 3} más` : y(xs);
   return `Elige ${list} para enviarte la selección`;
 }
 
