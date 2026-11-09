@@ -12,6 +12,7 @@ import {
 import { IncidentOpsCard } from "@/components/incident/IncidentOpsCard";
 // Vigilancia proactiva: sección mínima plegada (solo si la base responde).
 import { VigilanciaPanel } from "@/components/vigilancia/VigilanciaPanel";
+import { AvisosEquipoPanel } from "@/components/incident/AvisosEquipoPanel";
 import { severityRank } from "../../supabase/functions/_shared/incident-labels.ts";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AdminDenied } from "@/components/AdminGate";
@@ -382,6 +383,8 @@ const AdminOperations = () => {
         </div>
 
         {notice && <p role="status" className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">{notice}</p>}
+
+        <AvisosEquipoPanel />
 
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-10 text-center" role="status">

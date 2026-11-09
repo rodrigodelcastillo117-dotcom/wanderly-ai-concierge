@@ -94,7 +94,8 @@ describe("Mesa de operaciones", () => {
     fireEvent.click(card.getByRole("button", { name: /Tomar/ }));
     expect(await screen.findByText(/La tomaste: queda en proceso a tu nombre/)).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith("admin_ops_act", { _source: "concierge_request", _id: items[0].id, _action: "tomar", _message: null, _evidence: null });
-    expect(invoke).not.toHaveBeenCalled();
+    // Tomar no manda correo (la única llamada a ops-desk es el estado de «Avisos a mi celular», que no envía nada).
+    expect(invoke.mock.calls.filter((c) => (c[1] as { body?: { accion?: string } })?.body?.accion !== "avisos_estado")).toHaveLength(0);
   });
 
   it("Responder al usuario guarda el mensaje y pide a ops-desk el correo de ESA respuesta", async () => {

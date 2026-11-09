@@ -16,6 +16,7 @@ import { pushToUser } from "../_shared/push.ts";
 import { deliverIncidentAlerts } from "../_shared/incident-alerts.ts";
 import { incidentAlertDeps } from "../_shared/incident-runtime.ts";
 import { teamReplyPush } from "../_shared/ops-desk.ts";
+import { type AvisosDeps, cambiarGuardia, estadoAvisos, type PersonaGuardia, pruebaAvisos } from "../_shared/avisosEquipo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,7 +44,45 @@ Deno.serve(async (req) => {
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   try {
-    const body = (await req.json().catch(() => null)) as { reply_id?: unknown; incident_id?: unknown } | null;
+    const body = (await req.json().catch(() => null)) as { reply_id?: unknown; incident_id?: unknown; accion?: unknown; rol?: unknown } | null;
+    // Avisos al equipo (Mesa → «Avisos a mi celular»): estado, prueba y entrar/salir de la guardia.
+    if (body?.accion === "avisos_estado" || body?.accion === "avisos_prueba" || body?.accion === "avisos_unirme" || body?.accion === "avisos_salir") {
+      const deps: AvisosDeps = {
+        guardia: async () => {
+          const { data } = await db.rpc("incident_oncall_now", { _level: 2, _fallback: teamEmails() });
+          return (Array.isArray(data) ? data : []) as PersonaGuardia[];
+        },
+        guardiaConfigurada: async () => {
+          const { count } = await db.from("incident_oncall").select("id", { count: "exact", head: true }).eq("active", true);
+          return (count ?? 0) > 0;
+        },
+        dispositivos: async (uid) => {
+          const { count } = await db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", uid);
+          return count ?? 0;
+        },
+        correo: (to, subject, text, html) => sendEmail({ to, subject, text, html, from: Deno.env.get("OPS_REPLY_FROM") || "IATOS <hola@traveliatos.life>" }),
+        // deno-lint-ignore no-explicit-any -- otra versión de supabase-js que la de push.ts
+        push: (uid, p) => pushToUser(db as any, uid, p, { TTL: 3600, urgency: "high" }),
+        unirse: async (p) => {
+          // El índice único es sobre lower(email) (no sirve para upsert): se busca y se actualiza o se crea.
+          const { data: ya } = await db.from("incident_oncall").select("id").ilike("email", p.email).maybeSingle();
+          const { error } = ya
+            ? await db.from("incident_oncall").update({ name: p.name, role: p.role, active: true }).eq("id", (ya as { id: string }).id)
+            : await db.from("incident_oncall").insert({ email: p.email, name: p.name, role: p.role, active: true });
+          return error ? { ok: false, error: "no se guardó" } : { ok: true };
+        },
+        salir: async (email) => {
+          const { error } = await db.from("incident_oncall").update({ active: false }).ilike("email", email);
+          return error ? { ok: false, error: "no se guardó" } : { ok: true };
+        },
+      };
+      const { data: prof } = await db.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      const yo = { id: user.id, email: user.email ?? null, nombre: (prof as { full_name?: string | null } | null)?.full_name ?? null };
+      if (body.accion === "avisos_estado") return json(await estadoAvisos(deps, yo));
+      if (body.accion === "avisos_prueba") return json(await pruebaAvisos(deps, yo));
+      const r = await cambiarGuardia(deps, yo, body.accion === "avisos_salir" ? "salir" : "unirme", body.rol);
+      return json(r.ok ? await estadoAvisos(deps, yo) : r, r.ok ? 200 : 400);
+    }
     // Incidente escalado desde la mesa: reparte ya sus avisos (si no salen, el vigilante reintenta).
     if (typeof body?.incident_id === "string" && UUID.test(body.incident_id)) {
       const out = await deliverIncidentAlerts(incidentAlertDeps(db), { requestId: body.incident_id });
