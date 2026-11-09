@@ -81,19 +81,21 @@ const Discover = () => {
                     className="relative aspect-[4/5] rounded-2xl overflow-hidden mb-3">
                     <DestinationVideo query={d.image_query} fallbackImage={santorini} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-overlay" />
-                    <IllustrativeCaption className={profileless ? "top-4 left-4" : "top-[3.25rem] left-4"} />
+                    {/* Recorrido en producción (9-nov-2026): a 390 px el tipo de viaje (centrado arriba) se encimaba con el «% afín»
+                        y con el corazón, y la leyenda con el país. Ahora: «% afín» arriba a la izquierda, corazón y leyenda a la
+                        derecha, y el tipo de viaje junto al país. */}
+                    <IllustrativeCaption className="top-[3.75rem] right-4" />
                     {!profileless && (
-                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
-                      {d.score}% afín a ti
-                    </div>
-                    )}
-                    {d.trip_type && (
-                      <div className="absolute top-4 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[10px] tracking-wider uppercase">
-                        {d.trip_type}
+                      <div className="absolute top-4 left-4 right-14 flex" data-testid="discover-chips">
+                        <div className="max-w-full truncate px-2.5 py-1 rounded-full bg-primary/90 text-primary-foreground text-xs font-medium">
+                          {d.score}% afín a ti
+                        </div>
                       </div>
                     )}
                     <div className="absolute bottom-4 left-4 right-4">
-                      <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1">{d.country}</p>
+                      <p className="text-xs text-primary tracking-[0.15em] uppercase mb-1 truncate" data-testid="discover-country">
+                        {d.country}{d.trip_type ? <span className="text-white/70"> · {d.trip_type}</span> : null}
+                      </p>
                       <h3 className="font-display text-2xl mb-2">{d.name}</h3>
                       {d.reason && (
                         <p className="text-[11px] text-white/75 leading-snug line-clamp-3 italic">

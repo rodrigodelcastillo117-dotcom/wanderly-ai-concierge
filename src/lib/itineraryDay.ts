@@ -96,6 +96,18 @@ export function tripPlaces(trip: any): DayPlace[] {
 const PARTS: Array<[DayPart, string]> = [["mañana", "Mañana"], ["tarde", "Tarde"], ["noche", "Noche"]];
 
 /**
+ * Quita el porqué personal del inicio de una franja («Porque te encantó la comida del mercado en tus viajes, recorrido
+ * por el Mercado de San Miguel…» → «Recorrido por el Mercado de San Miguel…»): el titular es la actividad, no la razón
+ * (recorrido en producción, 9-nov-2026: tres tardes decían solo «Porque te encantó…»). El texto completo no cambia.
+ */
+export function sinPorqueInicial(text: string): string {
+  const m = /^\s*(?:porque te (?:encant(?:ó|o|aron)|fascina(?:n)?|gusta(?:n|ron)?|gust(?:ó|o))|como (?:en )?tu(?:s)? viajes?(?: a)?)(?=\s)[^,.;:]{0,120}[,;:]\s*/i.exec(text);
+  if (!m) return text;
+  const rest = text.slice(m[0].length).trim();
+  return rest.length >= 8 ? rest.charAt(0).toUpperCase() + rest.slice(1) : text;
+}
+
+/**
  * Mañana, tarde y noche del día en una línea cada una: el lugar del plan que menciona (el primero que
  * aparece; empatados, el nombre más largo) o su primera frase corta. El texto completo no cambia.
  * En un viaje de varias ciudades solo cuentan los lugares de la ciudad del día.
@@ -113,7 +125,7 @@ export function daySlots(day: any, places: DayPlace[] = []): DaySlot[] {
       .map((p) => ({ p, at: nt.indexOf(norm(p.name)) }))
       .filter((x) => x.at >= 0)
       .sort((a, b) => a.at - b.at || b.p.name.length - a.p.name.length)[0];
-    let headline = hit ? hit.p.name : firstClause(text, 80);
+    let headline = hit ? hit.p.name : firstClause(sinPorqueInicial(text), 80);
     let repeated = false;
     if (out.some((o) => norm(o.headline) === norm(headline))) {
       // Otra frase del mismo texto que aún no se haya dicho; si no hay, la franja repite a la anterior.
