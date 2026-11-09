@@ -1067,7 +1067,9 @@ Entrega JSON con:
     if (llegadaTierra?.modo === "coche" && roadTrip) {
       for (const l of internalWithSea as any[]) {
         if (!/coche|auto|carro|manej/i.test(String(l?.mode ?? ""))) continue;
-        const leg = roadTrip.legs.find((x: any) => sameCity(x.from, l.from) && sameCity(x.to, l.to));
+        // Por la ciudad de llegada (cada parada se llega una vez): la IA escribe «Santiago de Querétaro» por «Querétaro».
+        const leg = roadTrip.legs.find((x: any) => sameCity(x.from, l.from) && sameCity(x.to, l.to))
+          ?? roadTrip.legs.find((x: any) => sameCity(x.to, l.to));
         const gas = gasolinaTramoMxn(leg?.distance_km);
         if (gas == null) continue;
         l.price_per_person_usd = Math.round((gas / viajeros / fxUsd) * 100) / 100;
