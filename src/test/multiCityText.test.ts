@@ -76,7 +76,7 @@ describe("parseMultiCityText: lo que NO es multi-ciudad", () => {
   it("texto sin sentido o nombres que no conocemos no se inventan ni se parten", () => {
     expect(parseMultiCityText("asdf qwer y zxcv")).toMatchObject({ cities: [], unknown: ["asdf qwer", "zxcv"] });
     // Un nombre que no conocemos no se parte para sacar una ciudad conocida de adentro.
-    expect(parseMultiCityText("Tequisquiapan de Querétaro")).toMatchObject({ cities: [], unknown: ["Tequisquiapan de Querétaro"] });
+    expect(parseMultiCityText("Zinapécuaro de Querétaro")).toMatchObject({ cities: [], unknown: ["Zinapécuaro de Querétaro"] });
     // Uno que sí está en el catálogo es UNA ciudad.
     expect(parseMultiCityText("Valle de Guadalupe").cities).toEqual(["Valle de Guadalupe"]);
     // Una ciudad desconocida en una ruta se dice; las conocidas siguen.

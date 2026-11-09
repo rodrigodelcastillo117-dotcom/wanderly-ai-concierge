@@ -4,7 +4,7 @@
 export const TRIP_EXTRAS = new RegExp(
   "(?<![a-záéíóúñ])(?:(?:en|para|de|por|durante|esta|este|la|el|las|los|con|sin)\\s+)?(?:" + [
     "todo\\s+incluido", "all[\\s-]+inclusive",
-    "semana\\s+santa", "semana\\s+de\\s+pascua", "(?<!isla\\s+de\\s+)pascuas?", "navidad(?:es)?", "nochebuena", "a[nñ]o\\s+nuevo", "fin\\s+de\\s+a[nñ]o",
+    "semana\\s+santa", "semana\\s+de\\s+pascua", "(?<!isla\\s+de\\s+)pascuas?", "(?<!barra\\s+de\\s+)navidad(?:es)?", "nochebuena", "a[nñ]o\\s+nuevo", "fin\\s+de\\s+a[nñ]o",
     "fiestas\\s+patrias", "d[ií]a\\s+de\\s+muertos", "verano", "invierno", "primavera", "oto[nñ]o", "temporada\\s+(?:alta|baja)",
     "luna\\s+de\\s+miel", "aniversario", "cumplea[nñ]os", "despedida\\s+de\\s+solter[oa]s?",
     "(?:los\\s+|mis\\s+|nuestros\\s+)?(?:ni[nñ]os|ni[nñ]as|hijos|hijas|beb[eé]s?|peques|abuelos|pap[aá]s)", "en\\s+familia",

@@ -62,6 +62,22 @@ const TOWN_SKIP = new Set(["como"]);
 for (const t of AIRPORT_TOWNS) if (t.iso2 !== "MX" && !TOWN_SKIP.has(norm(t.name)) && !isCountryName(t.name)) add(t.name, { name: t.name, country: null });
 // Nombres en inglés de ciudades del selector que la gente escribe así (caso Diego: "Cape Town" se leía
 // como el país Sudáfrica por un alias del catálogo de recuerdos). Solo ciudades que ya están en el catálogo.
+// Ciudades y pueblos de México para viajes por carretera (recorrido 9-nov-2026: «Road trip … a Saltillo y Zacatecas»
+// salía como «No reconocimos»). Nombres sin ambigüedad con otros países (no «La Paz», «Córdoba», «Santiago»).
+export const MX_PLACES = ["Saltillo", "Zacatecas", "Durango", "Morelia", "Torreón", "Xalapa", "Veracruz", "Pachuca", "Toluca",
+  "Cuernavaca", "Tlaxcala", "Celaya", "Irapuato", "Tequisquiapan", "Peña de Bernal", "Bernal", "Real de Catorce", "Pátzcuaro",
+  "Tlaquepaque", "Tequila", "San Cristóbal de las Casas", "Palenque", "Campeche", "Culiacán", "Ensenada", "Valle de Guadalupe",
+  "Puerto Escondido", "Zihuatanejo", "Ixtapa", "Taxco", "Tepoztlán", "Valle de Bravo", "Malinalco", "Ixtapan de la Sal", "Cholula",
+  "Atlixco", "Cuetzalan", "Huasca de Ocampo", "Real del Monte", "Mineral del Chico", "Sayulita", "San Pancho", "Bucerías",
+  "Puerto Peñasco", "Creel", "Los Mochis", "Colima", "Manzanillo", "Barra de Navidad", "Tepic", "Izamal",
+  "Chiapa de Corzo", "Comitán", "Loreto", "Todos Santos", "Ajijic", "Chapala", "Cozumel", "Isla Mujeres", "Holbox", "Bacalar",
+  "Mahahual", "Puerto Morelos", "Chetumal", "Cuatro Ciénegas", "Parras", "Mexicali", "Rosarito", "Tampico", "Villahermosa",
+  "Orizaba", "Coatepec", "Papantla", "Tlacotalpan", "Mitla", "Hierve el Agua", "Uxmal", "Chichén Itzá", "Calakmul",
+  "Cabo San Lucas", "San José del Cabo", "Huatulco", "Mazatlán", "Acapulco", "Guanajuato", "San Miguel de Allende",
+  "Playa del Carmen", "Tulum"];
+for (const name of MX_PLACES) add(name, { name, country: "México" });
+for (const [alias, name] of [["cuatrocienegas", "Cuatro Ciénegas"], ["chichen itza", "Chichén Itzá"], ["san cristobal", "San Cristóbal de las Casas"],
+  ["huasca", "Huasca de Ocampo"], ["sma", "San Miguel de Allende"]] as Array<[string, string]>) add(alias, { name, country: "México" });
 const EXTRA_CITY_ALIASES: Array<[string, string]> = [["cape town", "Ciudad del Cabo"], ["capetown", "Ciudad del Cabo"]];
 for (const [alias, city] of EXTRA_CITY_ALIASES) { const e = CATALOG.get(norm(city)); if (e) add(alias, e); }
 const MAX_WORDS = 5;
@@ -92,7 +108,9 @@ const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta h
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +
   "ciudades ciudad destinos destino paises pais entre todo toda varios varias otra otro mas " +
   // "más o menos", "somos 2", "algo de lujo": no son lugares (caso Diego).
-  "menos o u somos seremos vamos estamos queremos algo lujo lujoso lujosa tipo cerca alrededor aproximado").split(/\s+/));
+  "menos o u somos seremos vamos estamos queremos algo lujo lujoso lujosa tipo cerca alrededor aproximado " +
+  // «Road trip en coche desde CDMX», «por carretera»: cómo se viaja, no un lugar (recorrido 9-nov-2026).
+  "road trip roadtrip coche carro auto automovil camioneta moto manejando manejar carretera").split(/\s+/));
 
 const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20, treinta: 30 };
@@ -204,7 +222,9 @@ export function parseMultiCityText(text: string, opts: { origin?: string | null 
   const { days, nights } = durationOf(raw);
   const empty: MultiCityParse = { items: [], cities: [], origin: null, days, nights, unknown: [], countries: [] };
   if (!raw) return empty;
-  const chunks = stripNonPlaces(raw).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
+  // «En coche de CDMX a Querétaro», «manejando de Monterrey a Saltillo»: «de» tras el modo es la salida.
+  const conSalida = raw.replace(/\b(?:(?:en|por)\s+)?(?:coche|carro|auto|camioneta|moto|carretera|manejando)\s+(?:de|desde)\s+/gi, " desde ");
+  const chunks = stripNonPlaces(conSalida).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
   let origin: string | null = null;
   const stops: string[] = [];
   const unknown: string[] = [];

@@ -64,7 +64,8 @@ afterEach(() => { vi.useRealTimers(); });
 
 describe("22 · Cancelar en la confirmación", () => {
   it("vuelve al campo con el texto intacto", async () => {
-    const text = "Viaje de 4 días a Valle de Bravo en coche desde CDMX";
+    // Un pueblo que el lector rápido no conoce: se abre la confirmación (Valle de Bravo ya se reconoce, 9-nov-2026).
+    const text = "Viaje de 4 días a Zinapécuaro en coche desde CDMX";
     render(
       <MemoryRouter initialEntries={[`/dashboard/planear?q=${encodeURIComponent(text)}`]}>
         <Routes><Route path="/dashboard/planear" element={<PlanTrip />} /></Routes>

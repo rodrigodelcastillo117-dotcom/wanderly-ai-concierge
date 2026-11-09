@@ -170,12 +170,11 @@ describe("otros casos", () => {
   it("'fin de semana en Tepoztlán' → destino único", () => {
     const r = routeOfSpec(ai(TEPOZ_AI, TEPOZ_TEXT));
     expect(r).toMatchObject({ kind: "unico", destino: "Tepoztlán", fecha_salida: "2026-10-30", fecha_regreso: "2026-11-01" });
-    // Sin IA: Tepoztlán no está en el catálogo; queda como parada y se pregunta (no se borra).
+    // Sin IA: Tepoztlán ya está en el catálogo de lugares de México (9-nov-2026): parada reconocida, sin preguntar.
     const l = finalizeSpec(buildLocalSpec(TEPOZ_TEXT, { origen: "Ciudad de México", today: TODAY }), TEPOZ_TEXT);
     expect(l.paradas.map((p) => p.ciudad)).toEqual(["Tepoztlán"]);
-    const q = qOf(l, "lugar_desconocido");
-    expect(q.pregunta).toBe("No reconocimos «Tepoztlán»: ¿qué ciudad es?");
-    expect(routeOfSpec(acceptSuggestion(l, q.id)).kind).toBe("unico");
+    expect(openQuestions(l).some((q) => q.tipo === "lugar_desconocido")).toBe(false);
+    expect(routeOfSpec(l).kind).toBe("unico");
   });
 
   it("texto ambiguo → preguntas concretas, sin adivinar ni borrar", () => {
