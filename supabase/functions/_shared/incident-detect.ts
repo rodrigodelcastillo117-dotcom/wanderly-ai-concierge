@@ -81,7 +81,8 @@ const SUB_APP = /(\bapp\b|aplicacion|pantalla|boton|no carga|se traba|se cierra|
 const SUB_TRATO = /(grosero|grosera|groseros|maltrato|me trataron|nos trataron|rude|me gritaron|yelled|disrespect|prepotente|discrimin|mal trato|me hablaron feo|ignoraron)/;
 const SUB_IATOS = /(\biato\b|\biatos\b|tu recomendacion|me recomendaste|nos recomendaste|recomendaron|recomendacion|recommend|ustedes|su servicio|tu servicio|el concierge|you guys|your service|tu plan|el plan que)/;
 const SUB_CALIDAD = /(sucio|sucia|frio|fria|calidad|quality|dirty|cold\b|feo|fea|comida|asqueros|gross|viejo|vieja|old\b|ruidoso|noisy|smell|olor|apestaba)/;
-const PROVIDER = /(hotel|habitacion|cuarto|aerolinea|airline|chofer|driver|restaurante|restaurant|tour|guia|operador|agencia|proveedor|arrendadora|rental|aeropuerto|airport|staff|personal|recepcionista|mesero|waiter)/;
+// Vuelo, mostrador, maleta, traslado: la queja es con ese proveedor, no con IATOS («IB6403 cancelado otra vez», eval real 9-nov-2026).
+const PROVIDER = /(hotel|habitacion|cuarto|aerolinea|airline|vuelo|flight|mostrador|counter|maleta|equipaje|baggage|luggage|traslado|transfer|shuttle|chofer|driver|restaurante|restaurant|tour|guia|operador|agencia|proveedor|arrendadora|rental|aeropuerto|airport|staff|personal|recepcionista|mesero|waiter)/;
 
 // ─── sentimiento y expectativa ───
 const VERY_ANGRY = /(porqueria|mierda|basura|estafa|fraude|ladrones|rateros|nunca mas|furios|indignad|harto|harta|scam|garbage|trash\b|sucks|furious|outraged|never again|wtf|ridicul|pathetic|una burla|me enganaron|una verguenza|que verguenza|abogado|demanda|profeco|denunciar|lawyer|\bsue\b)/;

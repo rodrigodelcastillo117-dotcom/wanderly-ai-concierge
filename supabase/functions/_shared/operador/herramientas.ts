@@ -273,7 +273,10 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       const r = await mensajeAlViajero(ctx, pregunta + extra, false, { permiso: tipo, folio });
       ctx.esperando = "usuario";
       ctx.pendiente = { permiso: tipo, folio: folio ?? null, preguntado_at: d.ahora().toISOString() };
-      return { ok: r.ok, enviado: true, nota: "Su respuesta llegará como mensaje nuevo; termina esta corrida." };
+      // Antes decía «termina esta corrida» y el modelo dejaba sin hacer derechos, contacto del proveedor, etc.
+      // (evaluación real del 9-nov-2026): la pregunta sale, pero el resto del trabajo no espera.
+      return { ok: r.ok, enviado: true, nota: "Pregunta enviada; su respuesta llegará como mensaje nuevo. No esperes para lo demás: haz ahora todo lo que NO necesita su permiso " +
+        "(derechos, contacto oficial del proveedor y escribirle, lugares, opciones, preparar_reclamo) y dile al viajero qué hiciste. Lo que sí lo necesita, cuando responda." };
     }
     case "revisar_derechos_vuelo":
     case "revisar_derechos_servicio": {

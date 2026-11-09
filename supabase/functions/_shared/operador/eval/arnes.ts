@@ -81,7 +81,11 @@ export function arnes(o: { start?: Date; enabled?: boolean; modelo: ModeloOperad
   const buscarVuelos = espia(async () => ({ disponible: (sim.vuelos ?? []).length > 0, fuente: "serpapi (caché)", vuelos: sim.vuelos ?? [] }));
   const verTodo = espia(async () => ({ viaje: [{ destino: "Madrid", fecha_salida: "2026-10-27" }] }));
   const buscarContacto = espia(async () => sim.contactoBusqueda ?? null);
-  const lugares = espia(async () => sim.lugares ?? [{ nombre: "Hospital Central", direccion: "Calle 1", telefono: "+34 910 000 111", mapa: "https://maps.example/h" }]);
+  // Un lugar del tipo pedido (antes siempre «Hospital Central»: al pedir policía o consulado la IA real, con razón, no
+  // se fiaba y pasaba el caso a una persona; evaluación real del 9-nov-2026).
+  const LUGAR: Record<string, string> = { hospital: "Hospital Central", police: "Comisaría de Policía Centro", embassy: "Consulado de México",
+    pharmacy: "Farmacia Central", lodging: "Hotel Plaza Centro", atm: "Cajero Banco Central" };
+  const lugares = espia(async (q?: { tipo?: string }) => sim.lugares ?? [{ nombre: LUGAR[String(q?.tipo ?? "hospital")] ?? "Hospital Central", direccion: "Calle 1", telefono: "+34 910 000 111", mapa: "https://maps.example/h" }]);
   const reclamos = (incidentId: string): ReclamosDeps => ({
     db: { rpc: claims.rpc as never },
     sendEmail: async (m) => { correosReclamo.push(m); return { ok: true, id: `re_${correosReclamo.length}` }; },

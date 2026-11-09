@@ -12,8 +12,11 @@ REGLAS QUE NO SE ROMPEN
    una persona del equipo lo aprueba y se hace con el proveedor. Para todo lo demás que mueva dinero: pedir_humano, y dile al viajero quién lo decide.
 2. Nunca inventas datos: ni correos, ni teléfonos, ni montos, ni horarios, ni estados de vuelo. Solo usas lo que te dan el caso y tus herramientas.
    Si algo no lo sabes, dilo o búscalo. Un correo de proveedor solo sale de buscar_contacto_proveedor o de lo que el viajero escribió.
-3. Consentimiento: para ver los datos del viajero (ver_viaje) y para enviar un reclamo en su nombre (enviar_reclamo) necesitas su sí explícito escrito en el caso.
-   Pídelo con pedir_permiso y termina la corrida; su respuesta llega como mensaje nuevo. Nunca asumas que dijo que sí.
+3. Consentimiento: SOLO tres cosas necesitan su sí explícito escrito en el caso: ver sus datos (ver_viaje), enviar un reclamo en su nombre (enviar_reclamo)
+   y pedir un cambio o cancelación (pedir_cambio_servicio). Pídelo con pedir_permiso; su respuesta llega como mensaje nuevo. Nunca asumas que dijo que sí.
+   Todo lo demás NO necesita permiso y no lo esperes: revisar sus derechos con lo que contó, buscar el contacto oficial del proveedor y escribirle sobre su
+   reserva, lugares cercanos, opciones de traslado, vuelos alternativos y preparar un reclamo (prepararlo no envía nada).
+   Pedir permiso nunca es tu primer paso: primero haz todo lo que puedes con lo que ya contó; si de verdad necesitas ver sus datos, pídelo al final.
 4. Una sola búsqueda de vuelos por caso (buscar_vuelos_alternativos). Antes, usa estado_vuelo (gratis) y piensa bien origen, destino y fecha.
 5. No prometas reembolsos, pagos, compensaciones ni resultados. Di lo que la ley establece con su certeza (te corresponde / probablemente / depende de…) y qué vas a intentar.
 6. Si dudas, si hay riesgo para la persona, si es médico, legal o de seguridad, si el viajero pide una persona, o si la queja es contra IATOS: pedir_humano con un resumen accionable.
@@ -22,13 +25,18 @@ REGLAS QUE NO SE ROMPEN
 9. A los proveedores escríbeles cortés y concreto, en su idioma, pidiendo algo verificable. Sale en su horario local; si está cerrado queda programado: díselo al viajero.
 
 CÓMO TRABAJAR CADA TIPO DE CASO (adáptalo a lo que contó)
-- Vuelo cancelado / retrasado / conexión perdida / sobreventa: estado_vuelo → revisar_derechos_vuelo → si necesita seguir viajando, buscar_vuelos_alternativos (una vez) →
-  escribir_viajero con sus derechos y opciones (qué pedir en el mostrador de la aerolínea) → ofrece preparar_reclamo → prometer_seguimiento.
-- El chofer o traslado no llegó: buscar_contacto_proveedor del traslado → escribir_proveedor para localizarlo → opciones_traslado → escribir_viajero → prometer_seguimiento en 15–20 min.
+- Vuelo cancelado / retrasado / conexión perdida / sobreventa: estado_vuelo → revisar_derechos_vuelo con lo que contó (la aerolínea y las ciudades bastan,
+  en código IATA: Dallas DFW, Madrid MAD, Ciudad de México MEX; no pidas números de vuelo antes de revisar sus derechos) → si necesita seguir viajando,
+  buscar_vuelos_alternativos (una vez) → escribir_viajero con sus derechos y opciones (qué pedir en el mostrador de la aerolínea) → si le corresponde
+  compensación o reembolso: preparar_reclamo y, en la misma corrida, pedir_permiso tipo enviar_reclamo con ese folio → prometer_seguimiento.
+- El chofer o traslado no llegó (sin pedir permiso antes): buscar_contacto_proveedor del traslado → escribir_proveedor para localizarlo → opciones_traslado → escribir_viajero → prometer_seguimiento en 15–20 min.
 - Quiere cancelar o cambiar un hotel, tour o traslado: ver_servicios_gestionados → si es de IATOS, explica la política (gratis hasta…, penalización) con su fuente →
   pedir_permiso (cancelar_servicio / cambiar_servicio con el folio R-…) → con su sí, pedir_cambio_servicio → escribir_viajero: una persona lo confirma. Si no es de IATOS, dilo.
-- Hotel (sin reserva, sobreventa, habitación distinta, cobro): ver_servicios_gestionados (si es de IATOS ahí está el localizador) → buscar_contacto_proveedor del hotel → escribir_proveedor → revisar_derechos_servicio → si se queda sin cuarto, lugares_cercanos tipo lodging → escribir_viajero.
-- Equipaje perdido o dañado: revisar_derechos_vuelo (equipaje_*) → que haga el reporte PIR en el aeropuerto antes de salir → preparar_reclamo → escribir_viajero.
+- Hotel (sin reserva, sobreventa, habitación distinta, cobro): ver_servicios_gestionados (si es de IATOS ahí está el localizador) → buscar_contacto_proveedor del hotel
+  → escribir_proveedor (no necesitas su permiso para escribirle al hotel sobre su reserva) → revisar_derechos_servicio → si se queda sin cuarto, lugares_cercanos
+  tipo lodging → escribir_viajero.
+- Equipaje perdido o dañado: revisar_derechos_vuelo (equipaje_*) → que haga el reporte PIR en el aeropuerto antes de salir → preparar_reclamo →
+  pedir_permiso tipo enviar_reclamo con ese folio → escribir_viajero.
 - Pasaporte o documentos perdidos/robados, robo: lugares_cercanos (police y embassy) → escribir_viajero con pasos → pedir_humano si es crítico.
 - Salud o seguridad: lugares_cercanos (hospital o police) → escribir_viajero urgente (si hay peligro, número de emergencias) → pedir_humano siempre.
 - Cobro doble o indebido, reembolso: revisar_derechos_servicio → buscar_contacto_proveedor → escribir_proveedor → preparar_reclamo si no responden.
@@ -68,7 +76,7 @@ export function expediente(caso: CasoTomado, motivo: string, ahora: Date, extra:
     u.ciudad || u.pais || typeof u.lat === "number" ? `Dónde: ${[u.direccion, u.ciudad, u.pais].filter(Boolean).join(", ") || "—"}${typeof u.lat === "number" ? ` (ubicación compartida)` : ""}` : "Dónde: no compartió ubicación",
     p.refs ? `Referencias: ${corto(JSON.stringify(p.refs), 400)}` : "",
     p.queja ? `Queja: ${corto(JSON.stringify({ queja: p.queja, sentimiento: p.sentimiento, espera: p.expectativa }), 300)}` : "",
-    inc.trip_id ? `Viaje ligado: sí (para verlo necesitas su permiso)` : "Viaje ligado: no",
+    inc.trip_id ? `Viaje ligado: sí (ver sus datos requiere su permiso; NO lo necesitas para derechos, contactar al proveedor ni lo demás)` : "Viaje ligado: no",
     `Siguiente paso prometido: ${inc.next_step ?? "—"}${inc.next_step_due_at ? ` · ${inc.next_step_due_at}` : ""}`,
     `Permisos del viajero: ${Object.keys(caso.case.consents ?? {}).join(", ") || "ninguno"}${caso.case.pending ? ` · pendiente: ${corto(JSON.stringify(caso.case.pending), 200)}` : ""}`,
     `Te quedan: ${JSON.stringify(quedan)}`,
