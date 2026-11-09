@@ -25,3 +25,18 @@ describe("crucero: lector rápido", () => {
     expect(parseMultiCityText("Vuelo de Ciudad de México a Madrid y París")).toMatchObject({ origin: "Ciudad de México", cities: ["Madrid", "París"] });
   });
 });
+
+import IATO from "./fixtures/cruceroMiamiIato.json";
+import { openQuestions } from "../../supabase/functions/_shared/tripSpec.ts";
+import { durationOf } from "@/lib/multiCityText";
+describe("crucero: la respuesta real de Iato (9-nov-2026)", () => {
+  it("solo quedan las fechas: el crucero ya tiene puertos y noches, «Caribe» es la ruta del barco y el regreso es en vuelo", () => {
+    const s = finalizeSpec(IATO as any, Q, { origen: "Querétaro" });
+    expect(openQuestions(s).map((q) => q.tipo)).toEqual(["fechas"]);
+    expect(s.regreso.modo).toBe("vuelo");
+    expect(s.noches_total).toBe(7);
+  });
+  it("«Escribiste 3 días» ya no: el lector rápido también suma las noches", () => {
+    expect(durationOf(Q)).toEqual({ days: 8, nights: 7 });
+  });
+});

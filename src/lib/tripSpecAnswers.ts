@@ -138,6 +138,20 @@ export function autoResolveQuestions(spec: TripSpec): TripSpec {
     if (kind === "regreso_modo" && textMode && textMode !== "por_definir" && (next.regreso.modo === "por_definir" || next.regreso.modo === textMode)) {
       next = resolveQuestion({ ...next, regreso: { ...next.regreso, modo: textMode } }, q.id, "regreso");
     }
+    // Crucero con puerto de salida, de llegada y noches ya puestos: su pregunta está contestada (recorrido crucero
+    // 9-nov-2026: «¿Qué puertos del Caribe…?» seguía abierta con Miami → Miami, 5 noches, Royal Caribbean).
+    if (q.tipo === "crucero") {
+      const c = (q.parada ? next.paradas.find((s) => s.id === q.parada) : next.paradas.find((s) => s.llegada_por === "crucero"))?.crucero;
+      if (c && c.puerto_salida && c.puerto_llegada && (Number(c.noches) > 0 || (c.fecha_salida && c.fecha_llegada))) next = resolveQuestion(next, q.id, "preferencia");
+    }
+    // «Caribe: ¿qué ciudades?» sobre la parada del crucero: es la ruta del barco, no ciudades en tierra.
+    if (q.tipo === "ciudades_de_pais" && q.parada && next.paradas.find((s) => s.id === q.parada)?.llegada_por === "crucero") {
+      next = resolveQuestion(next, q.id, "preferencia");
+    }
+    // Llegó en vuelo desde casa y no dijo cómo regresa: en vuelo (se ve y se cambia en el resumen).
+    if (kind === "regreso_modo" && next.regreso.modo === "por_definir" && next.paradas[0]?.llegada_por === "vuelo") {
+      next = resolveQuestion({ ...next, regreso: { ...next.regreso, modo: "vuelo" } }, q.id, "regreso");
+    }
   }
   return next;
 }

@@ -141,6 +141,12 @@ export function durationOf(text: string): { days: number | null; nights: number 
   const t = norm(text);
   const n = (w: string) => (/^\d+$/.test(w) ? Number(w) : NUM_WORDS[w] ?? NaN);
   const word = "(\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta)";
+  // «2 noches en Miami … crucero de 5 noches»: partes del viaje que se suman (7 noches), como durationSaid.
+  const all = [...t.matchAll(new RegExp(`\\b${word}\\s*(dias|dia|d|noches|noche|semanas|semana)\\b`, "g"))];
+  if (all.length >= 2 && all.every((x) => /^noche/.test(x[2]))) {
+    const sum = all.reduce((a, x) => a + (Number.isFinite(n(x[1])) ? n(x[1]) : 0), 0);
+    if (sum >= 1 && sum <= 120) return { days: sum + 1, nights: sum };
+  }
   const m = t.match(new RegExp(`\\b${word}\\s*(dias|dia|d|noches|noche|semanas|semana)\\b`));
   if (!m) return { days: null, nights: null };
   const q = n(m[1]);
