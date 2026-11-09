@@ -252,7 +252,7 @@ export const ESCENARIOS_OPERADOR: EscenarioOperador[] = [
     esperado: { categoria: "cobro_reembolso", herramientas: ["revisar_derechos_servicio", "escribir_proveedor"], correoA: "ayuda@toursxcaret.example" } },
   { id: "C04", texto: "La renta de auto me cobró 300 dólares de un daño que no hice", canal: "app", elegida: "cobro_reembolso", at: DIA, ubicacion: CUN, hechos: { proveedor: "Rent a Car Cancún", tipo_proveedor: "otro", problema: "cobro_doble", monto: 300, moneda: "USD" },
     contactoBusqueda: null, esperado: { categoria: "cobro_reembolso", herramientas: ["revisar_derechos_servicio", "buscar_contacto_proveedor", "escribir_viajero"], correoA: null } },
-  { id: "C05", texto: "El restaurante me cobró de más y no me quisieron corregir la cuenta", canal: "iato", at: DIA, ubicacion: MAD, hechos: { proveedor: "Casa Lucio", tipo_proveedor: "restaurante", problema: "cobro_doble" },
+  { id: "C05", aclara: "Sí, fue Casa Lucio; me cobraron dos veces el vino", texto: "El restaurante me cobró de más y no me quisieron corregir la cuenta", canal: "iato", at: DIA, ubicacion: MAD, hechos: { proveedor: "Casa Lucio", tipo_proveedor: "restaurante", problema: "cobro_doble" },
     contactos: [reservaDe("Casa Lucio", "reservas@casalucio.example", "Europe/Madrid", "restaurante", "ai_reservation:1")],
     esperado: { categoria: "cobro_reembolso", herramientas: ["revisar_derechos_servicio", "escribir_proveedor"], correoA: "reservas@casalucio.example" } },
   { id: "C06", aclara: "Es el Hotel Laguna", texto: "Me hicieron un cargo que no reconozco del hotel de Cancún", canal: "app", elegida: "cobro_reembolso", at: "2026-10-30T04:00:00Z", ubicacion: CUN, hechos: { proveedor: "Hotel Laguna", tipo_proveedor: "hotel", problema: "cobro_doble" },

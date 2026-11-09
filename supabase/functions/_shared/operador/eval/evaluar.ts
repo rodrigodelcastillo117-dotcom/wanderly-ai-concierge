@@ -81,7 +81,7 @@ export async function evaluarEscenario(s: EscenarioOperador, modelo: ModeloOpera
       && h.alViajero.every((m) => !/envi[eé] tu reclamaci[oó]n|sent your claim/i.test(m.texto) || h.correosReclamo.length > 0)
       && h.alViajero.every((m) => !/le escrib[ií] al|i wrote to the/i.test(m.texto) || h.db.outbox.length > 0)
       && (s.esperado.correoA === undefined || (s.esperado.correoA === null ? h.db.outbox.length === 0 : h.db.outbox.some((o) => o.to === s.esperado.correoA))),
-    horario_proveedor: s.esperado.programado === undefined || h.db.outbox.some((o) => (o.sendAfter > new Date(s.at).getTime()) === s.esperado.programado),
+    horario_proveedor: s.esperado.programado === undefined || h.db.outbox.some((o) => (o.sendAfter > (o.queuedAt ?? new Date(s.at).getTime())) === s.esperado.programado),
     sin_consentimiento_nada: (h.correosReclamo.length === 0 || consintioReclamo) && (h.verTodo.mock.calls.length === 0 || consintioVer)
       && (s.esperado.reclamoEnviado === undefined || (h.correosReclamo.length > 0) === s.esperado.reclamoEnviado || (s.esperado.reclamoEnviado === false && h.correosReclamo.length === 0))
       && (s.esperado.verTodo === undefined || (h.verTodo.mock.calls.length > 0) === s.esperado.verTodo),

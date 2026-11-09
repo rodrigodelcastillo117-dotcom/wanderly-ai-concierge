@@ -12,6 +12,8 @@ type Case = {
 export type FakeOutbox = {
   id: string; requestId: string; provider: string; to: string; source: Record<string, unknown>; subject: string; body: string; tz: string | null;
   sendAfter: number; token: string; status: string; dedupe: string; providerId?: string | null;
+  /** Cuándo se puso en la cola (para saber si quedó programado para después o salió ya). */
+  queuedAt?: number;
 };
 
 export const LIMITES = { max_actions: 25, max_spend_usd: 0.8, max_flight_searches: 1, max_provider_emails: 3, lock_seconds: 120 };
@@ -137,7 +139,7 @@ export function createFakeOperadorDb(opts: { start?: Date; enabled?: boolean; li
     if (outbox.some((x) => x.requestId === a._id && x.dedupe === dedupe)) return { ok: true, duplicate: true };
     const sendAfter = Math.max(now(), Date.parse(String(o.send_after ?? new Date(now()).toISOString())));
     const r: FakeOutbox = { id: `ob-${++seq}`, requestId: String(a._id), provider: String(o.provider_name), to: String(o.to_email).toLowerCase(), source: src,
-      subject: String(o.subject), body: String(o.body), tz: (o.provider_tz as string) ?? null, sendAfter, token: String(seq).padStart(24, "f"), status: "programado", dedupe };
+      subject: String(o.subject), body: String(o.body), tz: (o.provider_tz as string) ?? null, sendAfter, queuedAt: now(), token: String(seq).padStart(24, "f"), status: "programado", dedupe };
     outbox.push(r);
     return { ok: true, id: r.id, reply_token: r.token, send_after: new Date(sendAfter).toISOString() };
   };
