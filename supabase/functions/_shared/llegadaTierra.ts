@@ -11,6 +11,8 @@ import { detectShortTrip } from "./groundTransport.ts";
 
 /** Por debajo de esta distancia en línea recta no hay vuelo lógico (mismo umbral que la app, groundTrip.ts). */
 export const NO_FLIGHT_KM = 300;
+/** Road trip («En coche» en todos los tramos): se sale manejando de casa si la primera ciudad está a ≤ 800 km por carretera. */
+export const ROAD_TRIP_FROM_HOME_KM = 800;
 
 export type ModoTierra = "coche" | "autobus" | "tren";
 export type LlegadaTierra = {
@@ -76,7 +78,7 @@ function modoDe(v: unknown): ModoTierra | "avion" | null {
   return null;
 }
 
-export function llegadaPorTierra(origin: unknown, destinations: unknown[], prefs?: { arrival_mode?: unknown; return_mode?: unknown } | null): LlegadaTierra | null {
+export function llegadaPorTierra(origin: unknown, destinations: unknown[], prefs?: { arrival_mode?: unknown; return_mode?: unknown; transport_mode?: unknown; leg_modes?: unknown } | null): LlegadaTierra | null {
   const cities = (Array.isArray(destinations) ? destinations : []).map((c) => String(c ?? "").trim()).filter(Boolean);
   const origen = String(origin ?? "").trim();
   if (!origen || !cities.length) return null;
@@ -87,12 +89,18 @@ export function llegadaPorTierra(origin: unknown, destinations: unknown[], prefs
     const k = placeDistanceKm(a, b);
     return (k != null && k < NO_FLIGHT_KM) || !!detectShortTrip(a, b);
   };
-  const porTierraIda = !!ida || cerca(origen, primera);
-  const porTierraVuelta = !!vuelta || (!vuelta && !!ida) || cerca(ultima, origen);
+  const roadKm = (a: string, b: string) => approxRoadKmOf(a, b) ?? detectShortTrip(a, b, 2000)?.approxRoadKm ?? null;
+  // «En coche (road trip)» en todos los tramos y la casa a una distancia manejable: también se sale manejando de casa
+  // (recorrido 9-nov-2026: la ruta con «En coche» cotizaba un vuelo CDMX → Querétaro).
+  const legs = Array.isArray(prefs?.leg_modes) ? (prefs!.leg_modes as unknown[]) : [];
+  const todoCoche = prefs?.transport_mode === "coche" || (prefs?.transport_mode === "mixto" && legs.length > 0 && legs.every((m) => modoDe(m) === "coche"));
+  const kIda = roadKm(origen, primera), kReg = roadKm(ultima, origen);
+  const manejable = todoCoche && kIda != null && kIda <= ROAD_TRIP_FROM_HOME_KM && (kReg == null || kReg <= ROAD_TRIP_FROM_HOME_KM);
+  const porTierraIda = !!ida || cerca(origen, primera) || manejable;
+  const porTierraVuelta = !!vuelta || (!vuelta && !!ida) || cerca(ultima, origen) || manejable;
   if (!porTierraIda || !porTierraVuelta) return null;
   const modo: ModoTierra = ida ?? vuelta ?? "coche";
-  const roadKm = (a: string, b: string) => approxRoadKmOf(a, b) ?? detectShortTrip(a, b, 2000)?.approxRoadKm ?? null;
-  const km_ida = roadKm(origen, primera), km_regreso = roadKm(ultima, origen);
+  const km_ida = kIda, km_regreso = kReg;
   // carCost suma ida × 2: con ciudades distintas de ida y regreso se usa el promedio para que el total sea ida + regreso.
   const kmMedio = km_ida != null && km_regreso != null ? (km_ida + km_regreso) / 2 : km_ida ?? km_regreso;
   return {

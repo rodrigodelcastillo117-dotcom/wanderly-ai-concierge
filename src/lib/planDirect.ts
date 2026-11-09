@@ -34,6 +34,9 @@ export function nextPlanStep(spec: TripSpec, o: { presupuesto?: number | null } 
   if (r.fecha_regreso) qs.set("fecha_regreso", r.fecha_regreso);
   if (r.noches && r.noches.length === r.destinos.length) qs.set("noches", r.noches.join("|"));
   if (o.presupuesto != null) qs.set("presupuesto", String(o.presupuesto));
+  // «Road trip», «en coche», «por carretera»: la ruta llega con «En coche» elegido (recorrido 9-nov-2026: quedaba sin elegir
+  // y se cotizaba un vuelo CDMX → Querétaro).
+  if (/\b(road ?trip|en (coche|carro|auto|camioneta)|manejando|por carretera)\b/i.test(spec.consulta_original ?? "")) qs.set("modo", "coche");
   qs.set("auto", "1");
   return { kind: "ruta", qs: qs.toString() };
 }

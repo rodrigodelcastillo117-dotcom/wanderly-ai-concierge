@@ -72,3 +72,21 @@ describe("el viaje guardado: «Cómo llegar» en tu coche, sin vuelo", () => {
     expect(JSON.stringify(n)).not.toMatch(/vuelo/i);
   });
 });
+
+import { nextPlanStep } from "@/lib/planDirect";
+describe("ruta con «En coche (road trip)»", () => {
+  it("todos los tramos en coche y la casa a ≤ 800 km: se sale manejando de casa", () => {
+    expect(llegadaPorTierra("Ciudad de México", STOPS, { transport_mode: "coche" })).toMatchObject({ modo: "coche" });
+    expect(llegadaPorTierra("Monterrey", ["Saltillo", "Zacatecas"], { transport_mode: "mixto", leg_modes: ["coche"] })).not.toBeNull();
+  });
+  it("road trip en Europa saliendo de CDMX: con vuelo", () => {
+    expect(llegadaPorTierra("Ciudad de México", ["Madrid", "Toledo", "Córdoba"], { transport_mode: "coche" })).toBeNull();
+  });
+  it("«Road trip en coche…» llega a la ruta con modo=coche", () => {
+    const s: any = { ...emptySpec("Road trip en coche desde Ciudad de México a Querétaro, San Miguel de Allende y Guanajuato", "local"), origen: "Ciudad de México",
+      fecha_salida: "2027-04-08", fecha_regreso: "2027-04-13", viajeros: 2, paradas: STOPS.map((c) => makeStop(c)), preguntas: [] };
+    const n = nextPlanStep(s);
+    expect(n.kind).toBe("ruta");
+    expect(new URLSearchParams((n as any).qs).get("modo")).toBe("coche");
+  });
+});
