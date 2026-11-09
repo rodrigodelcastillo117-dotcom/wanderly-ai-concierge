@@ -2,7 +2,11 @@
 
 Pedido del dueño (29-oct-2026): *un bot especializado que resuelva TODOS los problemas de los viajeros, 24/7, que entienda cualquier queja, revise los derechos del viajero, mande correos y vea todo. "No puede fallar." Los humanos (dueño y Carlo) son el respaldo.*
 
-Estado: **construido y probado, APAGADO**. No hay nada desplegado ni migraciones aplicadas. Se enciende con una bandera (`operador_enabled`) cuando el dueño lo apruebe.
+Estado (9-nov-2026): **ENCENDIDO** (`operador_enabled = true`, 05:54 UTC, con el visto bueno del dueño). Latido verificado y una prueba en vivo con la cuenta demo (cancelación IB6403: derechos, vuelos alternativos, reclamo preparado y permiso pedido en 37 s; caso y reclamo cancelados después).
+
+- Evaluación con IA real: 95 escenarios (2.ª vuelta) + repetición de 12 corregidos. Cero correos o teléfonos inventados, cero envíos sin permiso, salud y seguridad 8/8.
+- Sigue APAGADO: `reclamos_enabled` (falta `RECLAMOS_INBOUND_SECRET` + webhook de Resend; mientras, la IA deja la carta lista para el formulario de la aerolínea), `vigilancia_enabled` (falta tope de SerpApi), Telegram (falta el token del bot) y WhatsApp.
+- Apagar de inmediato: §7.
 
 ---
 
