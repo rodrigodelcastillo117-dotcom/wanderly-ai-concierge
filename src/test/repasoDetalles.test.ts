@@ -21,3 +21,13 @@ describe("aviso del globo", () => {
     expect(src).toMatch(/pellizca para acercar/);
   });
 });
+
+describe("notificaciones sin jerga interna", () => {
+  it("«pedir ayuda al Fixer» se lee «pedir ayuda a una persona del equipo IATOS»", async () => {
+    const { sinJerga } = await import("@/components/NotificationBell");
+    expect(sinJerga("Puedes llamar al restaurante o pedir ayuda al Fixer.")).toBe("Puedes llamar al restaurante o pedir ayuda a una persona del equipo IATOS.");
+    expect(sinJerga("Solicitud al Fixer enviada")).toBe("Solicitud a una persona del equipo IATOS enviada");
+    expect(sinJerga("Tu vuelo sale a tiempo")).toBe("Tu vuelo sale a tiempo");
+    expect(sinJerga(null)).toBe("");
+  });
+});

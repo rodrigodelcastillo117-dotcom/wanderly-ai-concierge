@@ -157,6 +157,7 @@ export function calendarPromptBlock(o: { fechaSalida: string; fechaRegreso: stri
     `- ${nd}: del ${fmtDia(dates[0])} al ${fmtDia(dates[dates.length - 1])}. El itinerario lleva EXACTAMENTE ${dates.length} días, uno por fecha: ${lista}.`,
     `- ${o.llegada}`,
     `- Último día (${fmtDia(dates[dates.length - 1])}): ${o.regresoEnAvion ? "día de regreso; deja tiempo para ir al aeropuerto (3 h antes en internacional, 2 h en nacional) y nada después de la hora del vuelo." : "día de regreso; termina con tiempo para el trayecto de vuelta."}`,
+    "- El vuelo (o trayecto) de regreso va SOLO el último día; ningún día anterior habla de regresar a casa. No describas el vuelo como matutino, vespertino o nocturno si no tienes su hora exacta.",
     `- Al hablar de la duración di "${nd}" tal cual. No digas que cambiaste o reinterpretaste la duración ("aunque marcaste…", "lo armé como…").`,
   ].join("\n");
 }

@@ -214,6 +214,10 @@ export function calendarDays(trip: any): CalendarDay[] {
     have.delete(last.dia);
     have.add(total);
   }
+  // Coherencia con el vuelo real (recorrido en producción, 9-nov-2026, Puerto Escondido): el día 4 decía «Vuelo directo
+  // de retorno» en un viaje que regresa el día 5, y el día 1 «Vuelo directo matutino» con un vuelo de las 20:25.
+  const salidaIda = vuelo ? flightTimesOfRow(vuelo, start, { origen: trip?.ciudad_origen, destino: firstCity })?.salida ?? null : null;
+  coherenciaConVuelos(days, { total, salidaIda: clockOf(salidaIda) });
   const multi = !!(it && !Array.isArray(it) && it.multi);
   const stays = multi ? cityStays(trip) : [];
   const out = [...days];
@@ -225,4 +229,43 @@ export function calendarDays(trip: any): CalendarDay[] {
     out.push({ dia: n, fecha, pendiente: true, titulo: n === total ? RETURN_DAY_TITLE : FREE_DAY_TITLE, ...(stay ? { ciudad: stay.city } : {}) });
   }
   return out.sort((a, b) => a.dia - b.dia);
+}
+
+const REGRESO_ANTES = /\b(vuelo|volar|vuelas)\b[^.;]{0,40}\b(de )?(retorno|regreso|vuelta)\b|\bregreso a (casa|tu ciudad)\b/i;
+const HORA_VUELO = /\b(vuelo[^.,;]{0,30}?)\s+(matutino|vespertino|nocturno|de la mañana|por la mañana|de la tarde|de la noche|temprano)\b/i;
+
+/**
+ * Lo que el texto del modelo afirma del vuelo y la realidad no lo sostiene: un «vuelo de regreso» antes del último día
+ * (queda como tiempo libre en la ciudad) y un «vuelo matutino» cuando la ida sale de noche (se cambia por la hora real).
+ * Solo toca esas frases; el resto del día queda igual. Cambia `days` en su lugar.
+ */
+export function coherenciaConVuelos(days: Array<Record<string, any>>, o: { total: number; salidaIda: string | null }): void {
+  for (const d of days) {
+    if (d?.pendiente) continue;
+    const dia = Number(d?.dia);
+    for (const k of ["mañana", "tarde", "noche"] as const) {
+      const t = String(d[k] ?? (k === "mañana" ? d.manana ?? "" : "")).trim();
+      if (!t) continue;
+      // Un regreso antes del último día no existe: ese rato queda libre en la ciudad.
+      if (dia < o.total && REGRESO_ANTES.test(t) && !/\b(regresa(s|mos)? al hotel|vuelta al hotel)\b/i.test(t)) {
+        const ciudad = String(d.ciudad ?? "").trim();
+        d[k] = dia === o.total - 1 && k === "noche" ? `Última noche${ciudad ? ` en ${ciudad}` : ""}: cena tranquila y deja lista la maleta.` : `Tiempo libre${ciudad ? ` en ${ciudad}` : ""}.`;
+        if (k === "mañana" && "manana" in d) d.manana = d[k];
+        continue;
+      }
+      // Día 1: el horario del vuelo de ida lo dice la tarifa, no el modelo.
+      if (dia === 1 && o.salidaIda) {
+        const h = Number(o.salidaIda.slice(0, 2));
+        const m = HORA_VUELO.exec(t);
+        if (m) {
+          const dice = m[2].toLowerCase();
+          const manana = /matutino|mañana|temprano/.test(dice), tarde = /vespertino|tarde/.test(dice), noche = /nocturno|noche/.test(dice);
+          const real = h < 12 ? "manana" : h < 19 ? "tarde" : "noche";
+          if ((manana && real !== "manana") || (tarde && real !== "tarde") || (noche && real !== "noche")) {
+            d[k] = t.replace(m[0], `${m[1]} (sale ${o.salidaIda})`);
+          }
+        }
+      }
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Bell, Check, Plane, UserPlus } from "lucide-react";
+import { Bell, Check, Plane, UserPlus, Utensils } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { afterCritical } from "@/lib/idleGate";
@@ -8,6 +8,15 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { notificationTarget } from "@/lib/notificationTarget";
 import { respondFriendRequest } from "@/lib/friendRequests";
+
+/**
+ * «Fixer» es el nombre interno del equipo: al viajero se le dice «una persona del equipo IATOS» (recorrido en
+ * producción, 9-nov-2026: notificaciones de Reservas IA decían «pedir ayuda al Fixer», texto que viene de la base).
+ */
+export const sinJerga = (t: unknown): string => String(t ?? "")
+  .replace(/\bal Fixer\b/g, "a una persona del equipo IATOS")
+  .replace(/\bel Fixer\b/g, "el equipo IATOS")
+  .replace(/\bFixer\b/g, "equipo IATOS");
 
 type Notification = {
   id: string;
@@ -179,11 +188,13 @@ export const NotificationBell = ({ className = "" }: { className?: string }) => 
                         ? <span aria-hidden="true" className="text-sm leading-none">👋</span>
                         : n.type === "friend_request" || n.type === "friend_accepted"
                           ? <UserPlus className="w-4 h-4 text-primary" />
-                          : <Plane className="w-4 h-4 text-primary" />}
+                          : n.type === "ai_reservation"
+                            ? <Utensils className="w-4 h-4 text-primary" />
+                            : <Plane className="w-4 h-4 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{n.title}</p>
-                      {n.body && <p className="text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
+                      <p className="text-sm font-medium truncate">{sinJerga(n.title)}</p>
+                      {n.body && <p className="text-[11px] text-muted-foreground line-clamp-2">{sinJerga(n.body)}</p>}
                       <p className="text-[11px] text-muted-foreground mt-1">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
                       </p>
