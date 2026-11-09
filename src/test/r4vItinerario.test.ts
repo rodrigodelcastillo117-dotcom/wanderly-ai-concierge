@@ -16,13 +16,16 @@ const byDia = (days: any[]) => new Map(days.map((d) => [d.dia, d]));
 /** Cada día con plan cae dentro de la estancia de su ciudad (el último puede ser el día de salida). */
 function assertMatchesStays(trip: any, days: any[]) {
   const stays = cityStays(trip);
+  // Recorrido en producción (9-nov-2026): el vuelo sale el 10 y llega el 11, así que el hotel de Roma empieza el 11
+  // (antes se cotizaba desde el 10: una noche pagada en el avión). El día 1 es el del vuelo.
   expect(stays.map((s) => [s.city, s.checkin, s.checkout])).toEqual([
-    ["Roma", "2027-05-10", "2027-05-14"], ["Florencia", "2027-05-14", "2027-05-17"], ["Venecia", "2027-05-17", "2027-05-20"],
+    ["Roma", "2027-05-11", "2027-05-14"], ["Florencia", "2027-05-14", "2027-05-17"], ["Venecia", "2027-05-17", "2027-05-20"],
   ]);
   for (const d of days) {
     const s = stays.find((x) => x.city === d.ciudad);
     expect(s, `día ${d.dia} sin ciudad`).toBeTruthy();
-    const ok = d.fecha >= s!.checkin && (d.fecha < s!.checkout || (d.fecha === trip.fecha_regreso && s === stays[stays.length - 1]));
+    const diaDeVuelo = d.tipo === "vuelo" && s === stays[0] && d.fecha === trip.fecha_salida;
+    const ok = diaDeVuelo || d.fecha >= s!.checkin && (d.fecha < s!.checkout || (d.fecha === trip.fecha_regreso && s === stays[stays.length - 1]));
     expect(ok, `día ${d.dia} (${d.fecha}) fuera de ${s!.city} ${s!.checkin}–${s!.checkout}`).toBe(true);
   }
 }

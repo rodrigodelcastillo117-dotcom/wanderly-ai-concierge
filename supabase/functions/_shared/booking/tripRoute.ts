@@ -14,6 +14,8 @@ export type TripRouteLike = {
   fecha_regreso?: string | null;
   num_viajeros?: number | null;
   itinerario_json?: any;
+  /** Vuelos cotizados del viaje: su `llegada` ("2027-04-11 12:35", hora local) dice si la primera noche es en el avión. */
+  vuelos_json?: any;
 };
 
 /** Ciudades del viaje en orden: itinerario_json.destinations o el texto "Roma → Florencia → Venecia". */
@@ -142,20 +144,57 @@ export function cityStays(trip: TripRouteLike | null | undefined): CityStay[] {
   if (cities.length < 2 || !start || !end || end <= start) return [];
   const total = nightsBetween(start, end);
   const per: any[] = Array.isArray(trip?.itinerario_json?.logistics?.per_destination) ? trip!.itinerario_json.logistics.per_destination : [];
-  const fromPlan = per.length === cities.length && per[0]?.checkin === start && per[per.length - 1]?.checkout === end
+  // Plan nuevo: si la primera noche fue en el avión, la primera ciudad empieza `noches_en_vuelo` días después.
+  const enVueloPlan = Number(per[0]?.noches_en_vuelo) || 0;
+  const fromPlan = per.length === cities.length
+    && (per[0]?.checkin === start || (enVueloPlan >= 1 && enVueloPlan <= 2 && per[0]?.checkin === addDaysIso(start, enVueloPlan)))
+    && per[per.length - 1]?.checkout === end
     && per.every((p) => isIsoDate(p?.checkin) && isIsoDate(p?.checkout) && p.checkout > p.checkin);
-  if (fromPlan) return per.map((p, i) => ({ city: cities[i], checkin: p.checkin, checkout: p.checkout, nights: nightsBetween(p.checkin, p.checkout) }));
+  if (fromPlan) {
+    return primeraNocheEnVuelo(per.map((p, i) => ({ city: cities[i], checkin: p.checkin, checkout: p.checkout, nights: nightsBetween(p.checkin, p.checkout) })), start, trip);
+  }
   const days: any[] = Array.isArray(trip?.itinerario_json?.days) ? trip!.itinerario_json.days : [];
   const byDays = cities.map((c) => days.filter((d) => sameCity(d?.ciudad, c)).length);
   let nights = byDays.every((n) => n > 0) && byDays.reduce((a, b) => a + b, 0) === total ? byDays : splitNights(total, cities.length);
   if (nights.reduce((a, b) => a + b, 0) !== total) nights = splitNights(total, cities.length);
   let cursor = start;
-  return cities.map((city, i) => {
+  return primeraNocheEnVuelo(cities.map((city, i) => {
     const checkin = cursor;
     const checkout = addDaysIso(checkin, nights[i]);
     cursor = checkout;
     return { city, checkin, checkout, nights: nights[i] };
-  });
+  }), start, trip);
+}
+
+/**
+ * Noches en el avión antes de llegar a la primera ciudad, según los vuelos cotizados del viaje (vuelos_json):
+ * días entre la salida del viaje y la `llegada` del vuelo. Si alguno llega el mismo día, 0 (no se adivina cuál
+ * eligió el viajero). Más de 2 no es creíble: 0.
+ */
+export function nochesEnVueloDelViaje(trip: TripRouteLike | null | undefined, start: string): number {
+  const vuelos: any[] = Array.isArray(trip?.vuelos_json) ? trip!.vuelos_json : [];
+  const dias = vuelos
+    .map((v) => String(v?.llegada ?? "").slice(0, 10))
+    .filter(isIsoDate)
+    .map((d) => nightsBetween(start, d));
+  if (!dias.length) return 0;
+  const min = Math.min(...dias);
+  return min >= 1 && min <= 2 ? min : 0;
+}
+
+/**
+ * Vuelo largo que llega al día siguiente (México → Europa): la primera ciudad empieza cuando LLEGA el vuelo, no el
+ * día que sale, y pierde esas noches (mínimo 1; las demás ciudades no cambian). Arregla también los viajes ya
+ * guardados con la primera noche contada desde la salida (recorrido en producción, 9-nov-2026).
+ */
+function primeraNocheEnVuelo(stays: CityStay[], start: string, trip: TripRouteLike | null | undefined): CityStay[] {
+  const first = stays[0];
+  if (!first || first.checkin !== start) return stays;
+  const enVuelo = nochesEnVueloDelViaje(trip, start);
+  if (!enVuelo || first.nights < 2) return stays;
+  const quita = Math.min(enVuelo, first.nights - 1);
+  const checkin = addDaysIso(start, quita);
+  return [{ ...first, checkin, nights: nightsBetween(checkin, first.checkout) }, ...stays.slice(1)];
 }
 
 /** ¿Dos nombres son la misma ciudad? ("Venecia" = "Venice" = "venecia, Italia"). */

@@ -45,6 +45,7 @@ import { resolveDestinations } from "../_shared/placeResolve.ts";
 import { flightsTotalMxn, openJawSearchBody, openJawTiers, planOpenJaw } from "./openJaw.ts";
 // Crucero/ferry entre paradas: noches a bordo sin hotel y precio por cotizar con la naviera.
 import { applySeaLegs, normalizeSeaLegs, seaNights, seaNightsAfter, seaPromptBlock } from "./seaLegs.ts";
+import { nochesEnVuelo, primeraCiudadDesdeLlegada } from "./llegada.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -992,6 +993,17 @@ Entrega JSON con:
     mark("lugares");
     console.log("logistics-plan lugares:", perDestination.map((pd: any) => ({ city: pd.city, ...pd._v })));
     perDestination.forEach((pd: any) => { delete pd._v; });
+
+    // Vuelo largo que llega al día siguiente (México → Europa): el primer hotel empieza cuando LLEGA el vuelo del
+    // tier elegido (hora local de llegada de Google Flights), no el día que sale (llegada.ts).
+    {
+      const vueloSel = flights.find((f: any) => f.tier === selectedTier) ?? flights[0];
+      const enVuelo = nochesEnVuelo(body.fecha_salida ?? null, vueloSel?.llegada ?? null);
+      if (enVuelo > 0 && perDestination[0]) {
+        perDestination[0] = primeraCiudadDesdeLlegada(perDestination[0], enVuelo);
+        console.log("logistics-plan: primera noche en vuelo", { ciudad: perDestination[0].city, noches_en_vuelo: perDestination[0].noches_en_vuelo, checkin: perDestination[0].checkin });
+      }
+    }
 
     // ───── DESGLOSE REAL (MXN) según el tier del usuario ─────
     const usdToMxn = (usd: number) => Math.round((Number(usd) || 0) * fxUsd);
