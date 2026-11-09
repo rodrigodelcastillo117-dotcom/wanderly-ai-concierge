@@ -197,6 +197,22 @@ function primeraNocheEnVuelo(stays: CityStay[], start: string, trip: TripRouteLi
   return [{ ...first, checkin, nights: nightsBetween(checkin, first.checkout) }, ...stays.slice(1)];
 }
 
+/**
+ * Día en que el viajero LLEGA a su destino (no el día que sale de casa): la entrada a la primera ciudad o, en un viaje
+ * de un destino, la salida más las noches en el avión (México → Japón sale el 15 y llega el 16). Sirve para que la
+ * renta de auto y los tours no empiecen el día del vuelo (recorrido Japón, 9-nov-2026). null sin fecha de salida.
+ */
+export function fechaLlegada(trip: TripRouteLike | null | undefined): string | null {
+  const start = isIsoDate(trip?.fecha_salida) ? trip!.fecha_salida! : null;
+  if (!start) return null;
+  const stays = cityStays(trip);
+  if (stays.length) return stays[0].checkin;
+  const end = isIsoDate(trip?.fecha_regreso) ? trip!.fecha_regreso! : null;
+  const enVuelo = nochesEnVueloDelViaje(trip, start);
+  if (!enVuelo || !end || nightsBetween(start, end) < enVuelo + 1) return start;
+  return addDaysIso(start, enVuelo);
+}
+
 /** ¿Dos nombres son la misma ciudad? ("Venecia" = "Venice" = "venecia, Italia"). */
 export function sameCity(a: unknown, b: unknown): boolean {
   const x = cityAirports(a);

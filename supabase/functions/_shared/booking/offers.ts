@@ -13,7 +13,7 @@ import { airlineCode } from "../airlines.ts";
 import { cleanPlaceName } from "../placeName.ts";
 import { restaurantCountry, restaurantSearchFor } from "../restaurantBooking.ts";
 import { airlineFitsRoute, cityAirports, codeServesCity, mainAirport, maxPlausibleHours } from "../airports.ts";
-import { stayForCity, tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
+import { fechaLlegada, stayForCity, tripFlightRoute, type TripFlightRoute } from "./tripRoute.ts";
 import { TP_PUBLIC_MARKER } from "../tp-params.ts";
 import type { RequestLang } from "./messages.ts";
 import { hotelPriceRooms } from "../rooms.ts";
@@ -664,9 +664,12 @@ export function offerFromVenue(
     const s = restaurantSearchFor(name, city, iso);
     if (s) searches.push({ url: s.url, trust: "builder", evidence: s.kind === "thefork" ? "EV-THEFORK-SEARCH" : EVIDENCE.OPENTABLE_SEARCH, provider_label: s.kind === "thefork" ? "TheFork" : "OpenTable", preserves: { product: false, dates: false, travelers: false, room_or_fare: false } });
   } else if (product !== "restaurant" && official.length === 0) {
-    // Con las fechas del viaje: GetYourGuide filtra por ese rango (date_from/date_to).
-    const tripFrom = isIsoDate(ctx.trip?.fecha_salida) ? ctx.trip!.fecha_salida! : null;
-    const tripTo = isIsoDate(ctx.trip?.fecha_regreso) ? ctx.trip!.fecha_regreso! : null;
+    // Con las fechas del viaje: GetYourGuide filtra por ese rango (date_from/date_to). Las de la estancia en esa
+    // ciudad si se saben; si no, desde el día que el viajero LLEGA (no el del vuelo de salida).
+    const estancia = stayForCity(ctx.trip, city);
+    const llega = fechaLlegada(ctx.trip);
+    const tripFrom = estancia?.checkin ?? (isIsoDate(llega) ? llega : null);
+    const tripTo = estancia?.checkout ?? (isIsoDate(ctx.trip?.fecha_regreso) ? ctx.trip!.fecha_regreso! : null);
     const gyg = getYourGuideSearchUrl(city ?? "", name, TP_PUBLIC_MARKER, { from: tripFrom, to: tripTo });
     const via = viatorSearchUrl(city ?? "", name);
     // Con fechas del viaje va primero GetYourGuide (filtra por ese rango); sin fechas, Viator con el

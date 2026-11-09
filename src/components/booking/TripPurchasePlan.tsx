@@ -30,6 +30,7 @@ import { FlightLiveQuote } from "@/components/booking/FlightLiveQuote";
 import { DriverService } from "@/components/booking/DriverService";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
 import { transportRubroLabel } from "@/lib/multiDestTrip";
+import { fechaLlegada, stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
 import { roadLegTolls, TollInfo } from "@/components/roadtrip/TollInfo";
 // Viaje corto por tierra (claude/viaje-corto): "Cómo llegar", coche con casetas reales y total real/estimado.
 import { GroundOptionInfo, groundOptionSummary } from "@/components/booking/GroundOptionInfo";
@@ -571,7 +572,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                     extra={(i) => { const it = items.find((p) => p.kind === "actividad" && p.index === i); return it ? <div className="pt-1">{markControl(it, "comprar-actividad")}</div> : null; }} />
                 )}
                 {/* Tours reales de Viator (Partner API de afiliado), solo tras el botón. */}
-                <ViatorToursButton city={e.city} tripId={trip.id} dateFrom={trip.fecha_salida ?? null} dateTo={trip.fecha_regreso ?? null} />
+                <ViatorToursButton city={e.city} tripId={trip.id} dateFrom={stayForCity(trip, e.city)?.checkin ?? fechaLlegada(trip)} dateTo={stayForCity(trip, e.city)?.checkout ?? trip.fecha_regreso ?? null} />
               </div>
             );
           })}
@@ -579,7 +580,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
         </section>
       )}
       {flow.extras.length === 0 && trip?.destino && (
-        <ViatorToursButton className="mt-5" city={trip.destino} tripId={trip.id} dateFrom={trip.fecha_salida ?? null} dateTo={trip.fecha_regreso ?? null} />
+        <ViatorToursButton className="mt-5" city={trip.destino} tripId={trip.id} dateFrom={fechaLlegada(trip)} dateTo={trip.fecha_regreso ?? null} />
       )}
 
       {/* Último paso: todo lo elegido, el total y desde aquí se compra cada cosa. */}

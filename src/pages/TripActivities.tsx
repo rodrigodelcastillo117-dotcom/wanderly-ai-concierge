@@ -13,6 +13,7 @@ import { TripToolBanner, useTripTool } from "@/components/TripToolContext";
 import { SmartImage } from "@/components/media/SmartImage";
 import { activityQuery, cuisineQuery, hotelQuery } from "@/lib/categoryImagery";
 import { ViatorToursButton } from "@/components/booking/ViatorTours";
+import { fechaLlegada, stayForCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { TripadvisorSourceNote } from "@/components/tripadvisor/TripadvisorRating";
 import { TripadvisorPlaceCard, type TAResult } from "@/components/tripadvisor/TripadvisorPlaceCard";
 
@@ -33,7 +34,11 @@ const TripActivities = () => {
   const [source, setSource] = useState<"tripadvisor" | "google_maps">("tripadvisor");
 
   // Con un viaje en contexto (?trip=), GetYourGuide se abre filtrado a las fechas del viaje.
-  const tripDates = tripTool.trip?.fecha_salida && tripTool.trip?.fecha_regreso ? { from: tripTool.trip.fecha_salida, to: tripTool.trip.fecha_regreso } : undefined;
+  // Desde el día que el viajero LLEGA (Japón: sale el 15, llega el 16), o la estancia en la ciudad buscada.
+  const estancia = tripTool.trip ? stayForCity(tripTool.trip as never, city) : null;
+  const desde = estancia?.checkin ?? fechaLlegada(tripTool.trip as never);
+  const hasta = estancia?.checkout ?? tripTool.trip?.fecha_regreso;
+  const tripDates = desde && hasta ? { from: desde, to: hasta } : undefined;
   const sources: { name: string; desc: string; link: () => string; category: "activity" | "restaurant"; prefill: string }[] = [
     { name: "GetYourGuide", desc: "Tours, skip-the-line, experiencias guiadas. Cancelación 24h.", link: () => getYourGuideLink(city, undefined, tripDates), category: "activity", prefill: "getyourguide" },
     { name: "Viator", desc: "Marketplace de Tripadvisor: actividades y tours.", link: () => viatorLink(city), category: "activity", prefill: "viator" },
@@ -146,7 +151,7 @@ const TripActivities = () => {
         {/* Tours reales de Viator (Partner API de afiliado): solo tras el botón; "Ver en Viator" no es una reserva. */}
         {city.trim() && (
           <ViatorToursButton key={city.trim().toLowerCase()} city={city.trim()} tripId={tripTool.trip?.id}
-            dateFrom={tripTool.trip?.fecha_salida ?? null} dateTo={tripTool.trip?.fecha_regreso ?? null} />
+            dateFrom={tripDates?.from ?? null} dateTo={tripDates?.to ?? null} />
         )}
 
         <div>

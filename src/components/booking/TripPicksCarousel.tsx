@@ -14,6 +14,7 @@ import { buildPickCards, missingTiersLine, parsePriceRange, restaurantPriceLabel
 import { logBookingClick } from "@/lib/trackBooking";
 import { ViatorToursDialogButton } from "@/components/booking/ViatorTours";
 import { restaurantBooking } from "../../../supabase/functions/_shared/restaurantBooking.ts";
+import { fechaLlegada, stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
 
 /** label: lo que el botón es ("Sitio oficial", "Ver en Google Maps", "Buscar en OpenTable"…), del motor de reservas. */
 export type PickAction = { url: string; site: string | null; label?: string | null } | null;
@@ -183,7 +184,7 @@ function Card({ card, kind, city, list, trip, actionFor, isChosen, onChoose, ext
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
           {kind === "experiencia" && unverifiedPlace(kind, x) && (!action?.url || /^Buscar\b/i.test(action.label ?? "")) ? (
             // Tour "Sin verificar" (analizar-viaje / logistics-plan): tours reales de Viator en vez de la búsqueda genérica.
-            <ViatorToursDialogButton city={x?.ciudad ?? city} query={name} tripId={trip?.id} dateFrom={trip?.fecha_salida ?? null} dateTo={trip?.fecha_regreso ?? null} />
+            <ViatorToursDialogButton city={x?.ciudad ?? city} query={name} tripId={trip?.id} dateFrom={stayForCity(trip, x?.ciudad ?? city)?.checkin ?? fechaLlegada(trip)} dateTo={stayForCity(trip, x?.ciudad ?? city)?.checkout ?? trip?.fecha_regreso ?? null} />
           ) : action?.url ? (
             <a href={action.url} target="_blank" rel="noopener noreferrer" data-testid="pick-reservar"
               onClick={() => void logBookingClick({ category: kind === "restaurante" ? "restaurant" : "activity", provider: action.site ?? "Proveedor", title: name,

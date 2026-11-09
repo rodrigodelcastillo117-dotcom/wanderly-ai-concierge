@@ -7,7 +7,7 @@
 //    road_trip), que TripDetail muestra como transporte por tierra;
 //  - un vuelo estimado (sin tarifa de un proveedor) no nombra aerolínea ni dice "Directo".
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
-import { sameCity, stayForCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { fechaLlegada, sameCity, stayForCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
 import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
 import { transportModeOf } from "../../supabase/functions/_shared/booking/offers.ts";
@@ -214,7 +214,7 @@ export function legCarRentalDates(trip: any, from: string, to: string, legDate?:
     return { pickup: day, dropoff: day };
   }
   const stay = stayForCity(trip, to || cleanFrom);
-  return { pickup: iso(stay?.checkin) ?? iso(trip?.fecha_salida), dropoff: iso(stay?.checkout) ?? iso(trip?.fecha_regreso) };
+  return { pickup: iso(stay?.checkin) ?? iso(fechaLlegada(trip)), dropoff: iso(stay?.checkout) ?? iso(trip?.fecha_regreso) };
 }
 
 /**
@@ -225,13 +225,14 @@ export function legCarRentalDates(trip: any, from: string, to: string, legDate?:
  */
 export function carSearchDefaults(
   q: { city?: string | null; dropoff?: string | null; pickup?: string | null; ret?: string | null },
-  trip: { destino?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null } | null | undefined,
+  trip: { destino?: string | null; fecha_salida?: string | null; fecha_regreso?: string | null; [k: string]: unknown } | null | undefined,
 ): { city: string; pickup: string; ret: string; oneWayLeg: boolean } {
   const iso = (d: unknown) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "");
   const city = String(q.city ?? "").trim();
   const dropoff = String(q.dropoff ?? "").trim();
   const oneWayLeg = !!city && !!dropoff && !sameCity(city, dropoff);
-  const pickup = iso(q.pickup) || (oneWayLeg ? "" : iso(trip?.fecha_salida));
+  // Sin fecha en la URL, el día que el viajero LLEGA (no el del vuelo de salida: Japón sale el 15 y llega el 16).
+  const pickup = iso(q.pickup) || (oneWayLeg ? "" : iso(fechaLlegada(trip as never)));
   let ret = iso(q.ret);
   if (!ret) ret = oneWayLeg ? pickup : iso(trip?.fecha_regreso);
   // Una devolución anterior a la recogida no es válida: se iguala a la recogida.
