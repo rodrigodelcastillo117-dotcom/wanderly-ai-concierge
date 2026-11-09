@@ -231,6 +231,13 @@ export function countryForStops(stops: unknown[]): string | null {
 export function tripCountryLabel(trip: (TripRouteLike & { pais_destino?: string | null }) | null | undefined): string | null {
   const p = String(trip?.pais_destino ?? "").trim();
   const cities = tripDestinations(trip);
+  // Ruta por varios países (Madrid → París → Roma): «España · Francia · Italia», no solo el primero (recorrido en
+  // producción, 9-nov-2026). pais_destino sigue guardando el de la primera ciudad (moneda, eSIM, teléfono).
+  if (cities.length > 1) {
+    const paises = cities.map((c) => cityAirports(c)?.country ?? null);
+    const distintos = [...new Set(paises.filter((x): x is string => !!x))];
+    if (distintos.length > 1 && paises.every(Boolean)) return distintos.join(" · ");
+  }
   if (p && !cities.some((c) => sameCity(c, p))) return p;
   return countryForStops(cities) ?? (p && !cityAirports(p) ? p : null);
 }

@@ -6,6 +6,9 @@ import { BackButton } from "@/components/BackButton";
 import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
+import { isGroundTripOption } from "@/lib/booking";
+import { calendarDays } from "@/lib/itineraryCalendar";
+import { daySlots } from "@/lib/itineraryDay";
 import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
@@ -176,11 +179,9 @@ const TripMap = () => {
     return () => { cancelled = true; };
   }, [mapInitialized, trip]);
 
-  const days = useMemo(() => {
-    if (!trip) return [];
-    const itin = trip.itinerario_json;
-    return Array.isArray(itin) ? itin : Array.isArray(itin?.days) ? itin.days : [];
-  }, [trip]);
+  // Los mismos días que el Itinerario (calendarDays: con el día de regreso y la llegada ajustada), no solo los guardados
+  // (recorrido en producción, 9-nov-2026: el mapa llegaba a «Día 4» en un itinerario de 5 días).
+  const days = useMemo(() => (trip ? calendarDays(trip) : []), [trip]);
   // Lista de destinos del viaje (multi o single)
   const destinations: string[] = useMemo(() => {
     if (!trip) return [];
@@ -189,7 +190,9 @@ const TripMap = () => {
     return multi && multi.length ? multi : (trip.destino ? [trip.destino] : []);
   }, [trip]);
   const dayPlan = days[selectedDay] ?? null;
-  const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan ?? [];
+  // Los días del itinerario traen mañana / tarde / noche (no `actividades`): antes el mapa decía «Día libre».
+  const acts: any[] = dayPlan?.actividades ?? dayPlan?.plan
+    ?? (dayPlan ? daySlots(dayPlan).map((x) => ({ actividad: `${x.label}: ${x.headline}`, lugar: x.place?.name ?? x.headline })) : []);
   const showAll = selectedDay < 0;
 
 
@@ -304,7 +307,12 @@ const TripMap = () => {
       for (let i = 0; i < routeStops.length - 1; i++) {
         const a = routeStops[i];
         const b = routeStops[i + 1];
-        const mode = detectMode(a.city ?? a.name, b.city ?? b.name, vuelos, cruceros);
+        // Origen → primer destino: si el viaje tiene un vuelo cotizado (no un trayecto por tierra), es avión aunque el
+        // vuelo no traiga ciudades (recorrido en producción, 9-nov-2026: CDMX → Puerto Escondido salía en coche, «Tierra»).
+        const desdeOrigen = i === 0 && !!originName && a.name === originName;
+        const mode = desdeOrigen && vuelos.some((v: any) => v && !isGroundTripOption(v))
+          ? "flight"
+          : detectMode(a.city ?? a.name, b.city ?? b.name, vuelos, cruceros);
 
         const style =
           mode === "flight"
