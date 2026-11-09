@@ -26,6 +26,12 @@ import { ActionCard } from "@/components/concierge/ActionCard";
 import { RestaurantBookingButtons } from "@/components/booking/RestaurantBookingButtons";
 import { resetAiReservationsEnabledCache } from "@/lib/aiReservations";
 import { restaurantBooking } from "../../supabase/functions/_shared/restaurantBooking";
+import { localISODate } from "@/lib/localDate";
+import { addIsoDays } from "@/lib/multiCityText";
+
+// El formulario no acepta fechas pasadas: la mesa se pide para dentro de 14 días (antes 7-nov-2026 fijo, que
+// dejó de ser futuro el 8-nov-2026 y rompió la prueba).
+const MESA = addIsoDays(localISODate(), 14);
 
 const PLACE = "ChIJkf2l5z3_0YURc6dGkqZ9Ays";
 const RES_ID = "00000000-0000-4000-8000-000000000001";
@@ -216,14 +222,14 @@ describe("tarjeta de restaurante: 'Pedir mesa con Iato' solo si está habilitado
     expect(btns).toHaveLength(2);
     expect(invoke.mock.calls.filter(([, o]) => o.body.action === "status")).toHaveLength(1);
     fireEvent.click(btns[0]);
-    fireEvent.change(await screen.findByLabelText("Fecha"), { target: { value: "2026-11-07" } });
+    fireEvent.change(await screen.findByLabelText("Fecha"), { target: { value: MESA } });
     fireEvent.change(screen.getByLabelText("Hora"), { target: { value: "21:00" } });
     fireEvent.change(screen.getByLabelText("Personas"), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Notas"), { target: { value: "Aniversario" } });
     fireEvent.click(screen.getByRole("button", { name: /Preparar el correo/ }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("ai-reservations", { body: expect.objectContaining({
       action: "create_intent", source: "usuario", venue: { name: "Pujol", place_id: PLACE, city: "Ciudad de México" },
-      datetime_local: "2026-11-07T21:00", party_size: 4, notes: "Aniversario", idempotency_key: expect.stringMatching(/^card:[0-9a-f]{16,}$/),
+      datetime_local: `${MESA}T21:00`, party_size: 4, notes: "Aniversario", idempotency_key: expect.stringMatching(/^card:[0-9a-f]{16,}$/),
     }) }));
     expect(await screen.findByTestId("ai-res-preview")).toHaveTextContent("reservas@pujol.com.mx");
     fireEvent.click(screen.getByRole("button", { name: /Enviar al restaurante/ }));

@@ -199,7 +199,7 @@ describe("P2 · solicitudes vacías: mensaje útil para quien no es miembro", ()
   it("no remite a fichas que la cuenta no puede abrir", async () => {
     state.status = baseStatus({ pro_basis: "comped" });
     const { supabase } = await import("@/integrations/supabase/client");
-    const spy = vi.spyOn(supabase, "rpc").mockResolvedValue({ data: [], error: null } as any);
+    const spy = vi.spyOn(supabase as any, "rpc").mockResolvedValue({ data: [], error: null } as any);
     renderAt("/prive/solicitudes");
     const box = await screen.findByTestId("prive-requests-empty");
     expect(box).toHaveTextContent(/se abren con tu membresía/);
