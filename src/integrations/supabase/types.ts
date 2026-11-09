@@ -92,10 +92,16 @@ export type Database = {
       affiliate_clicks: {
         Row: {
           accion: string
+          booking_id: string | null
+          booking_intent_id: string | null
           clicked_at: string
+          host: string | null
           id: string
+          origen: string | null
           payload: Json | null
+          producto: string | null
           proveedor: string
+          red: string | null
           trip_id: string | null
           url_final: string | null
           user_agent: string | null
@@ -103,10 +109,16 @@ export type Database = {
         }
         Insert: {
           accion: string
+          booking_id?: string | null
+          booking_intent_id?: string | null
           clicked_at?: string
+          host?: string | null
           id?: string
+          origen?: string | null
           payload?: Json | null
+          producto?: string | null
           proveedor: string
+          red?: string | null
           trip_id?: string | null
           url_final?: string | null
           user_agent?: string | null
@@ -114,10 +126,16 @@ export type Database = {
         }
         Update: {
           accion?: string
+          booking_id?: string | null
+          booking_intent_id?: string | null
           clicked_at?: string
+          host?: string | null
           id?: string
+          origen?: string | null
           payload?: Json | null
+          producto?: string | null
           proveedor?: string
+          red?: string | null
           trip_id?: string | null
           url_final?: string | null
           user_agent?: string | null
@@ -1227,6 +1245,612 @@ export type Database = {
           },
         ]
       }
+      channel_deferred: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          dedupe_key: string
+          error: string | null
+          id: number
+          payload: Json
+          send_after: string
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key: string
+          error?: string | null
+          id?: number
+          payload: Json
+          send_after: string
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key?: string
+          error?: string | null
+          id?: number
+          payload?: Json
+          send_after?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      channel_inbound: {
+        Row: {
+          channel: string
+          received_at: string
+          update_id: string
+        }
+        Insert: {
+          channel: string
+          received_at?: string
+          update_id: string
+        }
+        Update: {
+          channel?: string
+          received_at?: string
+          update_id?: string
+        }
+        Relationships: []
+      }
+      channel_link_codes: {
+        Row: {
+          channel: string
+          code_hash: string
+          created_at: string
+          expires_at: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      channel_links: {
+        Row: {
+          active: boolean
+          channel: string
+          external_id: string
+          id: string
+          last_inbound_at: string | null
+          last_location: Json | null
+          last_seen_at: string | null
+          linked_at: string
+          location_at: string | null
+          unlinked_at: string | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          active?: boolean
+          channel: string
+          external_id: string
+          id?: string
+          last_inbound_at?: string | null
+          last_location?: Json | null
+          last_seen_at?: string | null
+          linked_at?: string
+          location_at?: string | null
+          unlinked_at?: string | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          active?: boolean
+          channel?: string
+          external_id?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_location?: Json | null
+          last_seen_at?: string | null
+          linked_at?: string
+          location_at?: string | null
+          unlinked_at?: string | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      channel_pending_actions: {
+        Row: {
+          action: Json
+          channel: string
+          created_at: string
+          expires_at: string
+          external_id: string
+          id: string
+          outcome: string | null
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          action: Json
+          channel: string
+          created_at?: string
+          expires_at?: string
+          external_id: string
+          id?: string
+          outcome?: string | null
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: Json
+          channel?: string
+          created_at?: string
+          expires_at?: string
+          external_id?: string
+          id?: string
+          outcome?: string | null
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      channel_prefs: {
+        Row: {
+          preferred: string
+          quiet_end: string | null
+          quiet_start: string | null
+          tz: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          preferred?: string
+          quiet_end?: string | null
+          quiet_start?: string | null
+          tz?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          preferred?: string
+          quiet_end?: string | null
+          quiet_start?: string | null
+          tz?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      claim_events: {
+        Row: {
+          actor: string
+          claim_id: string
+          created_at: string
+          data: Json | null
+          from_status: string | null
+          id: number
+          kind: string
+          note: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor: string
+          claim_id: string
+          created_at?: string
+          data?: Json | null
+          from_status?: string | null
+          id?: number
+          kind: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor?: string
+          claim_id?: string
+          created_at?: string
+          data?: Json | null
+          from_status?: string | null
+          id?: number
+          kind?: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_events_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_forward_tokens: {
+        Row: {
+          created_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      claim_inbound: {
+        Row: {
+          claim_id: string | null
+          created_at: string
+          email_id: string
+          event_id: string
+          evidence: Json | null
+          id: string
+          kind: string
+          message_id: string | null
+          outcome: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          claim_id?: string | null
+          created_at?: string
+          email_id: string
+          event_id: string
+          evidence?: Json | null
+          id?: string
+          kind: string
+          message_id?: string | null
+          outcome?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          claim_id?: string | null
+          created_at?: string
+          email_id?: string
+          event_id?: string
+          evidence?: Json | null
+          id?: string
+          kind?: string
+          message_id?: string | null
+          outcome?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_inbound_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          body_html: string
+          body_text: string
+          channel: string
+          consent: Json | null
+          created_at: string
+          escalate_after: string | null
+          escalate_days: number
+          evaluation: Json
+          followup_at: string | null
+          form_url: string | null
+          id: string
+          incident_id: string | null
+          kind: string
+          language: string
+          last_error: string | null
+          last_reply_at: string | null
+          parent_id: string | null
+          provider_code: string | null
+          provider_message_id: string | null
+          provider_name: string
+          recipient_email: string | null
+          recipient_source: Json | null
+          ref_code: string
+          reminders_sent: number
+          reply: Json | null
+          reply_token: string
+          request: Json
+          response_days: number
+          send_lock_at: string | null
+          sent_at: string | null
+          status: string
+          status_changed_at: string
+          subject: string
+          target: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_html: string
+          body_text: string
+          channel: string
+          consent?: Json | null
+          created_at?: string
+          escalate_after?: string | null
+          escalate_days?: number
+          evaluation?: Json
+          followup_at?: string | null
+          form_url?: string | null
+          id?: string
+          incident_id?: string | null
+          kind: string
+          language: string
+          last_error?: string | null
+          last_reply_at?: string | null
+          parent_id?: string | null
+          provider_code?: string | null
+          provider_message_id?: string | null
+          provider_name: string
+          recipient_email?: string | null
+          recipient_source?: Json | null
+          ref_code: string
+          reminders_sent?: number
+          reply?: Json | null
+          reply_token: string
+          request?: Json
+          response_days?: number
+          send_lock_at?: string | null
+          sent_at?: string | null
+          status?: string
+          status_changed_at?: string
+          subject: string
+          target?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_html?: string
+          body_text?: string
+          channel?: string
+          consent?: Json | null
+          created_at?: string
+          escalate_after?: string | null
+          escalate_days?: number
+          evaluation?: Json
+          followup_at?: string | null
+          form_url?: string | null
+          id?: string
+          incident_id?: string | null
+          kind?: string
+          language?: string
+          last_error?: string | null
+          last_reply_at?: string | null
+          parent_id?: string | null
+          provider_code?: string | null
+          provider_message_id?: string | null
+          provider_name?: string
+          recipient_email?: string | null
+          recipient_source?: Json | null
+          ref_code?: string
+          reminders_sent?: number
+          reply?: Json | null
+          reply_token?: string
+          request?: Json
+          response_days?: number
+          send_lock_at?: string | null
+          sent_at?: string | null
+          status?: string
+          status_changed_at?: string
+          subject?: string
+          target?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claims_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claims_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_events: {
+        Row: {
+          amount: number | null
+          at: string
+          commission_id: string
+          from_status: string | null
+          id: number
+          note: string | null
+          to_status: string
+        }
+        Insert: {
+          amount?: number | null
+          at?: string
+          commission_id: string
+          from_status?: string | null
+          id?: never
+          note?: string | null
+          to_status: string
+        }
+        Update: {
+          amount?: number | null
+          at?: string
+          commission_id?: string
+          from_status?: string | null
+          id?: never
+          note?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_events_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "commissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_sync_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: number
+          ok: boolean | null
+          source: string
+          started_at: string
+          stats: Json
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: never
+          ok?: boolean | null
+          source: string
+          started_at?: string
+          stats?: Json
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: never
+          ok?: boolean | null
+          source?: string
+          started_at?: string
+          stats?: Json
+        }
+        Relationships: []
+      }
+      commissions: {
+        Row: {
+          booked_at: string | null
+          campaign_id: number | null
+          click_id: string | null
+          commission_amount: number
+          currency: string
+          description: string | null
+          external_id: string
+          first_seen_at: string
+          id: string
+          managed_booking_id: string | null
+          paid_at: string | null
+          payout_ref: string | null
+          producto: string
+          proveedor: string
+          provider_state: string | null
+          provider_updated_at: string | null
+          raw: Json
+          sale_amount: number | null
+          source: string
+          status: string
+          sub_id: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          booked_at?: string | null
+          campaign_id?: number | null
+          click_id?: string | null
+          commission_amount?: number
+          currency: string
+          description?: string | null
+          external_id: string
+          first_seen_at?: string
+          id?: string
+          managed_booking_id?: string | null
+          paid_at?: string | null
+          payout_ref?: string | null
+          producto?: string
+          proveedor: string
+          provider_state?: string | null
+          provider_updated_at?: string | null
+          raw?: Json
+          sale_amount?: number | null
+          source: string
+          status: string
+          sub_id?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          booked_at?: string | null
+          campaign_id?: number | null
+          click_id?: string | null
+          commission_amount?: number
+          currency?: string
+          description?: string | null
+          external_id?: string
+          first_seen_at?: string
+          id?: string
+          managed_booking_id?: string | null
+          paid_at?: string | null
+          payout_ref?: string | null
+          producto?: string
+          proveedor?: string
+          provider_state?: string | null
+          provider_updated_at?: string | null
+          raw?: Json
+          sale_amount?: number | null
+          source?: string
+          status?: string
+          sub_id?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_click_id_fkey"
+            columns: ["click_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_clicks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_managed_booking_id_fkey"
+            columns: ["managed_booking_id"]
+            isOneToOne: false
+            referencedRelation: "managed_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comp_grants: {
         Row: {
           created_at: string
@@ -2203,6 +2827,63 @@ export type Database = {
           },
         ]
       }
+      forwarded_emails: {
+        Row: {
+          body_sha256: string | null
+          claim_id: string | null
+          created_at: string
+          from_address: string | null
+          id: string
+          inbound_id: string | null
+          received_at: string | null
+          sender_verified: boolean
+          subject: string | null
+          text_excerpt: string | null
+          user_id: string
+        }
+        Insert: {
+          body_sha256?: string | null
+          claim_id?: string | null
+          created_at?: string
+          from_address?: string | null
+          id?: string
+          inbound_id?: string | null
+          received_at?: string | null
+          sender_verified?: boolean
+          subject?: string | null
+          text_excerpt?: string | null
+          user_id: string
+        }
+        Update: {
+          body_sha256?: string | null
+          claim_id?: string | null
+          created_at?: string
+          from_address?: string | null
+          id?: string
+          inbound_id?: string | null
+          received_at?: string | null
+          sender_verified?: boolean
+          subject?: string | null
+          text_excerpt?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forwarded_emails_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forwarded_emails_inbound_id_fkey"
+            columns: ["inbound_id"]
+            isOneToOne: false
+            referencedRelation: "claim_inbound"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       founders: {
         Row: {
           created_at: string
@@ -2311,6 +2992,318 @@ export type Database = {
         }
         Relationships: []
       }
+      incident_alerts: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          dedupe_key: string
+          error: string | null
+          id: string
+          level: number
+          note: string | null
+          reason: string
+          request_id: string
+          result: Json | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key: string
+          error?: string | null
+          id?: string
+          level: number
+          note?: string | null
+          reason: string
+          request_id: string
+          result?: Json | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key?: string
+          error?: string | null
+          id?: string
+          level?: number
+          note?: string | null
+          reason?: string
+          request_id?: string
+          result?: Json | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_alerts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_config: {
+        Row: {
+          ai_operator_enabled: boolean
+          ai_operator_heartbeat_at: string | null
+          confirm_wait_hours: number
+          id: boolean
+          max_realerts: number
+          notify_on_create: string[]
+          operator_down_after_min: number
+          reply_minutes: Json
+          take_minutes: Json
+          updated_at: string
+        }
+        Insert: {
+          ai_operator_enabled?: boolean
+          ai_operator_heartbeat_at?: string | null
+          confirm_wait_hours?: number
+          id?: boolean
+          max_realerts?: number
+          notify_on_create?: string[]
+          operator_down_after_min?: number
+          reply_minutes?: Json
+          take_minutes?: Json
+          updated_at?: string
+        }
+        Update: {
+          ai_operator_enabled?: boolean
+          ai_operator_heartbeat_at?: string | null
+          confirm_wait_hours?: number
+          id?: boolean
+          max_realerts?: number
+          notify_on_create?: string[]
+          operator_down_after_min?: number
+          reply_minutes?: Json
+          take_minutes?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incident_events: {
+        Row: {
+          actor: string
+          actor_id: string | null
+          at: string
+          body: string | null
+          channel: string | null
+          counterpart: string | null
+          data: Json
+          dedupe_key: string | null
+          delivery: string | null
+          direction: string | null
+          id: number
+          kind: string
+          provider_message_id: string | null
+          request_id: string
+          visible_to_user: boolean
+        }
+        Insert: {
+          actor: string
+          actor_id?: string | null
+          at?: string
+          body?: string | null
+          channel?: string | null
+          counterpart?: string | null
+          data?: Json
+          dedupe_key?: string | null
+          delivery?: string | null
+          direction?: string | null
+          id?: never
+          kind: string
+          provider_message_id?: string | null
+          request_id: string
+          visible_to_user?: boolean
+        }
+        Update: {
+          actor?: string
+          actor_id?: string | null
+          at?: string
+          body?: string | null
+          channel?: string | null
+          counterpart?: string | null
+          data?: Json
+          dedupe_key?: string | null
+          delivery?: string | null
+          direction?: string | null
+          id?: never
+          kind?: string
+          provider_message_id?: string | null
+          request_id?: string
+          visible_to_user?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_oncall: {
+        Row: {
+          active: boolean
+          channels: string[]
+          created_at: string
+          days: number[]
+          email: string
+          end_hour: number
+          id: string
+          name: string | null
+          phone: string | null
+          role: string
+          start_hour: number
+          telegram_chat_id: string | null
+          timezone: string
+        }
+        Insert: {
+          active?: boolean
+          channels?: string[]
+          created_at?: string
+          days?: number[]
+          email: string
+          end_hour?: number
+          id?: string
+          name?: string | null
+          phone?: string | null
+          role?: string
+          start_hour?: number
+          telegram_chat_id?: string | null
+          timezone?: string
+        }
+        Update: {
+          active?: boolean
+          channels?: string[]
+          created_at?: string
+          days?: number[]
+          email?: string
+          end_hour?: number
+          id?: string
+          name?: string | null
+          phone?: string | null
+          role?: string
+          start_hour?: number
+          telegram_chat_id?: string | null
+          timezone?: string
+        }
+        Relationships: []
+      }
+      incidents: {
+        Row: {
+          alerts_count: number
+          assignee: string
+          category: string
+          closed_by: string | null
+          escalated_at: string | null
+          escalation_level: number
+          first_human_response_at: string | null
+          first_response_at: string | null
+          idem_key: string | null
+          last_alert_at: string | null
+          last_progress_at: string
+          needs_human: boolean
+          needs_human_reason: string | null
+          next_step: string | null
+          next_step_alerted_at: string | null
+          next_step_due_at: string | null
+          origin: string
+          received_at: string
+          reopen_count: number
+          request_id: string
+          resolution_note: string | null
+          resolution_requested_at: string | null
+          resolution_state: string | null
+          resolved_at: string | null
+          severity: string
+          severity_initial: string
+          taken_at: string | null
+          taken_by: string | null
+          updated_at: string
+          user_confirmed_at: string | null
+        }
+        Insert: {
+          alerts_count?: number
+          assignee?: string
+          category: string
+          closed_by?: string | null
+          escalated_at?: string | null
+          escalation_level?: number
+          first_human_response_at?: string | null
+          first_response_at?: string | null
+          idem_key?: string | null
+          last_alert_at?: string | null
+          last_progress_at?: string
+          needs_human?: boolean
+          needs_human_reason?: string | null
+          next_step?: string | null
+          next_step_alerted_at?: string | null
+          next_step_due_at?: string | null
+          origin: string
+          received_at?: string
+          reopen_count?: number
+          request_id: string
+          resolution_note?: string | null
+          resolution_requested_at?: string | null
+          resolution_state?: string | null
+          resolved_at?: string | null
+          severity: string
+          severity_initial: string
+          taken_at?: string | null
+          taken_by?: string | null
+          updated_at?: string
+          user_confirmed_at?: string | null
+        }
+        Update: {
+          alerts_count?: number
+          assignee?: string
+          category?: string
+          closed_by?: string | null
+          escalated_at?: string | null
+          escalation_level?: number
+          first_human_response_at?: string | null
+          first_response_at?: string | null
+          idem_key?: string | null
+          last_alert_at?: string | null
+          last_progress_at?: string
+          needs_human?: boolean
+          needs_human_reason?: string | null
+          next_step?: string | null
+          next_step_alerted_at?: string | null
+          next_step_due_at?: string | null
+          origin?: string
+          received_at?: string
+          reopen_count?: number
+          request_id?: string
+          resolution_note?: string | null
+          resolution_requested_at?: string | null
+          resolution_state?: string | null
+          resolved_at?: string | null
+          severity?: string
+          severity_initial?: string
+          taken_at?: string | null
+          taken_by?: string | null
+          updated_at?: string
+          user_confirmed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_learnings: {
         Row: {
           categoria: string
@@ -2394,6 +3387,252 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      managed_booking_events: {
+        Row: {
+          actor: string
+          actor_id: string | null
+          at: string
+          booking_id: string
+          data: Json
+          from_status: string | null
+          id: number
+          kind: string
+          note: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor: string
+          actor_id?: string | null
+          at?: string
+          booking_id: string
+          data?: Json
+          from_status?: string | null
+          id?: never
+          kind: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor?: string
+          actor_id?: string | null
+          at?: string
+          booking_id?: string
+          data?: Json
+          from_status?: string | null
+          id?: never
+          kind?: string
+          note?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_booking_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "managed_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      managed_booking_requests: {
+        Row: {
+          booking_id: string
+          consent_event_id: number | null
+          consent_text: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          details: Json
+          finished_at: string | null
+          id: string
+          incident_id: string | null
+          kind: string
+          policy_check: Json
+          requested_by: string
+          result: Json | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          booking_id: string
+          consent_event_id?: number | null
+          consent_text?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          details?: Json
+          finished_at?: string | null
+          id?: string
+          incident_id?: string | null
+          kind: string
+          policy_check?: Json
+          requested_by: string
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          booking_id?: string
+          consent_event_id?: number | null
+          consent_text?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          details?: Json
+          finished_at?: string | null
+          id?: string
+          incident_id?: string | null
+          kind?: string
+          policy_check?: Json
+          requested_by?: string
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_booking_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "managed_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_booking_requests_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      managed_bookings: {
+        Row: {
+          booking_id: string | null
+          booking_intent_id: string | null
+          cancellable: boolean
+          changeable: boolean
+          commission_amount: number | null
+          created_at: string
+          currency: string | null
+          end_at: string | null
+          environment: string
+          free_cancel_until: string | null
+          id: string
+          lead_traveler: string | null
+          net_amount: number | null
+          partner_order_id: string | null
+          policies: Json
+          product_type: string
+          provider: string
+          provider_booking_id: string
+          provider_ref: string | null
+          provider_status: string | null
+          raw: Json
+          ref_code: string
+          sell_amount: number | null
+          service_fee_amount: number | null
+          start_at: string | null
+          status: string
+          synced_at: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          booking_intent_id?: string | null
+          cancellable?: boolean
+          changeable?: boolean
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string | null
+          end_at?: string | null
+          environment?: string
+          free_cancel_until?: string | null
+          id?: string
+          lead_traveler?: string | null
+          net_amount?: number | null
+          partner_order_id?: string | null
+          policies?: Json
+          product_type: string
+          provider: string
+          provider_booking_id: string
+          provider_ref?: string | null
+          provider_status?: string | null
+          raw?: Json
+          ref_code: string
+          sell_amount?: number | null
+          service_fee_amount?: number | null
+          start_at?: string | null
+          status?: string
+          synced_at?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          booking_intent_id?: string | null
+          cancellable?: boolean
+          changeable?: boolean
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string | null
+          end_at?: string | null
+          environment?: string
+          free_cancel_until?: string | null
+          id?: string
+          lead_traveler?: string | null
+          net_amount?: number | null
+          partner_order_id?: string | null
+          policies?: Json
+          product_type?: string
+          provider?: string
+          provider_booking_id?: string
+          provider_ref?: string | null
+          provider_status?: string | null
+          raw?: Json
+          ref_code?: string
+          sell_amount?: number | null
+          service_fee_amount?: number | null
+          start_at?: string | null
+          status?: string
+          synced_at?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_bookings_booking_intent_id_fkey"
+            columns: ["booking_intent_id"]
+            isOneToOne: false
+            referencedRelation: "booking_intents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_bookings_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       member_card_grants: {
         Row: {
@@ -2621,6 +3860,193 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      operator_cases: {
+        Row: {
+          actions: number
+          consents: Json
+          created_at: string
+          flight_searches: number
+          follow_up_at: string | null
+          last_error: string | null
+          last_event_id: number
+          last_run_at: string | null
+          lock_owner: string | null
+          locked_until: string | null
+          pending: Json | null
+          provider_emails: number
+          request_id: string
+          runs: number
+          runs_day: string | null
+          runs_today: number
+          spend_usd: number
+          state: string
+          summary: string | null
+          updated_at: string
+          wake_at: string | null
+        }
+        Insert: {
+          actions?: number
+          consents?: Json
+          created_at?: string
+          flight_searches?: number
+          follow_up_at?: string | null
+          last_error?: string | null
+          last_event_id?: number
+          last_run_at?: string | null
+          lock_owner?: string | null
+          locked_until?: string | null
+          pending?: Json | null
+          provider_emails?: number
+          request_id: string
+          runs?: number
+          runs_day?: string | null
+          runs_today?: number
+          spend_usd?: number
+          state?: string
+          summary?: string | null
+          updated_at?: string
+          wake_at?: string | null
+        }
+        Update: {
+          actions?: number
+          consents?: Json
+          created_at?: string
+          flight_searches?: number
+          follow_up_at?: string | null
+          last_error?: string | null
+          last_event_id?: number
+          last_run_at?: string | null
+          lock_owner?: string | null
+          locked_until?: string | null
+          pending?: Json | null
+          provider_emails?: number
+          request_id?: string
+          runs?: number
+          runs_day?: string | null
+          runs_today?: number
+          spend_usd?: number
+          state?: string
+          summary?: string | null
+          updated_at?: string
+          wake_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_cases_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operator_config: {
+        Row: {
+          id: boolean
+          lock_seconds: number
+          max_actions: number
+          max_flight_searches: number
+          max_provider_emails: number
+          max_runs_per_day: number
+          max_spend_usd: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          lock_seconds?: number
+          max_actions?: number
+          max_flight_searches?: number
+          max_provider_emails?: number
+          max_runs_per_day?: number
+          max_spend_usd?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          lock_seconds?: number
+          max_actions?: number
+          max_flight_searches?: number
+          max_provider_emails?: number
+          max_runs_per_day?: number
+          max_spend_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      operator_outbox: {
+        Row: {
+          attempts: number
+          body: string
+          claimed_at: string | null
+          created_at: string
+          dedupe_key: string
+          error: string | null
+          id: string
+          language: string
+          provider_message_id: string | null
+          provider_name: string
+          provider_tz: string | null
+          reply_token: string
+          request_id: string
+          send_after: string
+          sent_at: string | null
+          source: Json
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key: string
+          error?: string | null
+          id?: string
+          language?: string
+          provider_message_id?: string | null
+          provider_name: string
+          provider_tz?: string | null
+          reply_token?: string
+          request_id: string
+          send_after?: string
+          sent_at?: string | null
+          source: Json
+          status?: string
+          subject: string
+          to_email: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key?: string
+          error?: string | null
+          id?: string
+          language?: string
+          provider_message_id?: string | null
+          provider_name?: string
+          provider_tz?: string | null
+          reply_token?: string
+          request_id?: string
+          send_after?: string
+          sent_at?: string | null
+          source?: Json
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_outbox_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       packing_lists: {
         Row: {
@@ -4748,6 +6174,24 @@ export type Database = {
         }
         Relationships: []
       }
+      provider_webhook_tokens: {
+        Row: {
+          provider: string
+          seen_at: string
+          token: string
+        }
+        Insert: {
+          provider: string
+          seen_at?: string
+          token: string
+        }
+        Update: {
+          provider?: string
+          seen_at?: string
+          token?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -5120,6 +6564,57 @@ export type Database = {
           last_hit_at?: string | null
           response?: Json
           ttl_seconds?: number
+        }
+        Relationships: []
+      }
+      service_fee_rules: {
+        Row: {
+          activo: boolean
+          etiqueta: string
+          id: string
+          maximo: number | null
+          minimo: number | null
+          modo: string
+          moneda: string
+          monto_fijo: number | null
+          nota: string | null
+          por: string
+          porcentaje: number | null
+          producto: string
+          reembolsable: boolean
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          etiqueta?: string
+          id?: string
+          maximo?: number | null
+          minimo?: number | null
+          modo: string
+          moneda?: string
+          monto_fijo?: number | null
+          nota?: string | null
+          por?: string
+          porcentaje?: number | null
+          producto: string
+          reembolsable?: boolean
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          etiqueta?: string
+          id?: string
+          maximo?: number | null
+          minimo?: number | null
+          modo?: string
+          moneda?: string
+          monto_fijo?: number | null
+          nota?: string | null
+          por?: string
+          porcentaje?: number | null
+          producto?: string
+          reembolsable?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -6876,6 +8371,435 @@ export type Database = {
         }
         Relationships: []
       }
+      vigilancia_avisos: {
+        Row: {
+          canales: Json | null
+          claimed_at: string | null
+          clave: string
+          created_at: string
+          cuerpo: string
+          enviado_at: string | null
+          estado: string
+          expira_at: string | null
+          id: string
+          incidente_id: string | null
+          intentos: number
+          plantilla: Json | null
+          programado_para: string
+          tipo: string
+          titulo: string
+          trip_id: string | null
+          urgente: boolean
+          url: string
+          user_id: string
+          zona_horaria: string | null
+        }
+        Insert: {
+          canales?: Json | null
+          claimed_at?: string | null
+          clave: string
+          created_at?: string
+          cuerpo: string
+          enviado_at?: string | null
+          estado?: string
+          expira_at?: string | null
+          id?: string
+          incidente_id?: string | null
+          intentos?: number
+          plantilla?: Json | null
+          programado_para?: string
+          tipo: string
+          titulo: string
+          trip_id?: string | null
+          urgente?: boolean
+          url?: string
+          user_id: string
+          zona_horaria?: string | null
+        }
+        Update: {
+          canales?: Json | null
+          claimed_at?: string | null
+          clave?: string
+          created_at?: string
+          cuerpo?: string
+          enviado_at?: string | null
+          estado?: string
+          expira_at?: string | null
+          id?: string
+          incidente_id?: string | null
+          intentos?: number
+          plantilla?: Json | null
+          programado_para?: string
+          tipo?: string
+          titulo?: string
+          trip_id?: string | null
+          urgente?: boolean
+          url?: string
+          user_id?: string
+          zona_horaria?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vigilancia_avisos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vigilancia_avisos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vigilancia_config: {
+        Row: {
+          avisos_tope_diario: number
+          confirmacion_limite_horas: number
+          confirmar_desde_horas: number
+          hora_desde: number
+          hora_hasta: number
+          id: boolean
+          incidente_por_puerta: boolean
+          retraso_aviso_min: number
+          retraso_incidente_min: number
+          serp_tope_diario: number
+          sin_respuesta_horas: number
+          updated_at: string
+        }
+        Insert: {
+          avisos_tope_diario?: number
+          confirmacion_limite_horas?: number
+          confirmar_desde_horas?: number
+          hora_desde?: number
+          hora_hasta?: number
+          id?: boolean
+          incidente_por_puerta?: boolean
+          retraso_aviso_min?: number
+          retraso_incidente_min?: number
+          serp_tope_diario?: number
+          sin_respuesta_horas?: number
+          updated_at?: string
+        }
+        Update: {
+          avisos_tope_diario?: number
+          confirmacion_limite_horas?: number
+          confirmar_desde_horas?: number
+          hora_desde?: number
+          hora_hasta?: number
+          id?: boolean
+          incidente_por_puerta?: boolean
+          retraso_aviso_min?: number
+          retraso_incidente_min?: number
+          serp_tope_diario?: number
+          sin_respuesta_horas?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vigilancia_confirmaciones: {
+        Row: {
+          claimed_at: string | null
+          correo: string
+          created_at: string
+          enviada_at: string | null
+          enviar_desde: string | null
+          error: string | null
+          estado: string
+          fuente: Json
+          id: string
+          idioma: string
+          incidente_id: string | null
+          intentos: number
+          origen: string
+          origen_id: string
+          personas: number | null
+          proveedor: string
+          provider_message_id: string | null
+          referencia: string | null
+          remitente_verificado: boolean | null
+          reply_token: string
+          respuesta_at: string | null
+          respuesta_extracto: string | null
+          respuesta_resultado: string | null
+          servicio_at: string
+          servicio_local: string | null
+          tipo: string
+          titular: string | null
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+          zona_horaria: string | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          correo: string
+          created_at?: string
+          enviada_at?: string | null
+          enviar_desde?: string | null
+          error?: string | null
+          estado?: string
+          fuente: Json
+          id?: string
+          idioma?: string
+          incidente_id?: string | null
+          intentos?: number
+          origen: string
+          origen_id: string
+          personas?: number | null
+          proveedor: string
+          provider_message_id?: string | null
+          referencia?: string | null
+          remitente_verificado?: boolean | null
+          reply_token?: string
+          respuesta_at?: string | null
+          respuesta_extracto?: string | null
+          respuesta_resultado?: string | null
+          servicio_at: string
+          servicio_local?: string | null
+          tipo: string
+          titular?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+          zona_horaria?: string | null
+        }
+        Update: {
+          claimed_at?: string | null
+          correo?: string
+          created_at?: string
+          enviada_at?: string | null
+          enviar_desde?: string | null
+          error?: string | null
+          estado?: string
+          fuente?: Json
+          id?: string
+          idioma?: string
+          incidente_id?: string | null
+          intentos?: number
+          origen?: string
+          origen_id?: string
+          personas?: number | null
+          proveedor?: string
+          provider_message_id?: string | null
+          referencia?: string | null
+          remitente_verificado?: boolean | null
+          reply_token?: string
+          respuesta_at?: string | null
+          respuesta_extracto?: string | null
+          respuesta_resultado?: string | null
+          servicio_at?: string
+          servicio_local?: string | null
+          tipo?: string
+          titular?: string | null
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+          zona_horaria?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vigilancia_confirmaciones_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vigilancia_confirmaciones_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vigilancia_eventos: {
+        Row: {
+          ambito: string
+          clave: string
+          created_at: string
+          datos: Json
+          id: number
+          incidente_id: string | null
+          ref_id: string | null
+          resumen: string
+          tipo: string
+          trip_id: string | null
+          user_id: string | null
+          visible_viajero: boolean
+        }
+        Insert: {
+          ambito: string
+          clave: string
+          created_at?: string
+          datos?: Json
+          id?: number
+          incidente_id?: string | null
+          ref_id?: string | null
+          resumen: string
+          tipo: string
+          trip_id?: string | null
+          user_id?: string | null
+          visible_viajero?: boolean
+        }
+        Update: {
+          ambito?: string
+          clave?: string
+          created_at?: string
+          datos?: Json
+          id?: number
+          incidente_id?: string | null
+          ref_id?: string | null
+          resumen?: string
+          tipo?: string
+          trip_id?: string | null
+          user_id?: string | null
+          visible_viajero?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vigilancia_eventos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vigilancia_eventos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vigilancia_preferencias: {
+        Row: {
+          actualizado_at: string
+          contactar_proveedores: boolean
+          texto_aceptado: string | null
+          user_id: string
+        }
+        Insert: {
+          actualizado_at?: string
+          contactar_proveedores?: boolean
+          texto_aceptado?: string | null
+          user_id: string
+        }
+        Update: {
+          actualizado_at?: string
+          contactar_proveedores?: boolean
+          texto_aceptado?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vigilancia_vuelos: {
+        Row: {
+          activo: boolean
+          claimed_at: string | null
+          created_at: string
+          destino: string | null
+          en_seguimiento: boolean
+          estado: Json
+          fallas_seguidas: number
+          fecha: string
+          fin_motivo: string | null
+          fuente: string
+          id: string
+          incidente_id: string | null
+          llegada_at: string | null
+          origen: string | null
+          proxima_revision_at: string | null
+          revisiones: number
+          salida_at: string | null
+          salida_exacta: boolean
+          trip_id: string | null
+          ultima_revision_at: string | null
+          ultimo_ok_at: string | null
+          ultimo_resultado: string | null
+          updated_at: string
+          user_id: string
+          vuelo: string
+          zona_origen: string | null
+        }
+        Insert: {
+          activo?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          destino?: string | null
+          en_seguimiento?: boolean
+          estado?: Json
+          fallas_seguidas?: number
+          fecha: string
+          fin_motivo?: string | null
+          fuente: string
+          id?: string
+          incidente_id?: string | null
+          llegada_at?: string | null
+          origen?: string | null
+          proxima_revision_at?: string | null
+          revisiones?: number
+          salida_at?: string | null
+          salida_exacta?: boolean
+          trip_id?: string | null
+          ultima_revision_at?: string | null
+          ultimo_ok_at?: string | null
+          ultimo_resultado?: string | null
+          updated_at?: string
+          user_id: string
+          vuelo: string
+          zona_origen?: string | null
+        }
+        Update: {
+          activo?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          destino?: string | null
+          en_seguimiento?: boolean
+          estado?: Json
+          fallas_seguidas?: number
+          fecha?: string
+          fin_motivo?: string | null
+          fuente?: string
+          id?: string
+          incidente_id?: string | null
+          llegada_at?: string | null
+          origen?: string | null
+          proxima_revision_at?: string | null
+          revisiones?: number
+          salida_at?: string | null
+          salida_exacta?: boolean
+          trip_id?: string | null
+          ultima_revision_at?: string | null
+          ultimo_ok_at?: string | null
+          ultimo_resultado?: string | null
+          updated_at?: string
+          user_id?: string
+          vuelo?: string
+          zona_origen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vigilancia_vuelos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vigilancia_vuelos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visited_places: {
         Row: {
           address: string | null
@@ -7570,10 +9494,109 @@ export type Database = {
         Returns: undefined
       }
       _ai_res_enabled: { Args: never; Returns: boolean }
+      _claim_actor: {
+        Args: { _actor: string; _note?: string }
+        Returns: undefined
+      }
       _deploy_apply: { Args: { p_from: string; p_to: string }; Returns: string }
       _fixer_request_title: {
         Args: { _motivo: string; _urgencia: string }
         Returns: string
+      }
+      _incident_category_label: { Args: { _c: string }; Returns: string }
+      _incident_cfg: {
+        Args: never
+        Returns: {
+          ai_operator_enabled: boolean
+          ai_operator_heartbeat_at: string | null
+          confirm_wait_hours: number
+          id: boolean
+          max_realerts: number
+          notify_on_create: string[]
+          operator_down_after_min: number
+          reply_minutes: Json
+          take_minutes: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "incident_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _incident_enqueue_alert: {
+        Args: {
+          _dedupe: string
+          _id: string
+          _level: number
+          _note?: string
+          _reason: string
+        }
+        Returns: string
+      }
+      _incident_escalate: {
+        Args: {
+          _actor?: string
+          _actor_id?: string
+          _dedupe?: string
+          _id: string
+          _level: number
+          _note?: string
+          _now?: string
+          _reason: string
+        }
+        Returns: string
+      }
+      _incident_folio: { Args: { _id: string }; Returns: string }
+      _incident_json: { Args: { _id: string; _now?: string }; Returns: Json }
+      _incident_log: {
+        Args: {
+          _actor: string
+          _actor_id?: string
+          _at?: string
+          _body: string
+          _channel?: string
+          _counterpart?: string
+          _data?: Json
+          _dedupe?: string
+          _delivery?: string
+          _direction?: string
+          _id: string
+          _kind: string
+          _provider_message_id?: string
+          _visible?: boolean
+        }
+        Returns: number
+      }
+      _incident_minutes: {
+        Args: { _cfg: Json; _default: number; _sev: string }
+        Returns: number
+      }
+      _incident_operator_alive: { Args: { _now?: string }; Returns: boolean }
+      _incident_payload_ok: { Args: { _p: Json }; Returns: boolean }
+      _incident_sev_rank: { Args: { _s: string }; Returns: number }
+      _incident_sev_up: { Args: { _s: string }; Returns: string }
+      _incident_str_ok: { Args: { _max: number; _v: Json }; Returns: boolean }
+      _incident_user_json: { Args: { _id: string }; Returns: Json }
+      _operator_cfg: {
+        Args: never
+        Returns: {
+          id: boolean
+          lock_seconds: number
+          max_actions: number
+          max_flight_searches: number
+          max_provider_emails: number
+          max_runs_per_day: number
+          max_spend_usd: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "operator_config"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       _ops_ai_json: {
         Args: { _r: Database["public"]["Tables"]["ai_reservations"]["Row"] }
@@ -7709,6 +9732,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_claim_view: { Args: { _id: string }; Returns: Json }
+      admin_claims_list: {
+        Args: { _limit?: number; _status?: string }
+        Returns: Json[]
+      }
+      admin_commissions_summary: { Args: { _month?: string }; Returns: Json }
       admin_cost_metrics: { Args: { _days?: number }; Returns: Json }
       admin_grant_prive: {
         Args: {
@@ -7717,6 +9746,24 @@ export type Database = {
           _reason: string
           _valid_until: string
         }
+        Returns: Json
+      }
+      admin_incident_escalate: {
+        Args: { _id: string; _note?: string }
+        Returns: Json
+      }
+      admin_incident_log: { Args: { _id: string }; Returns: Json }
+      admin_incident_next_step: {
+        Args: { _due: string; _id: string; _text: string }
+        Returns: Json
+      }
+      admin_incident_resolve: {
+        Args: { _evidence?: string; _id: string; _note: string }
+        Returns: Json
+      }
+      admin_incident_take: { Args: { _id: string }; Returns: Json }
+      admin_managed_request_decide: {
+        Args: { _approve: boolean; _id: string; _note?: string }
         Returns: Json
       }
       admin_metrics: { Args: never; Returns: Json }
@@ -7751,6 +9798,21 @@ export type Database = {
       admin_revoke_prive_grant: {
         Args: { _actor: string; _grant_id: string; _reason: string }
         Returns: Json
+      }
+      admin_vigilancia_resumen: { Args: never; Returns: Json }
+      affiliate_click_record: {
+        Args: {
+          _accion: string
+          _booking: string
+          _intent: string
+          _origen: string
+          _producto: string
+          _proveedor: string
+          _trip: string
+          _url: string
+          _user: string
+        }
+        Returns: string
       }
       agregar_amigo_por_codigo: { Args: { p_codigo: string }; Returns: Json }
       ai_res_confirmation_failures: {
@@ -7991,6 +10053,94 @@ export type Database = {
       }
       borrar_recomendacion: { Args: { p_id: string }; Returns: Json }
       cancelar_solicitud_amistad: { Args: { p_otro: string }; Returns: Json }
+      channel_action_put: {
+        Args: {
+          _action: Json
+          _channel: string
+          _external_id: string
+          _user: string
+        }
+        Returns: Json
+      }
+      channel_action_take: {
+        Args: {
+          _cancel?: boolean
+          _channel: string
+          _external_id: string
+          _ref: string
+        }
+        Returns: Json
+      }
+      channel_deferred_add: {
+        Args: {
+          _dedupe: string
+          _payload: Json
+          _send_after: string
+          _user: string
+        }
+        Returns: Json
+      }
+      channel_deferred_due: { Args: { _limit?: number }; Returns: Json }
+      channel_deferred_finish: {
+        Args: { _error?: string; _id: number; _ok: boolean }
+        Returns: boolean
+      }
+      channel_inbound_seen: {
+        Args: { _channel: string; _update_id: string }
+        Returns: boolean
+      }
+      channel_link_code_create: {
+        Args: { _channel: string; _code_hash: string; _user: string }
+        Returns: Json
+      }
+      channel_link_for: {
+        Args: { _channel: string; _external_id: string }
+        Returns: string
+      }
+      channel_link_redeem: {
+        Args: {
+          _channel: string
+          _code_hash: string
+          _external_id: string
+          _username?: string
+        }
+        Returns: Json
+      }
+      channel_links_of: { Args: { _user: string }; Returns: Json }
+      channel_location_get: {
+        Args: { _channel: string; _external_id: string }
+        Returns: Json
+      }
+      channel_location_set: {
+        Args: {
+          _channel: string
+          _external_id: string
+          _lat: number
+          _lng: number
+        }
+        Returns: boolean
+      }
+      channel_open_case: { Args: { _user: string }; Returns: Json }
+      channel_prefs_get: { Args: { _user: string }; Returns: Json }
+      channel_prefs_set: {
+        Args: {
+          _preferred: string
+          _quiet_end: string
+          _quiet_start: string
+          _tz: string
+          _user: string
+        }
+        Returns: Json
+      }
+      channel_targets: { Args: { _user: string }; Returns: Json }
+      channel_unlink: {
+        Args: { _channel: string; _user: string }
+        Returns: Json
+      }
+      channel_window_open: {
+        Args: { _channel: string; _user: string }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           _bucket: string
@@ -7999,6 +10149,61 @@ export type Database = {
           _window_seconds: number
         }
         Returns: Json
+      }
+      claim_apply_reply: {
+        Args: { _d: Json; _id: string; _inbound_id: string }
+        Returns: Json
+      }
+      claim_claim_reminder: { Args: { _id: string }; Returns: Json }
+      claim_claim_send: {
+        Args: { _consent: Json; _id: string; _user_id: string }
+        Returns: Json
+      }
+      claim_create: { Args: { _p: Json; _user_id: string }; Returns: Json }
+      claim_due: { Args: { _limit: number }; Returns: Json[] }
+      claim_forward_token: { Args: { _user_id: string }; Returns: string }
+      claim_inbound_attach: {
+        Args: { _e: Json; _inbound_id: string }
+        Returns: Json
+      }
+      claim_inbound_claim: {
+        Args: {
+          _email_id: string
+          _event_id: string
+          _kind: string
+          _token: string
+        }
+        Returns: Json
+      }
+      claim_inbound_finish: {
+        Args: { _inbound_id: string; _outcome: string; _status: string }
+        Returns: undefined
+      }
+      claim_json: {
+        Args: { _c: Database["public"]["Tables"]["claims"]["Row"] }
+        Returns: Json
+      }
+      claim_list_for_user: {
+        Args: { _id: string; _user_id: string }
+        Returns: Json[]
+      }
+      claim_mark_sent: {
+        Args: {
+          _error: string
+          _id: string
+          _kind: string
+          _ok: boolean
+          _provider_id: string
+        }
+        Returns: Json
+      }
+      claim_mark_user_sent: {
+        Args: { _case_number: string; _id: string; _user_id: string }
+        Returns: Json
+      }
+      claim_notice: {
+        Args: { _provider: string; _ref: string; _status: string }
+        Returns: string[]
       }
       claim_price_watches: {
         Args: { p_limit?: number; p_min_gap?: string }
@@ -8038,6 +10243,24 @@ export type Database = {
         }
       }
       claim_referral: { Args: { p_code: string }; Returns: boolean }
+      claim_set_incident: {
+        Args: { _id: string; _incident_id: string }
+        Returns: undefined
+      }
+      claim_set_text: {
+        Args: {
+          _body_html: string
+          _body_text: string
+          _id: string
+          _subject: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      claim_store_forward: {
+        Args: { _inbound_id: string; _p: Json; _user_id: string }
+        Returns: Json
+      }
       claim_tracked_flights: {
         Args: { p_limit?: number; p_min_gap?: string }
         Returns: {
@@ -8071,12 +10294,51 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_transition: {
+        Args: {
+          _actor: string
+          _data: Json
+          _id: string
+          _note: string
+          _to: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      claim_transition_ok: {
+        Args: { _from: string; _to: string }
+        Returns: boolean
+      }
       claim_trial_fingerprint: {
         Args: {
           _customer_id: string
           _fingerprint: string
           _subscription_id: string
         }
+        Returns: Json
+      }
+      commission_host_of: { Args: { _url: string }; Returns: string }
+      commission_network_of: { Args: { _host: string }; Returns: string }
+      commission_product_of: { Args: { _hint: string }; Returns: string }
+      commission_sync_log: {
+        Args: { _error?: string; _ok: boolean; _source: string; _stats: Json }
+        Returns: number
+      }
+      commission_transition_ok: {
+        Args: { _from: string; _to: string }
+        Returns: boolean
+      }
+      commissions_mark_paid: {
+        Args: {
+          _external_ids: string[]
+          _paid_at: string
+          _payout_ref: string
+          _source: string
+        }
+        Returns: Json
+      }
+      commissions_upsert: {
+        Args: { _rows: Json; _source: string }
         Returns: Json
       }
       commit_quota: {
@@ -8235,6 +10497,59 @@ export type Database = {
         Args: { p_refs: string[]; p_trip: Json }
         Returns: Json
       }
+      incident_add_event: { Args: { _ev: Json; _id: string }; Returns: Json }
+      incident_alert_finish: {
+        Args: {
+          _alert_id: string
+          _error?: string
+          _ok: boolean
+          _result?: Json
+        }
+        Returns: Json
+      }
+      incident_alerts_claim: {
+        Args: { _fallback?: string[]; _limit?: number; _request_id?: string }
+        Returns: Json
+      }
+      incident_assign: {
+        Args: {
+          _actor?: string
+          _admin_id?: string
+          _assignee: string
+          _id: string
+          _reason?: string
+        }
+        Returns: Json
+      }
+      incident_categories: { Args: never; Returns: string[] }
+      incident_create: { Args: { _input: Json }; Returns: Json }
+      incident_oncall_now: {
+        Args: { _fallback?: string[]; _level: number; _now?: string }
+        Returns: Json
+      }
+      incident_open_for_user: { Args: { _user: string }; Returns: string }
+      incident_operator_heartbeat: { Args: never; Returns: Json }
+      incident_set_next_step: {
+        Args: {
+          _actor?: string
+          _actor_id?: string
+          _due: string
+          _id: string
+          _text: string
+        }
+        Returns: Json
+      }
+      incident_set_status: {
+        Args: {
+          _actor?: string
+          _actor_id?: string
+          _id: string
+          _note?: string
+          _status: string
+        }
+        Returns: Json
+      }
+      incident_watch: { Args: { _now?: string }; Returns: Json }
       invitar_amigo_viaje: {
         Args: { p_friend_id: string; p_trip_id: string }
         Returns: Json
@@ -8267,6 +10582,65 @@ export type Database = {
       live_search_used: {
         Args: { _period: string; _plan: string; _user_id: string }
         Returns: number
+      }
+      managed_booking_apply_status: {
+        Args: {
+          _data?: Json
+          _environment: string
+          _kind?: string
+          _provider: string
+          _provider_booking_id: string
+          _provider_status: string
+        }
+        Returns: Json
+      }
+      managed_booking_json: {
+        Args: {
+          _internal: boolean
+          m: Database["public"]["Tables"]["managed_bookings"]["Row"]
+        }
+        Returns: Json
+      }
+      managed_booking_new_ref: { Args: never; Returns: string }
+      managed_booking_policy_check: {
+        Args: {
+          _at: string
+          _kind: string
+          m: Database["public"]["Tables"]["managed_bookings"]["Row"]
+        }
+        Returns: Json
+      }
+      managed_booking_request_change: {
+        Args: {
+          _consent_event: number
+          _details?: Json
+          _incident: string
+          _kind: string
+          _owner: string
+          _ref_code: string
+        }
+        Returns: Json
+      }
+      managed_booking_sync_commission: {
+        Args: { _id: string }
+        Returns: undefined
+      }
+      managed_booking_upsert: { Args: { _p: Json }; Returns: Json }
+      managed_bookings_complete_past: { Args: never; Returns: number }
+      managed_bookings_due_sync: { Args: { _limit?: number }; Returns: Json }
+      managed_bookings_for_case: {
+        Args: { _incident: string; _owner: string }
+        Returns: Json
+      }
+      managed_commission_status: { Args: { _s: string }; Returns: string }
+      managed_request_finish: {
+        Args: { _id: string; _ok: boolean; _result: Json }
+        Returns: Json
+      }
+      managed_requests_claim: { Args: { _limit?: number }; Returns: Json }
+      managed_status_from_provider: {
+        Args: { _provider: string; _s: string }
+        Returns: string
       }
       mark_subscription_cancel_at_period_end: {
         Args: { _subscription_id: string }
@@ -8366,6 +10740,14 @@ export type Database = {
       }
       mi_actividad_social: { Args: { p_limite?: number }; Returns: Json }
       mi_privacidad_social: { Args: never; Returns: Json }
+      my_incident_confirm: {
+        Args: { _comment?: string; _id: string; _resolved: boolean }
+        Returns: Json
+      }
+      my_incident_message: {
+        Args: { _id: string; _text: string }
+        Returns: Json
+      }
       my_member_card: { Args: never; Returns: Json }
       my_open_reservations: {
         Args: { _trip?: string }
@@ -8407,6 +10789,11 @@ export type Database = {
         }[]
       }
       my_team_requests: { Args: never; Returns: Json }
+      my_vigilancia_prefs: { Args: never; Returns: Json }
+      my_vigilancia_prefs_set: {
+        Args: { _contactar: boolean; _texto?: string }
+        Returns: Json
+      }
       normalize_email: { Args: { _email: string }; Returns: string }
       notify_admins: {
         Args: { _body: string; _dedup_key: string; _title: string }
@@ -8425,6 +10812,48 @@ export type Database = {
       }
       ocultar_social: {
         Args: { p_clave: string; p_ocultar?: boolean }
+        Returns: Json
+      }
+      operator_claim: {
+        Args: { _id: string; _now?: string; _owner: string }
+        Returns: Json
+      }
+      operator_consent: {
+        Args: {
+          _event_id: number
+          _id: string
+          _kind: string
+          _must_contain?: string
+          _owner: string
+        }
+        Returns: Json
+      }
+      operator_due: { Args: { _limit?: number; _now?: string }; Returns: Json }
+      operator_enabled: { Args: never; Returns: boolean }
+      operator_outbox_add: {
+        Args: { _id: string; _o: Json; _owner: string }
+        Returns: Json
+      }
+      operator_outbox_by_token: { Args: { _token: string }; Returns: Json }
+      operator_outbox_due: {
+        Args: { _limit?: number; _now?: string }
+        Returns: Json
+      }
+      operator_outbox_finish: {
+        Args: {
+          _error?: string
+          _ok: boolean
+          _out_id: string
+          _provider_id?: string
+        }
+        Returns: Json
+      }
+      operator_release: {
+        Args: { _id: string; _owner: string; _patch?: Json }
+        Returns: Json
+      }
+      operator_spend: {
+        Args: { _amount?: number; _id: string; _kind: string; _owner: string }
         Returns: Json
       }
       ops_owner_alert_claim: { Args: { _id: string }; Returns: Json }
@@ -8962,6 +11391,10 @@ export type Database = {
         Args: { _currency: string; _price_id: string }
         Returns: boolean
       }
+      provider_webhook_token_once: {
+        Args: { _provider: string; _token: string }
+        Returns: boolean
+      }
       public_plan_config: { Args: never; Returns: Json }
       purge_account_data: { Args: { p_user_id: string }; Returns: Json }
       quitar_amigo: {
@@ -9085,6 +11518,10 @@ export type Database = {
         Returns: undefined
       }
       serp_global_used: { Args: { _period?: string }; Returns: number }
+      service_fee_quote: {
+        Args: { _base: number; _pasajeros?: number; _producto: string }
+        Returns: Json
+      }
       set_members_password: {
         Args: { p_expires_at: string; p_password: string }
         Returns: undefined
@@ -9182,6 +11619,59 @@ export type Database = {
       vault_sync_legacy: { Args: { p_user_id: string }; Returns: undefined }
       vault_try_date: { Args: { p: string }; Returns: string }
       verify_cron_secret: { Args: { p_secret: string }; Returns: boolean }
+      vigilancia_aviso_cerrar: {
+        Args: {
+          _canales?: Json
+          _estado: string
+          _id: string
+          _reprogramar?: string
+        }
+        Returns: Json
+      }
+      vigilancia_aviso_encolar: { Args: { _a: Json }; Returns: Json }
+      vigilancia_avisos_reclamar: {
+        Args: { _limit?: number; _now?: string }
+        Returns: Json
+      }
+      vigilancia_candidatos_vuelo: {
+        Args: { _desde: string; _hasta: string }
+        Returns: Json
+      }
+      vigilancia_cfg: { Args: never; Returns: Json }
+      vigilancia_confirmacion_actualizar: {
+        Args: { _id: string; _p: Json }
+        Returns: Json
+      }
+      vigilancia_confirmacion_por_token: {
+        Args: { _token: string }
+        Returns: Json
+      }
+      vigilancia_confirmaciones_pendientes: {
+        Args: { _limit?: number; _now?: string }
+        Returns: Json
+      }
+      vigilancia_confirmaciones_sync: {
+        Args: { _now?: string }
+        Returns: number
+      }
+      vigilancia_evento: { Args: { _e: Json }; Returns: Json }
+      vigilancia_eventos_trip: {
+        Args: { _ambito: string; _limit?: number; _trip: string }
+        Returns: Json
+      }
+      vigilancia_viajes_ventana: {
+        Args: { _limit?: number; _now?: string }
+        Returns: Json
+      }
+      vigilancia_vuelo_guardar: {
+        Args: { _id: string; _p: Json }
+        Returns: Json
+      }
+      vigilancia_vuelo_upsert: { Args: { _rows: Json }; Returns: number }
+      vigilancia_vuelos_reclamar: {
+        Args: { _limit?: number; _now?: string }
+        Returns: Json
+      }
       wrapped_companions: {
         Args: { p_year: number }
         Returns: {
