@@ -77,12 +77,14 @@ export function carCost(input: {
   tolls?: TollQuote | null;
   /** true si se intentó consultar y Google no respondió. */
   tollsFailed?: boolean;
+  /** Km totales si la ida y el regreso no son el mismo tramo (road trip: casa → primera ciudad, última → casa). */
+  kmTotal?: number | null;
 }): CarCost {
   const km = Number(input.kmIda) > 0 ? Math.round(Number(input.kmIda)) : null;
   const q = input.tolls ?? null;
   const ida = q && q.estado === "CON_MONTO" && Number(q.monto_mxn) >= 0 && q.monto_mxn !== null ? Math.round(Number(q.monto_mxn)) : null;
   const casetasEstado: CasetasEstado = q ? (ida !== null ? "CON_MONTO" : q.estado === "CON_MONTO" ? "SIN_MONTO" : q.estado) : input.tollsFailed ? "NO_DISPONIBLE" : "SIN_CONSULTAR";
-  const kmTotal = km ? km * 2 : null;
+  const kmTotal = Number(input.kmTotal) > 0 ? Math.round(Number(input.kmTotal)) : km ? km * 2 : null;
   const gas = kmTotal ? Math.round((kmTotal * CAR_L_PER_100 / 100) * MX_GASOLINA.precio_litro) : null;
   const casetasTotal = ida !== null ? ida * 2 : null;
   const total = casetasTotal === null && gas === null ? null : (casetasTotal ?? 0) + (gas ?? 0);

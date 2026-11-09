@@ -378,6 +378,14 @@ export function applySaidDuration(spec: TripSpec, text: string): TripSpec {
     const cleaned = q.pregunta.replace(/¿?\s*[Ll]os\s+\d{1,3}\s+d[ií]as\s+son\s+\d{1,3}\s+noches\s+o\s+\d{1,3}\s*\??/g, "").replace(/\s{2,}/g, " ").trim();
     return cleaned && cleaned !== q.pregunta ? { ...q, pregunta: cleaned } : q;
   }).filter((q) => q.tipo !== "otro" || !/^\s*$/.test(q.pregunta));
+  // Sin reparto escrito: se propone uno parejo (5 noches en 3 ciudades = 2, 2 y 1), que se ve y se cambia en el
+  // resumen, en vez de preguntar «¿Cómo quieres repartir las 5 noches…?» sin opciones (recorrido 9-nov-2026).
+  if (stays.length >= 2 && d.nights >= stays.length && stays.every((s) => s.noches == null)) {
+    const base = Math.floor(d.nights / stays.length), extra = d.nights % stays.length;
+    stays.forEach((s, i) => { s.noches = base + (i < extra ? 1 : 0); });
+    spec.preguntas = spec.preguntas.map((q) => (q.tipo === "otro" && !q.resuelta && /\bnoches\b/i.test(q.pregunta) && /(repart|cu[aá]ntas)/i.test(q.pregunta)
+      ? { ...q, resuelta: true } : q));
+  }
   return spec;
 }
 
@@ -763,6 +771,12 @@ export function updateStop(spec: TripSpec, id: string, patch: Partial<Stop>): Tr
 /** Fechas, viajeros u origen del resumen: resuelven sus preguntas cuando quedan completas. */
 export function setTripBasics(spec: TripSpec, patch: Partial<Pick<TripSpec, "fecha_salida" | "fecha_regreso" | "viajeros" | "origen">>): TripSpec {
   const next: TripSpec = { ...spec, ...patch };
+  // «6 días» y solo la salida: el regreso sale solo (salida + noches); y si la nueva salida queda en o después del
+  // regreso, el regreso se recorre con las mismas noches (recorrido 9-nov-2026: con «6 días» quedaba vacío).
+  if ("fecha_salida" in patch && !("fecha_regreso" in patch) && next.fecha_salida && (spec.noches_total ?? 0) > 0
+    && (!spec.fecha_regreso || spec.fecha_regreso <= next.fecha_salida)) {
+    next.fecha_regreso = addIsoDaysUtc(next.fecha_salida, spec.noches_total!);
+  }
   if ("fecha_salida" in patch || "fecha_regreso" in patch) next.fechas_expresas = !!(next.fecha_salida && next.fecha_regreso);
   next.noches_total = isoNights(next.fecha_salida, next.fecha_regreso) ?? next.noches_total;
   if ("origen" in patch && (!spec.regreso.a || spec.regreso.a === spec.origen)) next.regreso = { ...next.regreso, a: next.origen };
@@ -843,7 +857,9 @@ export type SpecRoute =
   | { kind: "vacio" }
   | { kind: "unico"; destino: string; origen: string; fecha_salida: string | null; fecha_regreso: string | null; viajeros: number; notas: string }
   | { kind: "multi"; origen: string; destinos: string[]; noches: number[] | null; fecha_salida: string | null; fecha_regreso: string | null; viajeros: number;
-      legModes: Array<"avion" | "tren" | "coche"> | null; seaLegs: SeaLeg[]; notas: string };
+      legModes: Array<"avion" | "tren" | "coche"> | null; seaLegs: SeaLeg[]; notas: string;
+      /** Cómo llega de su casa a la primera ciudad y cómo regresa, si lo dijo (road trip: "coche"). */
+      llegada?: "avion" | "tren" | "coche" | null; regresoModo?: "avion" | "tren" | "coche" | null };
 
 const PLAN_MODE: Partial<Record<LegMode, "avion" | "tren" | "coche">> = { vuelo: "avion", tren: "tren", coche: "coche" };
 
@@ -912,6 +928,7 @@ export function routeOfSpec(spec: TripSpec): SpecRoute {
   return {
     kind: "multi", origen, destinos: stays.map((s) => s.ciudad), noches, fecha_salida: spec.fecha_salida,
     fecha_regreso: spec.fecha_regreso, viajeros, legModes: explicit ? modes : null, seaLegs,
+    llegada: PLAN_MODE[stays[0].llegada_por] ?? null, regresoModo: PLAN_MODE[spec.regreso.modo as LegMode] ?? null,
     notas: [said.length ? `Tramos que eligió: ${said.join("; ")}.` : "", notas].filter(Boolean).join(" ").slice(0, 900),
   };
 }

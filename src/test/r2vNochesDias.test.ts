@@ -35,7 +35,8 @@ describe("noches = días − 1, como Planear", () => {
     expect(v.ok).toBe(true);
     const s = finalizeSpec((v as any).spec, TEXT, { origen: "Ciudad de México" });
     expect(s.noches_total).toBe(4);
-    expect(s.paradas.map((p) => p.noches)).toEqual([null, null]); // 3 + 2 ≠ 4: lo reparte el plan
+    // 3 + 2 ≠ 4: no se muestra; se propone el reparto parejo (el mismo que haría el plan), visible y editable.
+    expect(s.paradas.map((p) => p.noches)).toEqual([2, 2]);
     expect(s.sugerencias.join(" ")).not.toMatch(/5 noches/);
     const fechas = s.preguntas.find((q) => q.tipo === "fechas")!;
     expect(fechas.pregunta).toBe("¿Qué días exactos de abril de 2027 quieres viajar?");

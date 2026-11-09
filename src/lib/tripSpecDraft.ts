@@ -89,8 +89,9 @@ export function draftNote(agrego: string[], pregunto: string[], libres = 0, corr
   if (agrego.length) parts.push(`agregó ${listEs(agrego)}`);
   if (pregunto.length) parts.push(`preguntó por ${listEs(pregunto.map(bare))}`);
   if (libres > 0) parts.push(`te dejó ${libres === 1 ? "1 pregunta" : `${libres} preguntas`} abajo`);
-  // La persona escribió un texto, no un «resumen»: se dice que no falta nada (antes «coincide con tu resumen»).
-  return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje: no falta nada.";
+  // Sin nada nuevo de Iato: no se dice «no falta nada» (salía junto a «PENDIENTES (1)» por las fechas,
+  // recorrido 9-nov-2026); lo que falte se ve abajo.
+  return parts.length ? `Iato completó tu viaje: ${parts.join("; ")}.` : "Iato revisó tu viaje y está de acuerdo con lo que entendimos.";
 }
 
 /**

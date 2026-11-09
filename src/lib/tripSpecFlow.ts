@@ -139,7 +139,9 @@ export async function generateFromSpec(client: Client, spec: TripSpec, o: Genera
     const res = await generateMultiDestTrip(client, {
       userId: o.userId, origin: r.origen, stops: r.destinos, fechaSalida: r.fecha_salida, fechaRegreso: r.fecha_regreso, viajeros: r.viajeros,
       presupuesto: o.presupuesto ?? null,
-      prefs: { connection: "smart", roadtripStops: true, luggageLogistics: true, ...(r.legModes ? { transport_mode: "mixto", leg_modes: r.legModes } : {}) },
+      prefs: { connection: "smart", roadtripStops: true, luggageLogistics: true, ...(r.legModes ? { transport_mode: "mixto", leg_modes: r.legModes } : {}),
+        // Road trip: de la casa a la primera ciudad y de regreso en coche → logistics-plan no busca vuelos.
+        ...(r.llegada ? { arrival_mode: r.llegada } : {}), ...(r.regresoModo ? { return_mode: r.regresoModo } : {}) },
       nightsPerCity: r.noches, travelClass: o.travelClass ?? null, telemetry: { autonomous: false },
       seaLegs: r.seaLegs, travelerNotes: r.notas, consulta,
     });

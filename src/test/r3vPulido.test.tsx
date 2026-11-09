@@ -159,7 +159,7 @@ describe("P2-11 · revisión de Planear", () => {
     expect(m.nota).toBe("Iato completó tu viaje: corrigió «beijin» por Beijing.");
   });
   it("sin cambios ya no dice «coincide con tu resumen»", () => {
-    expect(draftNote([], [])).toBe("Iato revisó tu viaje: no falta nada.");
+    expect(draftNote([], [])).toBe("Iato revisó tu viaje y está de acuerdo con lo que entendimos.");
   });
   it("«Iato» con la serifa y las fechas pedidas una sola vez", () => {
     const f = src("src/components/plan/TripSpecReview.tsx");

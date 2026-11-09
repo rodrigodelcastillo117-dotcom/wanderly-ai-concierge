@@ -12,7 +12,7 @@ describe("logistics-plan: tiempo sin bajar calidad ni gastar más búsquedas", (
   it("vuelos, atracciones y road trip arrancan antes de leer el perfil", () => {
     const perfil = at("// ───── Perfil + tier del presupuesto ─────");
     expect(at("const multiFlightsPromise = openJaw.ok")).toBeLessThan(perfil);
-    expect(at('const tpFlightsPromise = invokeFn("travelpayouts-flights"')).toBeLessThan(perfil);
+    expect(at('const tpFlightsPromise = llegadaTierra ? Promise.resolve(null) : invokeFn("travelpayouts-flights"')).toBeLessThan(perfil);
     expect(at("const attractionsPromises = cityWindows.map")).toBeLessThan(perfil);
     expect(at("const roadTripPromise = planRoadTrip(")).toBeLessThan(perfil);
     // Hoteles y restaurantes siguen usando el nivel de presupuesto y la comida del perfil.

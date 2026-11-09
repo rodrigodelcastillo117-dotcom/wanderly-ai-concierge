@@ -114,7 +114,7 @@ describe("la respuesta de la IA respeta lo que la persona editó en el borrador"
     expect(m.spec.paradas.map((p) => [p.ciudad, p.sugerida])).toEqual([["Budapest", false], ["Atenas", false], ["París", false]]);
     expect(openQuestions(m.spec)).toEqual([]);
     // R3 viajes P2-11: «coincide con tu resumen» confundía (la persona escribió un texto, no un resumen).
-    expect(m.nota).toBe("Iato revisó tu viaje: no falta nada.");
+    expect(m.nota).toBe("Iato revisó tu viaje y está de acuerdo con lo que entendimos.");
   });
 
   it("Hungría excluida en el borrador → la IA no la vuelve a poner", () => {

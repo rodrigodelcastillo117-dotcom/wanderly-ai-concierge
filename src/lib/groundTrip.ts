@@ -19,8 +19,12 @@ export const NO_FLIGHT_KM = 300;
 
 /** ¿Llegar al destino es por tierra (sin vuelo lógico)? Solo viajes de un destino. */
 export function arrivalByLand(trip: any): boolean {
-  if (!trip || tripDestinations(trip).length > 1) return false;
+  if (!trip) return false;
   const vs: any[] = Array.isArray(trip.vuelos_json) ? trip.vuelos_json : [];
+  // Varias ciudades: por tierra solo si el plan lo dijo (road trip desde casa, logistics-plan llegada_por_tierra).
+  if (tripDestinations(trip).length > 1) {
+    return !!trip?.itinerario_json?.logistics?.llegada_por_tierra || (vs.length > 0 && vs.every((v) => isGroundTripOption(v)));
+  }
   const origin = trip.ciudad_origen;
   const dest = trip.destino;
   if (vs.length > 0 && vs.every((v) => isGroundTripOption(v))) return true;

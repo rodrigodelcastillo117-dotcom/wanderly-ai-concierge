@@ -8,6 +8,7 @@
 //  - un vuelo estimado (sin tarifa de un proveedor) no nombra aerolínea ni dice "Directo".
 import { mainAirport } from "../../supabase/functions/_shared/airports.ts";
 import { fechaLlegada, sameCity, stayForCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
+import { filaLlegadaTierra, type LlegadaTierra } from "../../supabase/functions/_shared/llegadaTierra.ts";
 import { airportCityName } from "../../supabase/functions/_shared/airports.ts";
 import { layoverCodesFromAviasalesLink } from "../../supabase/functions/_shared/fareGuard.ts";
 import { transportModeOf } from "../../supabase/functions/_shared/booking/offers.ts";
@@ -41,8 +42,12 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
   const originClean = String(origin ?? "").trim();
   const vuelos_json: any[] = [];
 
+  // Road trip: se llega por carretera (logistics-plan no buscó vuelos): «Cómo llegar» es el coche, como en un viaje de un destino.
+  const tierra = logistics?.llegada_por_tierra as LlegadaTierra | undefined;
+  if (tierra && tierra.version === 1) vuelos_json.push(filaLlegadaTierra(tierra, Number(logistics?.travelers) || 2));
+
   // Vuelo internacional (origen → primera ciudad, regreso desde la última).
-  (logistics?.flights ?? []).forEach((f: any) => {
+  (tierra ? [] : logistics?.flights ?? []).forEach((f: any) => {
     const est = isEstimated(f?.fuente_precio);
     const to = f?.to && stops.some((s) => sameCity(s, f.to)) ? f.to : stops[0];
     const dep = f?.dep_iata ?? mainAirport(f?.from ?? originClean);

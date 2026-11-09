@@ -424,7 +424,8 @@ export function realFlightOptions(trip: any, max = 3): number[] {
   const route = tripFlightRoute(trip);
   const seen = new Set<string>();
   return vuelos.map((v, i) => [v, i] as const)
-    .filter(([v]) => (isGroundTripOption(v) ? !route.multi && (v?.modo === "autobus" || v?.modo === "auto")
+    // Por tierra: en un destino, o en varias ciudades si el plan dijo que se llega por carretera (road trip desde casa).
+    .filter(([v]) => (isGroundTripOption(v) ? (!route.multi || !!trip?.itinerario_json?.logistics?.llegada_por_tierra) && (v?.modo === "autobus" || v?.modo === "auto")
       : !isEstimatedTripFlight(v) && isTripInternationalRow(v, route) && tripFlightProblems(v, trip).length === 0))
     .filter(([v]) => {
       const k = `${norm(v?.aerolinea)}|${Number(v?.precio_por_persona) || ""}|${v?.modo ?? ""}`;
