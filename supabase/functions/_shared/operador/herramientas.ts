@@ -279,7 +279,10 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
         : "\n\nResponde «sí» para darme permiso o «no» si prefieres que no.";
       const bad = revisarSaliente(ctx, pregunta);
       if (bad) return { ok: false, error: bad };
-      const r = await mensajeAlViajero(ctx, pregunta + extra, false, { permiso: tipo, folio });
+      // Si la IA ya escribió la frase exacta («Sí, envía C-…»), no se repite (prueba en vivo, 9-nov-2026: salía dos veces).
+      const verbo = tipo === "enviar_reclamo" ? "envía" : tipo === "cancelar_servicio" ? "cancela" : tipo === "cambiar_servicio" ? "cambia" : null;
+      const yaLaTiene = !!(verbo && folio) && new RegExp(`s[ií],?\\s+${verbo}\\s+${folio}`, "i").test(pregunta);
+      const r = await mensajeAlViajero(ctx, pregunta + (yaLaTiene ? "" : extra), false, { permiso: tipo, folio });
       ctx.esperando = "usuario";
       ctx.pendiente = { permiso: tipo, folio: folio ?? null, preguntado_at: d.ahora().toISOString() };
       // Antes decía «termina esta corrida» y el modelo dejaba sin hacer derechos, contacto del proveedor, etc.

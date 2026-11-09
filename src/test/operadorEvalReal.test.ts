@@ -162,3 +162,28 @@ describe("evaluación real 2: los adversarios de «IA rota» no se califican con
     expect(t.resumen.total).toBe(0);
   });
 });
+
+describe("prueba en vivo (9-nov-2026): la frase de permiso no sale dos veces", () => {
+  const permiso = async (mensaje: string) => {
+    const modelo = guion([
+      [{ name: "preparar_reclamo", input: { tipo: "vuelo", evento: "cancelacion", aerolinea: "IB", origen: "MAD", destino: "MEX", vuelo: "IB6403", fecha: "2026-11-09" } }],
+      [{ name: "pedir_permiso", input: { tipo: "enviar_reclamo", folio: "C-TEST01", mensaje } }],
+      "ok",
+    ]);
+    const h = arnes({ modelo });
+    const r = await h.reportar({ descripcion: "Iberia me canceló el IB6403 de Madrid a México", origen: "usuario", canal: "app" });
+    if (!r.ok) throw new Error("sin caso");
+    await trabajarCaso(h.deps, r.id, "nuevo");
+    return h.alViajero.map((m) => m.texto).join("\n");
+  };
+
+  it("si la IA ya puso «Sí, envía C-TEST01», no se agrega otra vez", async () => {
+    const t = await permiso("¿Lo envío a Iberia en tu nombre? Responde «Sí, envía C-TEST01» para confirmar.");
+    expect(t.match(/S[ií], env[ií]a C-TEST01/g)?.length).toBe(1);
+  });
+
+  it("si no la puso, se agrega una vez", async () => {
+    const t = await permiso("¿Quieres que lo envíe a Iberia en tu nombre?");
+    expect(t.match(/S[ií], env[ií]a C-TEST01/g)?.length).toBe(1);
+  });
+});
