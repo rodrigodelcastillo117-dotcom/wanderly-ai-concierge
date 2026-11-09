@@ -7,6 +7,7 @@ import { FeatureTooltip } from "@/components/Tooltip";
 import { useTooltipShown } from "@/hooks/useTooltipShown";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
 import { isGroundTripOption } from "@/lib/booking";
+import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
 import { calendarDays } from "@/lib/itineraryCalendar";
 import { daySlots } from "@/lib/itineraryDay";
 import { StandaloneOpinion } from "@/components/opinion/OpinionEntry";
@@ -81,6 +82,18 @@ type Stop = {
 };
 
 // Detecta el modo de transporte entre 2 ciudades consultando vuelos/cruceros del viaje
+/** Modo del tramo entre dos ciudades según el plan cotizado (logistics.internal_transport); null si no está. */
+export function planLegMode(trip: any, from: string, to: string): "flight" | "cruise" | "land" | "train" | null {
+  const legs: any[] = Array.isArray(trip?.itinerario_json?.logistics?.internal_transport) ? trip.itinerario_json.logistics.internal_transport : [];
+  const leg = legs.find((l) => sameCity(l?.from, from) && sameCity(l?.to, to));
+  if (!leg) return null;
+  const m = String(leg.mode ?? "").toLowerCase();
+  if (/tren|train|shinkansen|rail/.test(m)) return "train";
+  if (/vuelo|flight|avion|avión/.test(m)) return "flight";
+  if (/ferry|crucero|barco|cruise/.test(m)) return "cruise";
+  return "land";
+}
+
 function detectMode(
   from: string,
   to: string,
@@ -310,15 +323,19 @@ const TripMap = () => {
         // Origen → primer destino: si el viaje tiene un vuelo cotizado (no un trayecto por tierra), es avión aunque el
         // vuelo no traiga ciudades (recorrido en producción, 9-nov-2026: CDMX → Puerto Escondido salía en coche, «Tierra»).
         const desdeOrigen = i === 0 && !!originName && a.name === originName;
-        const mode = desdeOrigen && vuelos.some((v: any) => v && !isGroundTripOption(v))
+        // Entre ciudades manda el tramo cotizado del plan (logistics.internal_transport): una opción alternativa de vuelo
+        // en vuelos_json no lo convierte en avión (recorrido del 9-nov-2026: Tokio → Kioto en Shinkansen salía «✈ Avión»).
+        const mode: "flight" | "cruise" | "land" | "train" = desdeOrigen && vuelos.some((v: any) => v && !isGroundTripOption(v))
           ? "flight"
-          : detectMode(a.city ?? a.name, b.city ?? b.name, vuelos, cruceros);
+          : planLegMode(trip, a.city ?? a.name, b.city ?? b.name) ?? detectMode(a.city ?? a.name, b.city ?? b.name, vuelos, cruceros);
 
         const style =
           mode === "flight"
             ? { color: "#f5e6a8", dashed: true, weight: 3 }
             : mode === "cruise"
             ? { color: "#7fd4ff", dashed: true, weight: 3 }
+            : mode === "train"
+            ? { color: "#e8c766", dashed: false, weight: 3 }
             : { color: "#d4af37", dashed: false, weight: 4 };
 
         const path = [
@@ -346,7 +363,7 @@ const TripMap = () => {
         const midLat = (a.lat + b.lat) / 2;
         const midLng = (a.lng + b.lng) / 2;
         const modeLabel =
-          mode === "flight" ? "✈ Avión" : mode === "cruise" ? "⚓ Crucero" : "🚗 Tierra";
+          mode === "flight" ? "✈ Avión" : mode === "cruise" ? "⚓ Crucero" : mode === "train" ? "🚆 Tren" : "🚗 Tierra";
         const lbl = new g.Marker({
           position: { lat: midLat, lng: midLng },
           map,
@@ -525,6 +542,7 @@ const TripMap = () => {
           <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa]" /> Metro</span>
           <span className="mx-1 opacity-30">|</span>
           <span className="inline-flex items-center gap-1.5"><Plane className="w-3 h-3 text-[#f5e6a8]" /> Avión</span>
+          <span className="inline-flex items-center gap-1.5"><TrainFront className="w-3 h-3 text-[#e8c766]" /> Tren</span>
           <span className="inline-flex items-center gap-1.5"><Ship className="w-3 h-3 text-[#7fd4ff]" /> Crucero</span>
           <span className="inline-flex items-center gap-1.5"><Car className="w-3 h-3 text-[#d4af37]" /> Tierra</span>
         </div>

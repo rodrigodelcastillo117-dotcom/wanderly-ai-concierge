@@ -120,7 +120,13 @@ export async function generateMultiDestTrip(client: Client, a: MultiDestArgs): P
   }
   const planArgs = logisticsPlanArgs(a);
   const request_key = getRequestKey("logistics-plan", planArgs);
-  const { data, error } = await client.functions.invoke("logistics-plan", { body: { ...planArgs, request_key } });
+  let { data, error } = await client.functions.invoke("logistics-plan", { body: { ...planArgs, request_key } });
+  // Un viaje grande sin nada en caché puede pasar el tope de tiempo del servidor (503 «no se descontó de tu plan»); el
+  // segundo intento con la misma llave reutiliza lo ya consultado y sale en segundos (recorrido del 9-nov-2026: Japón
+  // 3 ciudades, 503 a los 130 s y bien a los 35 s al reintentar). Se reintenta UNA vez, solo con 503.
+  if (error && (error as { context?: { status?: number } })?.context?.status === 503) {
+    ({ data, error } = await client.functions.invoke("logistics-plan", { body: { ...planArgs, request_key } }));
+  }
   if (error) throw error;
   if (!data?.logistics) throw new Error("La IA no devolvió logística");
   const logistics = data.logistics;

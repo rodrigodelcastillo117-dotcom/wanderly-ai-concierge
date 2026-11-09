@@ -36,3 +36,17 @@ describe("mapa del viaje", () => {
     expect(screen.queryByText("Día libre.")).toBeNull();
   });
 });
+
+describe("modo de cada tramo entre ciudades", () => {
+  it("manda el tramo cotizado del plan: el Shinkansen es tren aunque haya una alternativa de vuelo", async () => {
+    const { planLegMode } = await import("@/pages/TripMap");
+    const japon = { itinerario_json: { logistics: { internal_transport: [
+      { from: "Tokio", to: "Kioto", mode: "tren", provider: "Shinkansen" },
+      { from: "Kioto", to: "Osaka", mode: "tren" },
+      { from: "Osaka", to: "Seúl", mode: "vuelo_interno" },
+    ] } } };
+    expect(planLegMode(japon, "Tokio", "Kioto")).toBe("train");
+    expect(planLegMode(japon, "Osaka", "Seúl")).toBe("flight");
+    expect(planLegMode(japon, "Kioto", "Nara")).toBeNull();
+  });
+});

@@ -19,7 +19,11 @@ describe("contexto del viaje para Iato", () => {
 
   it("lleva el desglose del total por categoría (sin ceros) y cómo leerlo", () => {
     expect(c.total_estimado).toBe(54988);
-    expect(c.desglose_total_mxn).toEqual({ vuelos: 20108, hospedaje: 13380, comida: 12000, tours: 5000, transporte_local: 2500, extras: 2000 });
+    expect(c.desglose_total_mxn).toEqual({
+      vuelos: 20108, hospedaje: 13380, "comida (estimado)": 12000, "tours y experiencias": 5000,
+      "transporte entre ciudades y local (estimado)": 2500,
+      "extras: impuestos de ciudad, visas y colchón por tipo de cambio (estimado; NO incluye vuelos ni trenes)": 2000,
+    });
     expect(Object.values(c.desglose_total_mxn as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(54988);
     expect(c.desglose_nota).toMatch(/estimado/);
   });

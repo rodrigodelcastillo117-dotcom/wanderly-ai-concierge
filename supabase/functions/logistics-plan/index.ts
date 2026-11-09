@@ -720,7 +720,7 @@ Entrega JSON con:
 2. internal_transport: ${roadtripMode
   ? `tramos en COCHE/CAMPERVAN entre ciudades consecutivas (mode="coche", provider real, duración en horas, scenic=true, luggage_note con km y paradas). Añade pickup aeropuerto → primera ciudad y dropoff última → aeropuerto.`
   : `UN tramo por cada par consecutivo (${body.destinations.length - 1} tramos), sin duplicados. Europa <800km usa TREN. Inter-islas griegas usa FERRY.`} Marca fuente_precio="estimado" (no tenemos inventario en vivo de tierra).
-3. days: ${nights} días repartidos según las noches por ciudad de arriba (el vuelo de regreso SOLO el último día; no digas si un vuelo es matutino o nocturno sin su hora exacta), cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
+3. days: ${nights + 1} días, uno por fecha del viaje (${nights} noches = ${nights + 1} días): el día 1 es el del vuelo de ida (si el vuelo llega al día siguiente, ese día es de viaje, sin actividades en la ciudad) y el último es el del regreso; repártelos según las noches por ciudad de arriba (el vuelo de regreso SOLO el último día; no digas si un vuelo es matutino o nocturno sin su hora exacta), cada uno con ciudad/título/mañana/tarde/noche específicos${roadtripMode ? " (mencionando carretera, km y paradas escénicas)" : ""}.
 4. mandatory_costs con currency_buffer_pct=3.
 5. resumen breve (2-3 frases). NO calcules totales: el total lo calcula el sistema.`;
 

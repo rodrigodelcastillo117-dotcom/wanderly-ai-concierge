@@ -392,6 +392,16 @@ function savedPriceInfo(item: any, tz?: string | null, fallbackAt?: string | nul
   };
 }
 
+const DESGLOSE_ETIQUETA: Record<string, string> = {
+  vuelos: "vuelos",
+  hospedaje: "hospedaje",
+  comida: "comida (estimado)",
+  tours: "tours y experiencias",
+  transporte_local: "transporte entre ciudades y local (estimado)",
+  extras: "extras: impuestos de ciudad, visas y colchón por tipo de cambio (estimado; NO incluye vuelos ni trenes)",
+  casetas: "casetas",
+};
+
 /** "27 oct 2026, 23:37 (hora CDMX)": cuándo se cotizó el hotel guardado del viaje (para honesty.ts). */
 export function savedHotelQuoteStamp(trip: any, tz?: string | null): string | null {
   const h = asArray(trip?.hospedaje_json).find((x: any) => typeof x?.consultado_at === "string" && Number(x?.precio_por_noche) > 0);
@@ -441,7 +451,9 @@ export function compactTripForPrompt(trip: any, extras: {
   }));
   // Cómo se llega al total del viaje (MXN), por categoría, como en la página del viaje: así Iato puede desglosarlo.
   const d = trip.desglose_presupuesto && typeof trip.desglose_presupuesto === "object" ? trip.desglose_presupuesto : null;
-  const desglose = d ? Object.fromEntries(Object.entries(d).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Math.round(Number(v))])) : null;
+  // Con el nombre de cada renglón y qué incluye (recorrido del 9-nov-2026: Iato dijo que «extras» incluía un vuelo y
+  // llamó «transporte local» a los trenes entre ciudades).
+  const desglose = d ? Object.fromEntries(Object.entries(d).filter(([, v]) => Number(v) > 0).map(([k, v]) => [DESGLOSE_ETIQUETA[k] ?? k, Math.round(Number(v))])) : null;
   const tips = asArray(trip.tips_personalizados).slice(0, 3).map((t) => cut(t, 160));
   return compactItem({
     id: trip.id, destino: trip.destino, pais_destino: trip.pais_destino, ciudad_origen: trip.ciudad_origen,
