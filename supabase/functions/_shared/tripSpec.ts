@@ -348,7 +348,15 @@ const NUM_RE = "(\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve
 
 /** Duración que escribió la persona ("5 días" → 4 noches; "4 noches" → 4; "2 semanas" → 13). */
 export function durationSaid(text: string): { days: number; nights: number } | null {
-  const m = new RegExp(`\\b${NUM_RE}\\s*(dias|dia|noches|noche|semanas|semana)\\b`).exec(normText(text));
+  const t = normText(text);
+  const all = [...t.matchAll(new RegExp(`\\b${NUM_RE}\\s*(dias|dia|noches|noche|semanas|semana)\\b`, "g"))];
+  // «2 noches en Miami … crucero de 5 noches»: son partes del viaje y se suman (7), no «2 en total» (recorrido
+  // crucero 9-nov-2026). Solo si todas las duraciones están en noches.
+  if (all.length >= 2 && all.every((x) => /^noche/.test(x[2]))) {
+    const sum = all.reduce((a, x) => a + (/^\d+$/.test(x[1]) ? Number(x[1]) : NUM_WORD[x[1]] ?? 0), 0);
+    if (sum >= 1 && sum <= 120) return { days: sum + 1, nights: sum };
+  }
+  const m = all[0];
   if (!m) return null;
   const q = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORD[m[1]];
   if (!q || q < 1 || q > 120) return null;
@@ -363,9 +371,12 @@ export function applySaidDuration(spec: TripSpec, text: string): TripSpec {
   if (!d || (spec.fecha_salida && spec.fecha_regreso)) return spec;
   spec.noches_total = d.nights;
   const stays = spec.paradas.filter((s) => s.rol === "estancia" && s.llegada_por !== "crucero");
+  // Las noches a bordo no son de hotel: el reparto en tierra suma el total menos el crucero.
+  const aBordo = spec.paradas.reduce((a, s) => a + (s.llegada_por === "crucero" ? Number(s.crucero?.noches) || 0 : 0), 0);
+  const enTierra = Math.max(0, d.nights - aBordo);
   const sum = stays.reduce((a, s) => a + (s.noches ?? 0), 0);
   // Un reparto que no suma las noches (3 + 2 = 5 para «5 días») no se muestra: lo reparte el plan.
-  if (stays.length && stays.every((s) => s.noches != null) && sum !== d.nights) for (const s of stays) s.noches = null;
+  if (stays.length && stays.every((s) => s.noches != null) && sum !== enTierra) for (const s of stays) s.noches = null;
   const nightsIn = (t: string) => [...normText(t).matchAll(new RegExp(`\\b${NUM_RE}\\s*noches?\\b`, "g"))].map((m) => (/^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORD[m[1]]));
   spec.sugerencias = spec.sugerencias.filter((sg) => {
     const t = normText(sg);
@@ -380,8 +391,8 @@ export function applySaidDuration(spec: TripSpec, text: string): TripSpec {
   }).filter((q) => q.tipo !== "otro" || !/^\s*$/.test(q.pregunta));
   // Sin reparto escrito: se propone uno parejo (5 noches en 3 ciudades = 2, 2 y 1), que se ve y se cambia en el
   // resumen, en vez de preguntar «¿Cómo quieres repartir las 5 noches…?» sin opciones (recorrido 9-nov-2026).
-  if (stays.length >= 2 && d.nights >= stays.length && stays.every((s) => s.noches == null)) {
-    const base = Math.floor(d.nights / stays.length), extra = d.nights % stays.length;
+  if (stays.length >= 2 && enTierra >= stays.length && stays.every((s) => s.noches == null)) {
+    const base = Math.floor(enTierra / stays.length), extra = enTierra % stays.length;
     stays.forEach((s, i) => { s.noches = base + (i < extra ? 1 : 0); });
     spec.preguntas = spec.preguntas.map((q) => (q.tipo === "otro" && !q.resuelta && /\bnoches\b/i.test(q.pregunta) && /(repart|cu[aá]ntas)/i.test(q.pregunta)
       ? { ...q, resuelta: true } : q));

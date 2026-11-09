@@ -216,15 +216,21 @@ function segment(chunk: string): Segment {
   return { cities: [], unknown: country ? null : meaningful, country, region: null, origin: null, text: meaningful };
 }
 
+/**
+ * «En coche de CDMX a Querétaro», «manejando de Monterrey a Saltillo», «Vuelo de Ciudad de México a Miami»: «de» tras el
+ * modo es la salida → «desde X» (recorridos 9-nov-2026: CDMX salía como parada).
+ */
+export function marcarSalida(raw: string): string {
+  return String(raw ?? "").replace(/(^|[\s,;.])(?:(?:en|por)\s+)?(?:coche|carro|auto|camioneta|moto|carretera|manejando|vuelo|volar|volando|avi[oó]n)\s+(?:de|desde)\s+/gi, "$1 desde ");
+}
+
 /** Lee varias ciudades de una frase. `origin` = ciudad de salida del viajero (para no tomarla como parada). */
 export function parseMultiCityText(text: string, opts: { origin?: string | null } = {}): MultiCityParse {
   const raw = String(text ?? "").trim();
   const { days, nights } = durationOf(raw);
   const empty: MultiCityParse = { items: [], cities: [], origin: null, days, nights, unknown: [], countries: [] };
   if (!raw) return empty;
-  // «En coche de CDMX a Querétaro», «manejando de Monterrey a Saltillo»: «de» tras el modo es la salida.
-  const conSalida = raw.replace(/\b(?:(?:en|por)\s+)?(?:coche|carro|auto|camioneta|moto|carretera|manejando)\s+(?:de|desde)\s+/gi, " desde ");
-  const chunks = stripNonPlaces(conSalida).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
+  const chunks = stripNonPlaces(marcarSalida(raw)).split(SEPARATOR).map((c) => c.trim()).filter(Boolean);
   let origin: string | null = null;
   const stops: string[] = [];
   const unknown: string[] = [];

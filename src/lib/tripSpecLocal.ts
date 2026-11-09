@@ -7,7 +7,7 @@
 // Lee la frase en el orden escrito con los mismos separadores que multiCityText ("," "y" "→" "a"…) y
 // reconoce marcas de tramo: "un crucero", "crucero desde X", "desembarco en X", "tren a X", "regreso a X",
 // "regreso por/vía X". Nada se inventa: país sin ciudad conocida y lugar desconocido → pregunta.
-import { parseMultiCityText, SEPARATOR, stripNonPlaces, durationOf, type PlaceItem } from "@/lib/multiCityText";
+import { marcarSalida, parseMultiCityText, SEPARATOR, stripNonPlaces, durationOf, type PlaceItem } from "@/lib/multiCityText";
 import { parseTripFallback } from "@/lib/parseTripFallback";
 import { mainCityOf } from "@/lib/tripCoverage";
 import { sameCity } from "../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -66,7 +66,13 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   const spec = emptySpec(text, "local");
   const raw = String(text ?? "");
   // "crucero de 7 noches" se lee aparte (noches a bordo): no debe partir la frase ni volver origen el puerto.
-  const clean = raw.replace(/\bcrucero\s+de\s+\d{1,3}\s+noches\b/gi, "crucero");
+  const clean = marcarSalida(raw.replace(/\bcrucero\s+de\s+\d{1,3}\s+noches\b/gi, "crucero"));
+  // «2 noches en Miami»: las noches de esa ciudad (recorrido crucero 9-nov-2026: salía Miami dos veces y sin noches).
+  const nochesEn = new Map<string, number>();
+  for (const m of lightNorm(raw).matchAll(/\b(\d{1,2})\s+noches?\s+en\s+([a-z ]+?)(?=[,;.]|\s+(?:y|luego|despues|con)\b|$)/g)) {
+    const k = normText(m[2]);
+    if (k && !nochesEn.has(k)) nochesEn.set(k, Number(m[1]));
+  }
   const full = parseMultiCityText(clean, { origin: ctx.origen ?? null });
   spec.origen = full.origin ?? ctx.origen ?? null;
   const fb = parseTripFallback(raw, ctx.today ?? new Date());
@@ -88,11 +94,14 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   let pendingMode: LegMode | null = null;
   let pendingCruise: Cruise | null = null;
   let pendingReturn = false;
+  let pendingDisembark = false;
   const mention = (texto: string, tipo: MentionKind, estado: TripSpec["menciones"][number]["estado"], ref: string | null) =>
     spec.menciones.push({ texto, tipo, estado, ref });
 
   const pushStop = (ciudad: string, extra: Parameters<typeof makeStop>[1]) => {
     const s = makeStop(ciudad, extra);
+    const n = nochesEn.get(normText(ciudad));
+    if (n && !pendingCruise) s.noches = n;
     if (pendingCruise) {
       s.llegada_por = "crucero";
       const arrival = pendingCruise.puerto_llegada ?? (isCruiseArrival(extra.texto, ciudad) ? ciudad : null);
@@ -108,6 +117,10 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   };
 
   const placeItem = (it: PlaceItem, writtenAs: string) => {
+    if (pendingDisembark && pendingCruise) {
+      pendingDisembark = false;
+      (pendingCruise as Cruise).puerto_llegada = it.name;
+    }
     if (pendingReturn) {
       pendingReturn = false;
       spec.regreso.a = it.name;
@@ -119,6 +132,12 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
       return;
     }
     if (it.kind === "city") {
+      // La misma ciudad otra vez seguida («Miami, 2 noches en Miami») no es otra parada (salvo al volver de un crucero).
+      const last = spec.paradas[spec.paradas.length - 1];
+      if (last && !pendingCruise && !pendingMode && sameCity(last.ciudad, it.name)) {
+        mention(writtenAs, "ciudad", "parada", last.id);
+        return;
+      }
       const s = pushStop(it.name, { texto: writtenAs });
       mention(writtenAs, "ciudad", "parada", s.id);
       return;
@@ -173,6 +192,8 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
         continue;
       }
     }
+    // Con un crucero en curso, «regresa a Miami» / «termina en Cozumel» es dónde desembarca, no el regreso a casa.
+    if (pendingCruise && /^(?:y\s+)?(?:regresa|regresando|vuelve|volviendo|termina|terminando|desembarca)(?:\s+(?:en|a|al))?$/.test(n)) { pendingDisembark = true; continue; }
     if (RETURN_RE.test(n)) { pendingReturn = true; continue; }
     const via = RETURN_VIA_RE.exec(n);
     if (via) {
@@ -202,7 +223,14 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
     if (/\bcrucero\b/.test(n)) {
       mention(chunk, "crucero", "tramo", null);
       const last = spec.paradas[spec.paradas.length - 1];
-      pendingCruise = newCruise(last && last.es_puerto ? last.ciudad : null);
+      // «crucero por el Caribe con Royal Caribbean que sale de Miami»: el puerto de salida y la naviera.
+      const sale = /\b(?:que\s+)?(?:sale|saliendo|zarpa|zarpando|parte)\s+(?:de|desde)\s+(.+)$/.exec(n);
+      const port = sale ? placesOf(restore(chunk, sale[1])).find((x) => x.kind === "city")?.name ?? null : null;
+      if (port && last && sameCity(last.ciudad, port)) last.es_puerto = true;
+      else if (port) { placeItem({ kind: "city", text: port, name: port }, port); spec.paradas[spec.paradas.length - 1].es_puerto = true; }
+      pendingCruise = newCruise(port ?? (last && last.es_puerto ? last.ciudad : null));
+      const naviera = /\b(?:con|de)\s+(royal caribbean|carnival|msc|norwegian|ncl|celebrity|princess|disney|holland america|costa|virgin voyages)\b/.exec(n);
+      if (naviera) pendingCruise.naviera = restore(chunk, naviera[1]);
       continue;
     }
     const dis = DISEMBARK_RE.exec(n);
