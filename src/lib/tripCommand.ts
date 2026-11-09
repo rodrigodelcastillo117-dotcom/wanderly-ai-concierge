@@ -171,7 +171,7 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
     const cuando = timing.daysToStart === 0 ? "Sales hoy" : timing.daysToStart === 1 ? "Sales mañana" : `Sales en ${timing.daysToStart} días`;
     const falta = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} y ${missing[missing.length - 1]}`;
     const byLand = arrivalByLand(trip as any);
-    return { key: "reservar", title: "Elige y reserva", detail: `${cuando} y aún te falta elegir ${falta}.`, cta: byLand ? "Elegir cómo llegar y hotel" : "Elegir vuelo y hotel", to: base };
+    return { key: "reservar", title: "Elige y reserva", detail: `${cuando} y aún te falta elegir ${falta}.`, cta: byLand ? "Elegir cómo llegar y hotel" : "Elegir vuelo y hotel", to: `${base}#comprar` };
   }
   if ((timing.daysToStart ?? 99) <= 3) {
     return { key: "preparar", title: timing.daysToStart === 0 ? "Hoy sales de viaje" : "Prepara tu maleta", detail: "Revisa tu lista de equipaje y el clima del destino.", cta: "Abrir lista de equipaje", to: `${base}/packing` };
@@ -179,11 +179,11 @@ export function nextTripAction(trip: NextActionInput, opts: { today: string; now
   // Ya eligió todo (la página lo sabe: `missing` vacío): ya no se le pide "Elegir vuelo y hotel" (caso E2E
   // 28-oct-2026, la barra lo seguía diciendo después de elegir ambos); lo que sigue es ver y comprar su selección.
   if (Array.isArray(opts.missing) && opts.missing.length === 0) {
-    return { key: "comprar", title: "Compra tu selección", detail: "Ya elegiste; compra directo con cada proveedor desde tu resumen.", cta: "Ver tu selección", to: base };
+    return { key: "comprar", title: "Compra tu selección", detail: "Ya elegiste; compra directo con cada proveedor desde tu resumen.", cta: "Ver tu selección", to: `${base}#comprar` };
   }
   // Viaje corto por tierra (CDMX → Tepoztlán): "cómo llegar", no "vuelo" (claude/viaje-corto).
-  if (arrivalByLand(trip as any)) return { key: "reservar", title: "Elige y reserva", detail: "Escoge cómo llegar y tu hotel en tu cotización; reservas directo con el proveedor.", cta: "Elegir cómo llegar y hotel", to: base };
-  return { key: "reservar", title: "Elige y reserva", detail: "Escoge vuelo y hotel en tu cotización; reservas directo con el proveedor.", cta: "Elegir vuelo y hotel", to: base };
+  if (arrivalByLand(trip as any)) return { key: "reservar", title: "Elige y reserva", detail: "Escoge cómo llegar y tu hotel en tu cotización; reservas directo con el proveedor.", cta: "Elegir cómo llegar y hotel", to: `${base}#comprar` };
+  return { key: "reservar", title: "Elige y reserva", detail: "Escoge vuelo y hotel en tu cotización; reservas directo con el proveedor.", cta: "Elegir vuelo y hotel", to: `${base}#comprar` };
 }
 
 /**

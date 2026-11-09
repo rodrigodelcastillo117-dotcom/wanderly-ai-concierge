@@ -83,7 +83,7 @@ export function TripNextStep({ trip, quote, isOwner, variant = "card", totalLabe
   const fresh = quoteFreshness(trip, quote, now);
   const base = `/dashboard/viajes/${trip.id}`;
   const go = () => {
-    const targets = action.to === base ? IN_PAGE_TARGET[action.key] : null;
+    const targets = action.to === base || action.to === `${base}#comprar` ? IN_PAGE_TARGET[action.key] : null;
     const target = targets?.find((id) => typeof document !== "undefined" && document.getElementById(id)) ?? null;
     if (target) scrollToSection(target);
     else navigate(action.to);

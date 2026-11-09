@@ -4,6 +4,8 @@ import { Globe2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { placeCoords } from "../../supabase/functions/_shared/airports.ts";
 
+const COARSE_POINTER = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+
 type Props = {
   origin?: string;
   destinations: string[];
@@ -379,7 +381,8 @@ export function RouteGlobe3D({ origin, destinations, height = 380 }: Props) {
         <p className="mt-3 text-[11px] text-muted-foreground italic">
           {points.length} puntos · {arcs.length} tramos
           {highlightedNames.size > 0 ? ` · ${highlightedNames.size} países resaltados` : ""}.
-          Arrastra para girar · usa la rueda para zoom (la rotación automática se detiene al interactuar).
+          {/* En el celular no hay rueda (recorrido en producción, 9-nov-2026): se dice pellizcar. */}
+          {COARSE_POINTER ? " Arrastra para girar · pellizca para acercar" : " Arrastra para girar · usa la rueda para zoom"} (la rotación automática se detiene al interactuar).
         </p>
       )}
     </div>
