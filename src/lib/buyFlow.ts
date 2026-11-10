@@ -110,9 +110,13 @@ function cruiseStep(trip: any, sea: any, from: string, to: string, date: string 
   const links = cruiseLinks(cruise as any, from, to);
   const main = links[0] ?? null;
   const noches = Number(sea.noches) || 0;
+  // La fecha del tramo es la llegada a la siguiente ciudad: el barco zarpa «noches» antes (8 mar, no 13 mar).
+  const zarpa = isoOk(sea.fecha_salida) ? sea.fecha_salida : isoOk(date) && noches
+    ? new Date(Date.parse(`${date}T00:00:00Z`) - noches * 86400000).toISOString().slice(0, 10) : date;
+  date = zarpa ?? null;
   const label = `Crucero${sea.naviera ? ` ${sea.naviera}` : ""}`;
   const choice: LegChoice = {
-    mode: "crucero", label, provider: sea.naviera ?? null, duration: noches ? `${noches} noches a bordo` : null, pricePp: null, fromPlan: true,
+    mode: "crucero", label, provider: null, duration: noches ? `${noches} noches a bordo` : null, pricePp: null, fromPlan: true,
     url: main?.url ?? null, site: main?.label ?? null, buttonLabel: main ? `Ver en ${main.label}` : null, completa: main?.nota ?? CRUISE_PRICE_NOTE,
     lleva: [], fallbackHref: main ? null : "/dashboard/cruceros", row: null,
     ...(links.length > 1 ? { links: links.slice(1).map((l): LegLink => ({ kind: "alternativa", label: l.label, url: l.url, site: l.label })) } : {}),

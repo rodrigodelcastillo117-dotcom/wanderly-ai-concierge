@@ -29,6 +29,7 @@ describe("crucero al final del viaje", () => {
     expect(titles.filter((t: string) => /^Hotel/.test(t))).toEqual(["Hotel en Miami"]);
     const leg: any = f.steps.find((s: any) => s.kind === "traslado");
     expect(leg.title).toBe("Crucero Royal Caribbean: Miami → Miami");
+    expect(leg.date).toBe("2027-03-08");
     expect(leg.item).toMatchObject({ price: null, priceNote: "Precio por cotizar con la naviera · no suma al total", buttonLabel: "Ver en Royal Caribbean" });
     expect(leg.item.url).toMatch(/^https:\/\/www\.royalcaribbean\.com\//);
     expect(JSON.stringify(f.steps)).not.toMatch(/Ferryhopper|Ferry Miami/);
