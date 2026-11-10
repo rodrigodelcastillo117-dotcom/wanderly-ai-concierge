@@ -95,7 +95,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.goto(`${BASE}/dashboard/viajes`, { waitUntil: "domcontentloaded" });
     await page.locator('a[href^="/dashboard/viajes/"] [data-testid="smart-image"]').first().waitFor({ timeout: 30_000 });
     // Se baja por la lista para que cada tarjeta pida su foto, y se espera a que lleguen.
-    for (let y = 0; y < 12; y++) { await page.mouse.wheel(0, 700); await sleep(500); }
+    // Hasta el final de la lista (las fotos cargan al verse): con 37 viajes, 12 vueltas dejaban 11 «cargando» (10-nov-2026).
+    for (let y = 0, prev = -1; y < 60; y++) {
+      await page.mouse.wheel(0, 700); await sleep(500);
+      const at = await page.evaluate(() => window.scrollY + window.innerHeight >= document.body.scrollHeight - 4 ? -2 : window.scrollY);
+      if (at === -2 || at === prev) break; prev = at;
+    }
     await page.evaluate(() => window.scrollTo(0, 0));
     let datos = null;
     for (let i = 0; i < 30; i++) {
