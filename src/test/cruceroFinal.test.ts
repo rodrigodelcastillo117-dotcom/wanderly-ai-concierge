@@ -15,7 +15,7 @@ describe("crucero al final del viaje", () => {
     const s = setTripBasics(finalizeSpec(IATO as any, Q, { origen: "Ciudad de México" }), { fecha_salida: "2027-03-06" });
     expect(s.fecha_regreso).toBe("2027-03-13");
     const r: any = routeOfSpec(s);
-    expect(r).toMatchObject({ kind: "multi", noches: [2, 0] });
+    expect(r).toMatchObject({ kind: "multi", noches: [2, 0], destinos: ["Miami", "Miami"] });
     const args: any = logisticsPlanArgs({ userId: null, origin: r.origen, stops: r.destinos, viajeros: 2, prefs: {}, nightsPerCity: r.noches, seaLegs: r.seaLegs, fechaSalida: r.fecha_salida, fechaRegreso: r.fecha_regreso } as any);
     expect(args.nights_per_city).toEqual([2, 0]);
   });

@@ -1093,7 +1093,8 @@ Entrega JSON con:
       transporteMxn += usdToMxn(Number(l.price_per_person_usd) || 0) * viajeros;
     });
 
-    const comidaBruta = usdToMxn(COMIDA_USD_PP_DIA[selectedTier] * nights * viajeros);
+    // A bordo la comida va incluida en el crucero: solo los días en tierra (recorrido crucero 9-nov-2026).
+    const comidaBruta = usdToMxn(COMIDA_USD_PP_DIA[selectedTier] * Math.max(1, nights - seaNights(seaLegs)) * viajeros);
     const comidaTecho = COMIDA_TECHO_MXN_PP_DIA * nights * viajeros;
     const comidaMxn = Math.min(comidaBruta, comidaTecho);
 

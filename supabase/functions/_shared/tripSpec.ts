@@ -946,7 +946,9 @@ export function routeOfSpec(spec: TripSpec): SpecRoute {
     if (!nightsTotal || sum + sea === nightsTotal) noches = given as number[];
   }
   return {
-    kind: "multi", origen, destinos: stays.map((s) => s.ciudad), noches, fecha_salida: spec.fecha_salida,
+    // La parada del crucero es el puerto donde desembarca (no «Caribe», la ruta del barco): de ahí sale el vuelo de regreso
+    // (recorrido 9-nov-2026: «regreso desde Caribe» y sin vuelo en vivo).
+    kind: "multi", origen, destinos: stays.map((s) => (s.llegada_por === "crucero" && s.crucero?.puerto_llegada ? s.crucero.puerto_llegada : s.ciudad)), noches, fecha_salida: spec.fecha_salida,
     fecha_regreso: spec.fecha_regreso, viajeros, legModes: explicit ? modes : null, seaLegs,
     llegada: PLAN_MODE[stays[0].llegada_por] ?? null, regresoModo: PLAN_MODE[spec.regreso.modo as LegMode] ?? null,
     notas: [said.length ? `Tramos que eligió: ${said.join("; ")}.` : "", notas].filter(Boolean).join(" ").slice(0, 900),
