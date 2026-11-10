@@ -251,6 +251,16 @@ const Concierge = () => {
     if (code === "42501") toast.error("No tienes acceso a ese viaje");
   };
 
+  // ?viaje=<id> (desde un viaje o una notificación): Iato habla de ESE viaje (recorrido 9-nov-2026: abierto desde el
+  // viaje a Cancún, contestaba del viaje fijado a Japón). Se fija una vez, cuando ya cargaron los viajes y es uno de ellos.
+  const viajeParam = searchParams.get("viaje");
+  const viajeAplicado = useRef<string | null>(null);
+  useEffect(() => {
+    if (!viajeParam || viajeAplicado.current === viajeParam || !tripsLoaded) return;
+    viajeAplicado.current = viajeParam;
+    if (trips.some((t) => t.id === viajeParam) && pinGuardado !== viajeParam) void pinTrip(viajeParam);
+  }, [viajeParam, tripsLoaded, trips]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-refresh tick every 60s
   useEffect(() => {
     if (!allowed) return;
