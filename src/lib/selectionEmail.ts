@@ -4,6 +4,7 @@
 // y las experiencias elegidas, con el total de la página. El servidor vuelve a comprobar todo contra la
 // fila del viaje (_shared/selection-email.ts) y pone los nombres.
 import { buildBuyFlow } from "@/lib/buyFlow";
+import { tourHasRealPrice } from "@/lib/tripPicks";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
 import { itemPurchaseState, realFlightOptions, type PurchaseItem, type PurchaseMarkRow, type TripOfferActionsLike } from "@/lib/purchasePlan";
 import { flightDurationLabel, flightStopsLabel } from "@/lib/flightDisplay";
@@ -122,7 +123,8 @@ export function buildSelectionRequest(trip: any, sel: SelectionSel, ctx: Selecti
   // 3 · Experiencias marcadas ("Sumar al total").
   const toursList: any[] = Array.isArray(trip.tours_json) ? trip.tours_json : [];
   for (const i of [...tours].filter((i) => i >= 0 && toursList[i]).sort((a, b) => a - b)) {
-    const pp = num(toursList[i]?.precio_por_persona);
+    // Solo un precio real; el que puso la IA no se manda como precio (recorrido 10-nov-2026).
+    const pp = tourHasRealPrice(toursList[i]) ? num(toursList[i]?.precio_por_persona) : null;
     const it = flow.items.find((x) => x.kind === "actividad" && x.index === i);
     items.push(requestItem(it, "actividad", i, { price: pp ? pp * travelers : null }, state(it) !== "pendiente"));
   }
@@ -133,12 +135,18 @@ export function buildSelectionRequest(trip: any, sel: SelectionSel, ctx: Selecti
   if (car && state(car) !== "pendiente") items.push(requestItem(car, "auto", -1, { price: null }, true));
 
   // 5 · Lo que suma al total de la página sin ser algo elegido (comida estimada de la cotización…).
+  // Experiencias: cubiertas solo si todas traen precio real; si no, lo que falta va como «estimado de la cotización»
+  // (el tour con precio de la IA va sin precio; recorrido 10-nov-2026).
+  const acts = items.filter((x) => x.kind === "actividad");
   const covered: Record<string, boolean> = {
-    vuelos: items.some((x) => x.kind === "vuelo"), hospedaje: items.some((x) => x.kind === "hospedaje"), tours: items.some((x) => x.kind === "actividad"),
+    vuelos: items.some((x) => x.kind === "vuelo"), hospedaje: items.some((x) => x.kind === "hospedaje"),
+    tours: acts.length > 0 && acts.every((x) => x.price != null),
   };
+  const actsPriced = acts.reduce((s, x) => s + (Number(x.price) || 0), 0);
   const estimates = Object.entries(desglose)
-    .filter(([cat, v]) => !covered[cat] && Math.round(Number(v) || 0) > 0)
-    .map(([category, v]) => ({ category, amount: Math.round(Number(v)) }));
+    .map(([category, v]) => [category, Math.round((Number(v) || 0) - (category === "tours" ? actsPriced : 0))] as const)
+    .filter(([cat, v]) => !covered[cat] && v > 0)
+    .map(([category, amount]) => ({ category, amount }));
 
   const chosen = items.some((x) => x.kind === "vuelo" || x.kind === "hospedaje");
   if (!chosen && !missing.length) missing.push("tu vuelo o tu hotel");

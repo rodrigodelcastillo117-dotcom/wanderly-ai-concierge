@@ -9,6 +9,7 @@
  * - El desglose según lo que el usuario seleccione.
  */
 import { diffDateOnlyDays, formatDateOnly } from "@/lib/dateUtils";
+import { tourHasRealPrice } from "@/lib/tripPicks";
 import { formatAge, LIVE_TTL_HOURS } from "@/lib/provenance";
 import { describeQuoteChanges, quoteChanges, type QuoteChange } from "@/lib/quoteChanges";
 import { cityHotelChoices, hasCityHotels } from "@/lib/cityHotels";
@@ -151,10 +152,12 @@ export function computeTripDesglose(trip: any, sel: Selection, viajeros: number)
   const n = Math.max(1, Number(viajeros) || 1);
   const vuelo = sel.selVuelo >= 0 ? trip.vuelos_json?.[sel.selVuelo] : null;
   const hosp = sel.selHospedaje >= 0 ? trip.hospedaje_json?.[sel.selHospedaje] : null;
-  const toursSum = (trip.tours_json ?? []).reduce(
-    (s: number, t: any, i: number) => (sel.selTours.has(i) ? s + (Number(t?.precio_por_persona) || 0) * n : s),
-    0,
-  );
+  // Solo suman precios REALES de experiencias (tourHasRealPrice). Si alguna elegida solo trae el precio que puso la IA
+  // (Museo Maya «$900», recorrido 10-nov-2026), el renglón se queda en el estimado de la cotización (marcado «estimado»).
+  const toursList: any[] = trip.tours_json ?? [];
+  const chosenTours = toursList.map((t, i) => [t, i] as const).filter(([, i]) => sel.selTours.has(i));
+  const realToursSum = chosenTours.reduce((s, [t]) => s + (tourHasRealPrice(t) ? Number(t.precio_por_persona) * n : 0), 0);
+  const toursSum = chosenTours.every(([t]) => tourHasRealPrice(t)) ? realToursSum : Math.max(realToursSum, Number(base.tours) || 0);
   // Multi-destino: un hotel por ciudad con las noches de esa ciudad (no un hotel por todo el viaje).
   // Sin ninguna elección se conserva el renglón de la cotización.
   const multiHotels = hasCityHotels(trip);

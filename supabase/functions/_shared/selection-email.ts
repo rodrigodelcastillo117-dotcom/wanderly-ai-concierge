@@ -313,7 +313,8 @@ export function validateSelectionRequest(
         status: given !== null ? st.status : null, provenance: given !== null ? st.provenance : null,
       });
     } else if (kind === "actividad") {
-      const pp = num(row.precio_por_persona);
+      // El precio que puso la IA al armar el viaje (estado ESTIMADO) no es un precio: «precio en el sitio».
+      const pp = String(row.estado_dato ?? "").toUpperCase() === "ESTIMADO" ? null : num(row.precio_por_persona);
       const expected = pp ? pp * T : null;
       if (given !== null && (expected === null || !close(given, expected))) return err(409, "precio_no_coincide", "El precio de una experiencia cambió. Recarga la página.");
       const st = priceStatusOf(row, "tours", createdAt, now);
@@ -351,7 +352,8 @@ export function validateSelectionRequest(
   // "Si todavía no eligió nada, no se envía nada": hace falta un vuelo o un hotel elegido.
   if (!flight && !hotels.length) return err(409, "sin_seleccion", "Elige tu vuelo y hotel para enviarte el resumen.");
 
-  const covered: Record<string, boolean> = { vuelos: !!flight, hospedaje: hotels.length > 0, tours: activities.length > 0 };
+  // Experiencias sin precio real (las que puso la IA) no cubren el renglón: su parte va como estimado.
+  const covered: Record<string, boolean> = { vuelos: !!flight, hospedaje: hotels.length > 0, tours: activities.length > 0 && activities.every((a) => a.price !== null) };
   const estimates: SelectionEstimate[] = [];
   for (const e of Array.isArray(b.estimates) ? b.estimates.slice(0, 8) : []) {
     const cat = String(e?.category ?? "");
