@@ -62,6 +62,18 @@ export function localMentions(text: string): Array<{ texto: string; tipo: Mentio
   return buildLocalSpec(text).menciones.map((m) => ({ texto: m.texto, tipo: m.tipo }));
 }
 
+/**
+ * «Mérida 3 noches y Cancún 4 noches», «Mérida (3 noches)», «Mérida por 3 noches»: las noches escritas DESPUÉS de la
+ * ciudad (recorrido familia 10-nov-2026: salía Mérida 4 y Cancún 3, el reparto parejo).
+ */
+export function nochesTrasCiudad(raw: string, ciudad: string): number | undefined {
+  const c = lightNorm(ciudad).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  if (!c) return undefined;
+  const m = new RegExp(`\\b${c}\\s*(?:\\(|:|,|-|\\s(?:por|durante|con))?\\s*(\\d{1,2})\\s+noches?\\b(?!\\s+(?:en\\s+total|totales|entre))`).exec(lightNorm(raw));
+  const n = m ? Number(m[1]) : NaN;
+  return n >= 1 && n <= 60 ? n : undefined;
+}
+
 export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
   const spec = emptySpec(text, "local");
   const raw = String(text ?? "");
@@ -100,7 +112,7 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
 
   const pushStop = (ciudad: string, extra: Parameters<typeof makeStop>[1]) => {
     const s = makeStop(ciudad, extra);
-    const n = nochesEn.get(normText(ciudad));
+    const n = nochesEn.get(normText(ciudad)) ?? nochesTrasCiudad(raw, ciudad);
     if (n && !pendingCruise) s.noches = n;
     if (pendingCruise) {
       s.llegada_por = "crucero";
