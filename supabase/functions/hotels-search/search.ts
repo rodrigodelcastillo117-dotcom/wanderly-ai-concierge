@@ -39,6 +39,11 @@ const HOSTEL_RE = /\b(hostel|hostal|hostels|albergue|backpackers?|mochiler[oa]s?
 export function isHostel(p: any): boolean {
   return HOSTEL_RE.test(`${p?.name ?? ""} ${p?.type ?? ""} ${p?.description ?? ""}`);
 }
+// Solo adultos (no admiten niños): «Hyatt Zilara Cancún» salía como premium para una familia con hijos de 6 y 9.
+const ADULTS_ONLY_RE = /\b(adults?[ -]only|solo adultos|s[oó]lo para adultos|adultos solamente|only adults)\b|\b(zilara|secrets|breathless|excellence (?:playa|riviera|punta|coral|el carmen|oyster)|le blanc|sandals|hidden beach|temptation|desire resort|hotel xcaret arte)\b/i;
+export function isAdultsOnly(p: any): boolean {
+  return ADULTS_ONLY_RE.test(`${p?.name ?? ""} ${p?.description ?? ""}`);
+}
 
 /** Edades de niños válidas (0–17) que manda quien llama (analizar-viaje), o []. */
 export function childAgesOf(raw: unknown): number[] {
@@ -165,9 +170,9 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
         if (wellRated.length >= 3) withNightly = wellRated;
       }
       // Con niños no se ofrecen hostales (recorrido familia 9-nov-2026: «Mayan Monkey Cancún», un hostal, era la opción
-      // económica de una familia con hijos de 6 y 9). Si así quedan menos de 3, se dejan todos.
+      // económica de una familia con hijos de 6 y 9) ni hoteles solo para adultos. Si así quedan menos de 3, se dejan todos.
       if (childAges.length) {
-        const family = withNightly.filter((x: any) => !isHostel(x.p));
+        const family = withNightly.filter((x: any) => !isHostel(x.p) && !isAdultsOnly(x.p));
         if (family.length >= 3) withNightly = family;
       }
       return withNightly

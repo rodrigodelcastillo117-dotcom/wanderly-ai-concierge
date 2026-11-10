@@ -77,3 +77,16 @@ describe("niños en un viaje de varias ciudades", () => {
     expect([u.searchParams.get("group_adults"), u.searchParams.get("group_children"), u.searchParams.getAll("age").join(",")]).toEqual(["2", "2", "5,11"]);
   });
 });
+
+import { isAdultsOnly } from "../../supabase/functions/hotels-search/search.ts";
+describe("solo adultos fuera para familias", () => {
+  it("reconoce hoteles solo para adultos", () => {
+    expect(isAdultsOnly({ name: "Hyatt Zilara Cancun" })).toBe(true);
+    expect(isAdultsOnly({ name: "Hotel Casa Naré - Adults Only" })).toBe(true);
+    expect(isAdultsOnly({ name: "Secrets The Vine Cancun" })).toBe(true);
+    expect(isAdultsOnly({ name: "Breathless Cancun Soul" })).toBe(true);
+    expect(isAdultsOnly({ name: "Iberostar Selection Cancún" })).toBe(false);
+    expect(isAdultsOnly({ name: "Hyatt Ziva Cancun" })).toBe(false);
+    expect(isAdultsOnly({ name: "Dreams Sands Cancun" })).toBe(false);
+  });
+});
