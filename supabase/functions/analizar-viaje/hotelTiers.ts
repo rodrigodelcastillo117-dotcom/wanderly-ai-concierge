@@ -82,6 +82,13 @@ export function buildHotelTiers(aiHotels: any[], live: any[], o: { fxUsd: number
     return true;
   });
 
+  // Sin outliers de más de 4× el del medio (hacienda completa a $167,092 MXN la noche, recorrido 10-nov-2026).
+  if (list.length >= 3) {
+    const midUsd = Number(list[Math.floor((list.length - 1) / 2)].nightly_usd);
+    const sane = list.filter((x) => Number(x.nightly_usd) <= midUsd * 4);
+    if (sane.length >= 3) list = sane;
+  }
+
   const keptAi = ai.filter((h) => String(h?.fuente_precio ?? "") === "serpapi" && list.some((x) => sameName(x?.name, h?.nombre)));
   const out: any[] = [];
   const used = new Set<string>();

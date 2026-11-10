@@ -50,6 +50,7 @@ import { porQueHotelVivo } from "./porQueHotel.ts";
 import { conRutas, gasolinaTramoMxn, llegadaPorTierra, totalLlegadaTierra } from "../_shared/llegadaTierra.ts";
 import { sameCity } from "../_shared/booking/tripRoute.ts";
 import { sanitizeOcupacion } from "../_shared/ocupacion.ts";
+import { pickCityHotels } from "./hotelPick.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1001,12 +1002,8 @@ Entrega JSON con:
           // dio otro, se dice lo que sí se sabe (recorrido Japón 9-nov-2026: MIMARU Ikebukuro descrito «en Nihonbashi»).
           por_que: porQueHotelVivo(h, hospedaje.find((x: any) => x?.tier === tier)),
         };
-        const cheap = sorted[0];
-        const mid = sorted[Math.floor(sorted.length / 2)] ?? cheap;
-        // Para "premium" preferimos la categoría de estrellas más alta disponible, no solo el precio.
-        const maxClass = Math.max(...sorted.map((h: any) => Number(h.hotel_class) || 0));
-        const topPool = maxClass > 0 ? sorted.filter((h: any) => (Number(h.hotel_class) || 0) === maxClass) : sorted;
-        const top = topPool[topPool.length - 1] ?? sorted[sorted.length - 1] ?? mid;
+        // Premium: la categoría más alta, sin outliers de más de 4× el del medio (hotelPick.ts).
+        const { cheap, mid, top } = pickCityHotels(sorted);
         const built = [build(cheap, "ahorro"), build(mid, "equilibrio"), build(top, "premium")].filter(Boolean);
         hospedaje = built.length
           ? markLive(built, "fuente_precio", "serpapi", live?.hotels?.consulted_at ?? liveConsultedAt)
