@@ -122,3 +122,14 @@ describe("Noches por ciudad", () => {
     expect(addIsoDays("2026-11-06", 9)).toBe("2026-11-15");
   });
 });
+
+describe("preferencias que no son paradas (recorrido 10-nov-2026)", () => {
+  it("«que no caminemos mucho y hotel con elevador» y «hotel todo incluido» no salen como ciudades", async () => {
+    const { buildLocalSpec } = await import("@/lib/tripSpecLocal");
+    const a = buildLocalSpec("Viaje a Oaxaca 4 noches del 15 al 19 de enero de 2027 con mis papás de 75 años, saliendo de Ciudad de México, que no caminemos mucho y hotel con elevador", { today: new Date(2026, 10, 10) });
+    expect(a.paradas.map((p) => p.ciudad)).toEqual(["Oaxaca"]);
+    expect(a.viajeros).toBe(3);
+    expect(buildLocalSpec("Cancún, hotel todo incluido, con mi esposa", { today: new Date(2026, 10, 10) }).paradas.map((p) => p.ciudad)).toEqual(["Cancún"]);
+    expect(buildLocalSpec("Querétaro y San Miguel de Allende 3 noches", { today: new Date(2026, 10, 10) }).paradas.map((p) => p.ciudad)).toEqual(["Querétaro", "San Miguel de Allende"]);
+  });
+});

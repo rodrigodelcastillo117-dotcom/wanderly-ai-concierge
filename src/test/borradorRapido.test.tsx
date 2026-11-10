@@ -281,3 +281,16 @@ describe("PlanTrip: borrador al instante", () => {
     expect(paid()).toHaveLength(0);
   });
 });
+
+describe("la IA no borra lo que ya se entendió (recorrido 10-nov-2026, papás de 75 años)", () => {
+  it("con viajeros vacío de la IA se conservan los 3 del texto («con mis papás»)", () => {
+    const t = "Viaje a Oaxaca 4 noches del 15 al 19 de enero de 2027 con mis papás de 75 años, saliendo de Ciudad de México";
+    const base = draftSpec(t, { origen: "Ciudad de México", today: TODAY });
+    expect(base.viajeros).toBe(3);
+    const ai = aiSpec({ intencion: "viaje_futuro", origen: "Ciudad de México", viajeros: null, fecha_salida: "2027-01-15", fecha_regreso: "2027-01-19",
+      paradas: [{ ciudad: "Oaxaca", texto: "Oaxaca", rol: "estancia", noches: 4, llegada_por: "por_definir" }], preguntas: [], menciones: [] }, t);
+    expect(ai.viajeros ?? null).toBeNull();
+    const m = mergeDraftWithAi(base, base, ai, { origen: "Ciudad de México" });
+    expect(m.spec.viajeros).toBe(3);
+  });
+});

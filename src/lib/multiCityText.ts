@@ -114,7 +114,9 @@ const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta h
   // Quién viaja: «con mi esposa y nuestros 2 hijos de 6 y 9 años» no son lugares (recorrido familia, 9-nov-2026).
   "nuestros nuestras nuestro nuestra sus su hijos hijas hijo hija ninos ninas nino nina bebe bebes chicos chicas peques " +
   "esposa esposo marido mujer pareja papas papa mama padres abuelos abuela abuelo suegros sobrinos primos hermanos hermana hermano " +
-  "anos ano edad edades mayores menores familiar").split(/\s+/));
+  "anos ano edad edades mayores menores familiar " +
+  // «Cancún, hotel todo incluido»: el hospedaje no es una parada (10-nov-2026).
+  "hotel hoteles hospedaje habitacion habitaciones cuarto cuartos").split(/\s+/));
 
 const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20, treinta: 30 };
@@ -172,6 +174,12 @@ export function stripNonPlaces(text: string): string {
     .replace(new RegExp(`\\b(?:${MONTHS})\\b`, "gi"), " , ")
     .replace(/\b\d{1,2}\s*(?:personas?|viajeros?|adultos?|pax|ni[nñ]os?)\b/gi, " , ")
     .replace(/\b(?:fin de semana|con mi familia|con mi pareja|con amigos|en pareja)\b/gi, " , ")
+    // Preferencias, no paradas (recorrido 10-nov-2026, papás de 75 años: «que no caminemos mucho y hotel con elevador»
+    // salían como dos ciudades por confirmar).
+    // («que sale de Miami y regresa a Miami» sí es ruta: se deja).
+    .replace(/\bque\s+(?!(?:sale|salga|salen|regresa|regrese|regresan|vuelve|vuelva|llega|llegue|llegan|termina|termine|terminan|para|pare|paran|pasa|pase|pasan|va|vaya|van|hace|haga|hacen|toca|toque|tocan|empieza|empiece|inicia|inicie)\b)[^,;.\n]+/gi, " , ")
+    .replace(/\b(?:hotel(?:es)?|habitaci[oó]n(?:es)?|cuartos?|hospedaje)\s+(?:con|sin|cerca|accesibles?|tranquilos?|familiares?|boutique|de\s+lujo|todo\s+incluido)\b[^,;.\n]*/gi, " , ")
+    .replace(/\b(?:sin\s+escaleras|silla\s+de\s+ruedas|poco\s+caminar|caminar\s+poco|movilidad\s+reducida|accesible)\b/gi, " , ")
     .replace(/\b\d{4}\b/g, " , ");
 }
 

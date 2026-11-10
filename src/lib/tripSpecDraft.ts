@@ -108,6 +108,9 @@ export function mergeDraftWithAi(base: TripSpec, edited: TripSpec, ai: TripSpec,
   const patch: Partial<Pick<TripSpec, "fecha_salida" | "fecha_regreso" | "viajeros" | "origen">> = {};
   for (const f of ["fecha_salida", "fecha_regreso", "viajeros", "origen"] as const) {
     if (edited[f] !== base[f]) (patch as Record<string, unknown>)[f] = edited[f];
+    // Lo que ya se entendió del texto y la IA dejó vacío se conserva (recorrido 10-nov-2026: «con mis papás» = 3
+    // viajeros; la IA devolvió viajeros vacío y preguntó «¿2 o 3?»).
+    else if ((out[f] === null || out[f] === undefined) && edited[f] !== null && edited[f] !== undefined) (patch as Record<string, unknown>)[f] = edited[f];
   }
   if (Object.keys(patch).length) out = setTripBasics(out, patch);
 
