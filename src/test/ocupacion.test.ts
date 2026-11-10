@@ -90,3 +90,12 @@ describe("solo adultos fuera para familias", () => {
     expect(isAdultsOnly({ name: "Dreams Sands Cancun" })).toBe(false);
   });
 });
+
+describe("porciones de comida (recorrido familia 10-nov-2026)", () => {
+  it("niños de 12 o menos cuentan media porción; adolescentes, completa", async () => {
+    const { porcionesComida } = await import("../../supabase/functions/_shared/ocupacion");
+    expect(porcionesComida({ adultos: 2, ninos: [5, 10] }, 4)).toBe(3);
+    expect(porcionesComida({ adultos: 2, ninos: [14] }, 3)).toBe(3);
+    expect(porcionesComida(null, 2)).toBe(2);
+  });
+});

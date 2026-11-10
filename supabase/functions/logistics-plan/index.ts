@@ -49,7 +49,7 @@ import { nochesEnVuelo, primeraCiudadDesdeLlegada } from "./llegada.ts";
 import { porQueHotelVivo } from "./porQueHotel.ts";
 import { conRutas, gasolinaTramoMxn, llegadaPorTierra, totalLlegadaTierra } from "../_shared/llegadaTierra.ts";
 import { sameCity } from "../_shared/booking/tripRoute.ts";
-import { sanitizeOcupacion } from "../_shared/ocupacion.ts";
+import { porcionesComida, sanitizeOcupacion } from "../_shared/ocupacion.ts";
 import { pickCityHotels } from "./hotelPick.ts";
 
 const corsHeaders = {
@@ -1097,8 +1097,10 @@ Entrega JSON con:
     });
 
     // A bordo la comida va incluida en el crucero: solo los días en tierra (recorrido crucero 9-nov-2026).
-    const comidaBruta = usdToMxn(COMIDA_USD_PP_DIA[selectedTier] * Math.max(1, nights - seaNights(seaLegs)) * viajeros);
-    const comidaTecho = COMIDA_TECHO_MXN_PP_DIA * nights * viajeros;
+    // Niños de 12 o menos: media porción (_shared/ocupacion.ts).
+    const porciones = porcionesComida(ocupacion, viajeros);
+    const comidaBruta = usdToMxn(COMIDA_USD_PP_DIA[selectedTier] * Math.max(1, nights - seaNights(seaLegs)) * porciones);
+    const comidaTecho = COMIDA_TECHO_MXN_PP_DIA * nights * porciones;
     const comidaMxn = Math.min(comidaBruta, comidaTecho);
 
     const mc = globalData.mandatory_costs ?? {};

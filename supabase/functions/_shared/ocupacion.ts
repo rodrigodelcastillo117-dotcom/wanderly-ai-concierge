@@ -16,6 +16,15 @@ export function sanitizeOcupacion(ninos: unknown, total: unknown): Ocupacion | n
   return { adultos: T - ages.length, ninos: ages };
 }
 
+/**
+ * Porciones de comida: un niño de 12 años o menos cuenta como media porción (recorrido familia 10-nov-2026: la comida
+ * de 2 adultos + niños de 5 y 10 años se estimaba como de 4 adultos).
+ */
+export function porcionesComida(ocupacion: Ocupacion | null | undefined, viajeros: number): number {
+  if (!ocupacion) return viajeros;
+  return ocupacion.adultos + ocupacion.ninos.reduce((s, a) => s + (a <= 12 ? 0.5 : 1), 0);
+}
+
 /** La ocupación guardada del viaje (si cuadra con num_viajeros). */
 export function ocupacionDe(trip: { num_viajeros?: unknown; itinerario_json?: unknown } | null | undefined): Ocupacion | null {
   const it = trip?.itinerario_json;
