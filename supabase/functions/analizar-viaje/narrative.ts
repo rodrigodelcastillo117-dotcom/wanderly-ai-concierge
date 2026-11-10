@@ -15,6 +15,7 @@ export const NARRATIVE_RULES = `REGLAS DEL TEXTO (analisis_narrativo, tips_perso
 - Duración: usa las noches y días del CALENDARIO DEL VIAJE tal cual. No comentes que cambiaste, ajustaste o reinterpretaste los días del viaje.
 - Personalización: cita solo gustos que apliquen a ESTE destino. No menciones otros destinos (favoritos, viajes pasados, lugares que quiere conocer) como razón de una sugerencia.
 - Trayecto en coche: casetas y gasolina son el costo del coche, nunca "por persona".
+- Itinerario (recorrido familia Cancún 10-nov-2026: «vuelo internacional-turístico… 3 horas de margen» en un CDMX→Cancún, y un día titulado «Isla Mujeres» que no iba a Isla Mujeres): vuelo dentro del mismo país = nacional, llegar 2 horas antes; entre países = internacional, 3 horas. El título de cada día nombra solo lugares que ese día sí visita.
 - Fuentes: nombra solo lo que la persona reconoce ("Google Flights", "Google Hotels", "Google Maps", "Aviasales", "datos en vivo"); nunca proveedores técnicos (SerpApi, Perplexity, Travelpayouts, API). La bóveda de beneficios se llama "tus documentos y tarjetas".`;
 
 // scrubProviders vive en _shared/providerNames.ts (también lo usa Iato, concierge-chat).

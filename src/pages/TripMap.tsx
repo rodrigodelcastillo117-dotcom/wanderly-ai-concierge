@@ -619,7 +619,8 @@ const PlaceList = ({ icon: Icon, label, items, destino }: any) => (
       <span className="text-[10px] text-foreground/50 ml-auto">{items.length}</span>
     </div>
     <ul className="space-y-1.5">
-      {items.slice(0, 5).map((it: any, i: number) => {
+      {/* Todos (hasta 10): decía «Tours 6» y mostraba 5; faltaba Xcaret (recorrido Cancún 10-nov-2026). */}
+      {items.slice(0, 10).map((it: any, i: number) => {
         const name = it?.nombre ?? it?.titulo ?? it?.hotel ?? `Opción ${i + 1}`;
         return (
           <li key={i}>
@@ -631,6 +632,7 @@ const PlaceList = ({ icon: Icon, label, items, destino }: any) => (
           </li>
         );
       })}
+      {items.length > 10 && <li className="text-xs text-muted-foreground">y {items.length - 10} más</li>}
       {items.length === 0 && <li className="text-xs text-muted-foreground">Sin elementos</li>}
     </ul>
   </div>
