@@ -40,6 +40,7 @@ import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 // Intérprete de viaje completo: "Entendí…" editable antes de generar, y cobertura de lo escrito.
 import { TripSpecReview } from "@/components/plan/TripSpecReview";
 import { detectShortTrip } from "../../supabase/functions/_shared/groundTransport.ts";
+import { edadesNinos } from "../../supabase/functions/_shared/ocupacion.ts";
 import { buildLocalSpec, finalizeSpec } from "@/lib/tripSpecLocal";
 import { generateFromSpec, interpretTrip, interpretTripAi, INTERPRET_TIMEOUT_MS } from "@/lib/tripSpecFlow";
 import { nextPlanStep, stashRouteConsulta } from "@/lib/planDirect";
@@ -382,7 +383,9 @@ const PlanTrip = () => {
     try {
       // Misma llave al reintentar o recargar: si el viaje ya se guardó, no se cobra otro análisis.
       const request_key = getRequestKey("analizar-viaje", args);
-      const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: { ...args, request_key } });
+      // «nuestros 2 hijos de 6 y 9 años»: los hoteles se buscan con 2 adultos + 2 niños (_shared/ocupacion.ts).
+      const ninos = edadesNinos(consultaText ?? args.notas_usuario ?? "");
+      const { data, error } = await supabase.functions.invoke("analizar-viaje", { body: { ...args, ...(ninos.length && ninos.length < args.num_viajeros ? { ninos_edades: ninos } : {}), request_key } });
       if (error) throw error;
       if (!data?.trip?.id) throw new Error("Sin resultado");
       // El texto escrito y la invitación al acompañante van en paralelo (antes uno tras otro antes de

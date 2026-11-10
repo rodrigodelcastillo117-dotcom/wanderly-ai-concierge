@@ -2,6 +2,7 @@
 // Flujo: Perplexity (sonar-pro) investiga precios reales -> Claude estructura el análisis premium.
 // FIX v3: Perplexity opcional — si falta la key, continúa sin contexto cualitativo (no 500).
 import { filterFares } from "../_shared/fareGuard.ts";
+import { sanitizeOcupacion } from "../_shared/ocupacion.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   invalidRequestResponse,
@@ -97,6 +98,8 @@ interface AnalisisRequest {
   trip_id?: string | null;
   /** Texto original + interpretación (itinerario_json.consulta) de un viaje nuevo desde texto libre. */
   consulta?: unknown;
+  /** Edades de los niños que viajan (de num_viajeros): hoteles con adultos + niños (_shared/ocupacion.ts). */
+  ninos_edades?: number[];
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -703,6 +706,7 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "travelpayouts", error: String(e?.message ?? e), flights: [] }));
 
+    const ocupacion = sanitizeOcupacion(body.ninos_edades, body.num_viajeros);
     // Hotellook murió oct 2025. Fuente primaria de hospedaje ahora: SerpApi Google Hotels (hotels-search).
     const serpHotelsPromise = fetch(`${SUPABASE_URL}/functions/v1/hotels-search`, {
       method: "POST",
@@ -716,7 +720,8 @@ Deno.serve(async (req) => {
         city: body.destino,
         checkin: body.fecha_salida,
         checkout: body.fecha_regreso,
-        adults: body.num_viajeros,
+        adults: ocupacion ? ocupacion.adultos : body.num_viajeros,
+        ...(ocupacion ? { children_ages: ocupacion.ninos } : {}),
         query: hotelPreference(body.notas_usuario),
       }),
     }).then((r) => r.json()).catch((e) => ({ source: "error", error: String(e?.message ?? e), results: [] }));
@@ -1220,6 +1225,11 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // (antes la guardaba el cliente después; si cerraba la pestaña, se perdía el texto original).
     const consultaIn = targetTripId ? null : sanitizeSavedConsulta(body.consulta);
     if (consultaIn) (tripFields as Record<string, unknown>).itinerario_json = { days: Array.isArray(a.itinerario) ? a.itinerario : [], consulta: consultaIn };
+    // Con niños: la ocupación queda en el viaje (Comprar arma Booking con adultos + niños y 1 habitación).
+    if (ocupacion) {
+      const it = (tripFields as Record<string, unknown>).itinerario_json;
+      (tripFields as Record<string, unknown>).itinerario_json = { ...(Array.isArray(it) ? { days: it } : (it as Record<string, unknown>) ?? { days: [] }), ocupacion };
+    }
     const { data: trip, error: insertErr } = targetTripId
       ? await supabase
         .from("trips")

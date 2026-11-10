@@ -18,7 +18,7 @@ export const MOTIVO_NO_DISPONIBLE = "Búsqueda en vivo no disponible ahora; inte
  * en src/lib/affiliateLinks.ts. `marker` se conserva en la firma (lo resuelve resolveTpMarker) por si
  * Travelpayouts vuelve a dar un redirect válido (decisión BB-02 del dueño).
  */
-export function bookingUrl(city: string, ci: string, co: string, adults: number, _marker: string) {
+export function bookingUrl(city: string, ci: string, co: string, adults: number, _marker: string, childAges: number[] = []) {
   const p = new URLSearchParams({
     ss: city,
     checkin: ci,
@@ -26,7 +26,17 @@ export function bookingUrl(city: string, ci: string, co: string, adults: number,
     group_adults: String(adults),
     no_rooms: String(Math.max(1, Math.ceil(adults / 2))),
   });
+  // Niños con su edad: Booking muestra «2 adultos · 2 niños · 1 habitación» (recorrido familia 9-nov-2026).
+  if (childAges.length) {
+    p.set("group_children", String(childAges.length));
+    for (const a of childAges) p.append("age", String(a));
+  }
   return `https://www.booking.com/searchresults.html?${p.toString()}`;
+}
+
+/** Edades de niños válidas (0–17) que manda quien llama (analizar-viaje), o []. */
+export function childAgesOf(raw: unknown): number[] {
+  return (Array.isArray(raw) ? raw : []).map(Number).filter((a) => Number.isInteger(a) && a >= 0 && a <= 17).slice(0, 10);
 }
 
 const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
@@ -37,7 +47,7 @@ const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
  * antes de impuestos; categoría numérica, ubicación, horarios de entrada/salida y el sitio que da
  * la tarifa más baja.
  */
-export function hotelResult(p: any, nightly: number, totalRaw: number, nights: number, city: string, checkin: string, checkout: string, adults: number, marker: string) {
+export function hotelResult(p: any, nightly: number, totalRaw: number, nights: number, city: string, checkin: string, checkout: string, adults: number, marker: string, childAges: number[] = []) {
   const nightlyBefore = pos(p?.rate_per_night?.extracted_before_taxes_fees);
   const totalBefore = pos(p?.total_rate?.extracted_before_taxes_fees);
   const cls = Number(p?.extracted_hotel_class ?? (typeof p?.hotel_class === "number" ? p.hotel_class : String(p?.hotel_class ?? "").match(/\d/)?.[0]));
@@ -73,7 +83,7 @@ export function hotelResult(p: any, nightly: number, totalRaw: number, nights: n
     thumbnail: p.images?.[0]?.thumbnail ?? null,
     amenities: (p.amenities ?? []).slice(0, 6),
     link: p.link ?? null,
-    booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults, marker),
+    booking_url: bookingUrl(`${p.name} ${city}`, checkin, checkout, adults, marker, childAges),
     fuente: "google_hotels",
   };
 }
@@ -95,6 +105,7 @@ export type HotelsSearchEnv = {
 
 export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ status: number; body: Record<string, unknown> }> {
   const { city, checkin, checkout, adults = 1, hotel_class = "", query = "", sort = "value" } = body ?? {};
+  const childAges = childAgesOf(body?.children_ages);
   const marker = resolveTpMarker(env.marker);
   const fallas: string[] = [];
   let results: any[] = [];
@@ -112,6 +123,10 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
     u.searchParams.set("check_in_date", checkin);
     u.searchParams.set("check_out_date", checkout);
     u.searchParams.set("adults", String(adults));
+    if (childAges.length) {
+      u.searchParams.set("children", String(childAges.length));
+      u.searchParams.set("children_ages", childAges.join(","));
+    }
     u.searchParams.set("currency", "USD");
     u.searchParams.set("hl", "es");
     if (hotel_class) u.searchParams.set("hotel_class", hotel_class);
@@ -146,7 +161,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       return withNightly
         .sort((a: any, b: any) => a.nightly - b.nightly)
         .slice(0, 15)
-        .map(({ p, nightly, totalRaw }: any) => hotelResult(p, nightly, totalRaw, nightsSafe, city, checkin, checkout, adults, marker));
+        .map(({ p, nightly, totalRaw }: any) => hotelResult(p, nightly, totalRaw, nightsSafe, city, checkin, checkout, adults, marker, childAges));
     } catch (e) {
       console.error("hotels err", (e as Error).message);
       fallas.push("google_hotels_error");
@@ -180,7 +195,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       ...(disponible ? {} : { motivo: MOTIVO_NO_DISPONIBLE, fallas }),
       consulted_at: new Date().toISOString(),
       // Link de búsqueda (sin precio) para que el usuario busque por su cuenta.
-      booking_url: bookingUrl(city, checkin, checkout, adults, marker),
+      booking_url: bookingUrl(city, checkin, checkout, adults, marker, childAges),
       meta: { city, checkin, checkout, adults },
     },
   };

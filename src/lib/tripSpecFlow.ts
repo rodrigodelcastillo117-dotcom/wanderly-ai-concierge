@@ -8,6 +8,7 @@
 // Re-armar desde "¿No entendimos bien tu viaje?" crea un viaje NUEVO (revisión versionada) y deja el
 // anterior intacto, con su diario, gastos y selecciones; el anterior apunta a la revisión.
 import { generateMultiDestTrip } from "@/lib/multiDestGenerate";
+import { edadesNinos } from "../../supabase/functions/_shared/ocupacion.ts";
 import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
 import { buildLocalSpec, finalizeSpec, type LocalContext } from "@/lib/tripSpecLocal";
 import {
@@ -157,7 +158,9 @@ export async function generateFromSpec(client: Client, spec: TripSpec, o: Genera
     // El texto original y la interpretación viajan CON la petición: analizar-viaje los guarda al crear el
     // viaje (si la pestaña se cierra mientras se genera, ya no se pierden). La actualización de abajo queda
     // como respaldo para una versión del servidor que aún no lo guarde.
-    const { data, error } = await client.functions.invoke("analizar-viaje", { body: { ...args, request_key, consulta } });
+    // Niños con su edad («hijos de 6 y 9 años»): hoteles con adultos + niños (_shared/ocupacion.ts).
+    const ninos = edadesNinos(spec.consulta_original);
+    const { data, error } = await client.functions.invoke("analizar-viaje", { body: { ...args, ...(ninos.length && ninos.length < args.num_viajeros ? { ninos_edades: ninos } : {}), request_key, consulta } });
     if (error) throw error;
     if (!data?.trip?.id) throw new Error("Sin resultado");
     clearRequestKey("analizar-viaje");

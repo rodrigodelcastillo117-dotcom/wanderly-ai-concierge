@@ -3,6 +3,7 @@
 // con sus acciones. Sin Deno. Cada oferta conserva su procedencia real (provider, source_url,
 // price_checked_at) y nunca promete más de lo que la fuente dio.
 import { isPlaceholderHotel } from "./placeholderHotel.ts";
+import { habitacionesPara, ocupacionDe } from "../ocupacion.ts";
 import { checkAllowlisted, unwrapAffiliate } from "./allowlist.ts";
 import { countryIso as countryIsoName, whatsappNumberFromUrl } from "./channels.ts";
 import {
@@ -514,7 +515,8 @@ export function offerFromTripHotel(h: any, ctx: OfferContext & { city?: string |
     const ok = checkAllowlisted(raw);
     const parsed = ok.ok ? parseBookingSearch(ok.url) : null;
     if (!ok.ok) rejected.push({ url: raw, reason: ok.reason });
-    else if (parsed && (parsed.checkin !== ci || parsed.checkout !== co || (parsed.adults ?? adults) !== adults)) {
+    // Con niños el enlace bueno trae solo los adultos (2 + 2 niños): se compara con los adultos de la ocupación.
+    else if (parsed && (parsed.checkin !== ci || parsed.checkout !== co || (parsed.adults ?? adults) !== (ocupacionDe(trip)?.adultos ?? adults))) {
       // Otra fecha u otros ocupantes que los del viaje: no se usa (se arma la búsqueda correcta abajo).
       rejected.push({ url: raw, reason: "fechas_o_viajeros_distintos_al_viaje" });
     } else if (!parsed) {
@@ -524,7 +526,10 @@ export function offerFromTripHotel(h: any, ctx: OfferContext & { city?: string |
   // Hotel "de referencia" de la IA ("Boutique hotel en el Centro Histórico (por confirmar)"): no es un
   // hotel real; la búsqueda es la del destino con las fechas (antes Booking buscaba la frase literal).
   const placeholder = isPlaceholderHotel(h);
-  const b = ci && co ? bookingSearchUrl({ query: placeholder ? String(city ?? "") : [name, city].filter(Boolean).join(" "), checkin: ci, checkout: co, adults, rooms: roomsForAdults(adults) }) : null;
+  // Con niños (itinerario_json.ocupacion): 2 adultos + 2 niños en 1 habitación, no 4 adultos en 2.
+  const ocup = ocupacionDe(trip);
+  const b = ci && co ? bookingSearchUrl({ query: placeholder ? String(city ?? "") : [name, city].filter(Boolean).join(" "), checkin: ci, checkout: co,
+    adults: ocup ? ocup.adultos : adults, rooms: ocup ? habitacionesPara(ocup) : roomsForAdults(adults), ...(ocup ? { childAges: ocup.ninos } : {}) }) : null;
   if (b) searches.push({ url: b, trust: "builder", evidence: EVIDENCE.BOOKING_SEARCH, preserves: { product: false, dates: true, travelers: true, room_or_fare: false } });
   const est = ESTIMATED.has(String(h?.fuente_precio ?? "").toLowerCase()) || String(h?.estado_dato ?? "").toUpperCase() === "ESTIMADO";
   const nightly = num(h?.precio_por_noche);
