@@ -45,3 +45,19 @@ describe("contexto del viaje para Iato", () => {
     expect(s.desglose_nota).toBeUndefined();
   });
 });
+
+describe("Recorrido 10-nov-2026: fuente de vuelos y tours estimados", () => {
+  it("vuelo de serpapi = Google Flights; hotel = Google Hotels; tour ESTIMADO lleva nota de aproximado", async () => {
+    const { compactTripForPrompt } = await import("../../supabase/functions/concierge-chat/context");
+    const c = compactTripForPrompt({
+      id: "t", destino: "Cancún", created_at: "2026-11-09T20:00:00Z",
+      vuelos_json: [{ aerolinea: "Aeroméxico", precio_por_persona: 4207, fuente_precio: "serpapi", consultado_at: "2026-11-10T02:20:00Z" }],
+      hospedaje_json: [{ nombre: "Marriott", precio_por_noche: 16063, fuente_precio: "serpapi", consultado_at: "2026-11-10T02:41:00Z" }],
+      tours_json: [{ nombre: "Museo Maya", precio_por_persona: 900, estado_dato: "ESTIMADO" }, { nombre: "Xcaret", precio_por_persona: 2900, estado_dato: "CONSULTADO_EN_VIVO" }],
+    }, { todayISO: "2026-11-10", tz: "America/Mexico_City" }) as any;
+    expect(c.vuelos[0].precio_fuente).toBe("Google Flights");
+    expect(c.hospedaje[0].precio_fuente).toBe("Google Hotels");
+    expect(c.tours[0].precio_nota).toMatch(/ESTIMADO/);
+    expect(c.tours[1].precio_nota).toBeUndefined();
+  });
+});

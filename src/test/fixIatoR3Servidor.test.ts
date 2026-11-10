@@ -198,6 +198,13 @@ describe("N-P2-1 · precio del hotel guardado: en hora del usuario y sin 'en viv
     // Si este turno sí buscó hoteles, "en vivo" puede ser cierto y no se toca.
     expect(applyHonesty(FX.c1_viaje.final_text, { ...ctx, toolsWithData: () => new Set(["search_hotels"]) }).text).toMatch(/en vivo/);
   });
+  it("si ya dice que NO es en vivo, no se toca (antes: «no son precios (cotización guardada)»)", () => {
+    const ctx: HonestyCtx = { trips: [VALLE], userMessage: "¿Cuánto cuesta?", todayISO: HOY, toolsWithData: () => new Set(), hotelQuoteStamp: "9 nov 2026, 20:41 (hora CDMX)" };
+    const t = "Vuelos y hospedaje son cotizaciones guardadas del 9 nov 2026 tomadas de Google Hotels; no son precios en vivo.\n\nHospedaje: $80,315 MXN.";
+    const out = applyHonesty(t, ctx).text;
+    expect(out).toMatch(/no son precios en vivo/);
+    expect(out).not.toMatch(/precios \(cotización guardada\)/);
+  });
 });
 
 describe("N-P2-2 · Modo exigente: sin tarjetas repetidas, paso bien nombrado y sin 'ajusto los horarios'", () => {

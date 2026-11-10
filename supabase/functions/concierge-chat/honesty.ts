@@ -218,6 +218,8 @@ export function fixStaleHotelPrice(sentence: string, ctx: Pick<HonestyCtx, "tool
   if (!HOTEL_WORD.test(s) || !PRICE_WORD.test(s) || !LIVE_CLAIM.test(s)) return null;
   // Si este turno sí buscó hoteles, "en vivo" puede ser cierto.
   if (ctx.toolsWithData().has("search_hotels")) return null;
+  // Ya lo niega («no son precios en vivo»): cambiarlo daba «no son precios (cotización guardada)» (recorrido 10-nov-2026).
+  if (/\b(no|ni|sin)\b[^.!?;]{0,40}\ben (vivo|tiempo real)\b/.test(s) && !/\bconsultad[oa] hoy\b|\bprecio de hoy\b/.test(s)) return null;
   let out = sentence
     .replace(/\s+en tiempo real\b/gi, "")
     .replace(/\s+en vivo\b/gi, " (cotización guardada)")

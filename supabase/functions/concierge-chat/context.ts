@@ -379,14 +379,15 @@ export function itineraryWindow(trip: any, todayISO: string) {
 }
 
 /** Precio guardado del viaje: de qué fuente y cuándo se consultó, en la hora del usuario (N-P2-1). */
-function savedPriceInfo(item: any, tz?: string | null, fallbackAt?: string | null) {
+function savedPriceInfo(item: any, tz?: string | null, fallbackAt?: string | null, kind: "hotel" | "vuelo" = "hotel") {
   // Sin hora propia, la de la cotización del viaje (como la página del viaje: purchasePlan `checked`).
   const at = typeof item?.consultado_at === "string" ? item.consultado_at : typeof fallbackAt === "string" && fallbackAt ? fallbackAt : null;
   const fuente = item?.fuente_precio ?? item?.fuente ?? null;
   if (!at && !fuente) return {};
   const local = at ? (formatLocalStamp(at, tz) ?? at.slice(0, 10)) : null;
   return {
-    precio_fuente: fuente ? (String(fuente) === "serpapi" ? "Google Hotels" : String(fuente)).slice(0, 40) : undefined,
+    // serpapi es Google Flights en vuelos y Google Hotels en hospedaje (recorrido 10-nov-2026: «vuelos… tomadas de Google Hotels»).
+    precio_fuente: fuente ? (String(fuente) === "serpapi" ? (kind === "vuelo" ? "Google Flights" : "Google Hotels") : String(fuente)).slice(0, 40) : undefined,
     precio_consultado: local ?? undefined,
     precio_nota: "Precio de una cotización GUARDADA en el viaje (no es en vivo): di cuándo se consultó con precio_consultado tal cual; nunca digas 'en vivo' ni 'consultado hoy' si no es de hoy.",
   };
@@ -429,7 +430,7 @@ export function compactTripForPrompt(trip: any, extras: {
     aerolinea: v?.aerolinea, numero_vuelo: v?.numero_vuelo ?? v?.numero, fecha: v?.fecha ?? v?.fecha_salida,
     from: v?.from ?? v?.aeropuerto_origen, to: v?.to ?? v?.aeropuerto_destino ?? v?.ciudad, hora_salida: v?.hora_salida,
     hora_llegada: v?.hora_llegada, terminal: v?.terminal, pnr: v?.pnr, precio_por_persona: v?.precio_por_persona,
-    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva, ...(Number(v?.precio_por_persona) > 0 ? savedPriceInfo(v, extras.tz, trip.created_at) : {}),
+    desde_pdf: v?.desde_pdf, estado_reserva: v?.estado_reserva, ...(Number(v?.precio_por_persona) > 0 ? savedPriceInfo(v, extras.tz, trip.created_at, "vuelo") : {}),
   }));
   const ground = legs.length > 0 && !legs.some(isAirLeg);
   const transporte = ground
@@ -448,6 +449,11 @@ export function compactTripForPrompt(trip: any, extras: {
     nombre: t?.nombre, estado_reserva: t?.estado_reserva,
     precio_por_persona: Number(t?.precio_por_persona ?? t?.precio) > 0 ? Number(t?.precio_por_persona ?? t?.precio) : undefined,
     fuente_precio: t?.fuente_precio ?? undefined,
+    // Precio que puso la IA al armar el viaje, no de un proveedor (recorrido 10-nov-2026: Iato decía «Museo Maya,
+    // cotizado en tu viaje, $900 por persona» y era un estimado): que lo diga como aproximado.
+    ...(String(t?.estado_dato ?? "").toUpperCase() === "ESTIMADO" && Number(t?.precio_por_persona ?? t?.precio) > 0
+      ? { precio_nota: "precio ESTIMADO al armar el viaje, no cotizado con el proveedor: dilo como aproximado y sugiere confirmarlo en el sitio oficial" }
+      : {}),
   }));
   // Cómo se llega al total del viaje (MXN), por categoría, como en la página del viaje: así Iato puede desglosarlo.
   const d = trip.desglose_presupuesto && typeof trip.desglose_presupuesto === "object" ? trip.desglose_presupuesto : null;
