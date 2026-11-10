@@ -45,6 +45,19 @@ export function isAdultsOnly(p: any): boolean {
   return ADULTS_ONLY_RE.test(`${p?.name ?? ""} ${p?.description ?? ""}`);
 }
 
+/**
+ * Cómo se busca en Google Hotels: hasta 4 personas, una habitación con todos (precio del grupo). Con 5 o más, por
+ * habitación: ceil(adultos/2) habitaciones (las mismas que el enlace de Booking, no_rooms) y al menos una por cada 4
+ * personas; la búsqueda lleva los ocupantes de UNA habitación y el precio se multiplica por las habitaciones.
+ */
+export function groupRooms(adults: number, childAges: number[] = []): { rooms: number; adults: number; childAges: number[] } {
+  const a = Math.max(1, Math.round(adults));
+  const total = a + childAges.length;
+  if (total < 5) return { rooms: 1, adults: a, childAges };
+  const rooms = Math.max(Math.ceil(a / 2), Math.ceil(total / 4));
+  return { rooms, adults: Math.max(1, Math.ceil(a / rooms)), childAges: childAges.slice(0, Math.ceil(childAges.length / rooms)) };
+}
+
 /** Edades de niños válidas (0–17) que manda quien llama (analizar-viaje), o []. */
 export function childAgesOf(raw: unknown): number[] {
   return (Array.isArray(raw) ? raw : []).map(Number).filter((a) => Number.isInteger(a) && a >= 0 && a <= 17).slice(0, 10);
@@ -58,7 +71,7 @@ const pos = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
  * antes de impuestos; categoría numérica, ubicación, horarios de entrada/salida y el sitio que da
  * la tarifa más baja.
  */
-export function hotelResult(p: any, nightly: number, totalRaw: number, nights: number, city: string, checkin: string, checkout: string, adults: number, marker: string, childAges: number[] = []) {
+export function hotelResult(p: any, nightly: number, totalRaw: number, nights: number, city: string, checkin: string, checkout: string, adults: number, marker: string, childAges: number[] = [], rooms = 1) {
   const nightlyBefore = pos(p?.rate_per_night?.extracted_before_taxes_fees);
   const totalBefore = pos(p?.total_rate?.extracted_before_taxes_fees);
   const cls = Number(p?.extracted_hotel_class ?? (typeof p?.hotel_class === "number" ? p.hotel_class : String(p?.hotel_class ?? "").match(/\d/)?.[0]));
@@ -82,9 +95,12 @@ export function hotelResult(p: any, nightly: number, totalRaw: number, nights: n
     total_calculado: !(totalRaw > 0),
     // A qué corresponde el precio: total = estancia completa de ESTAS fechas y ocupantes (no por noche).
     // SerpApi Google Hotels no recibe habitaciones: no se afirma un número.
-    precio_para: { checkin, checkout, noches: nights, adultos: adults, habitaciones: null },
+    precio_para: { checkin, checkout, noches: nights, adultos: adults, habitaciones: rooms > 1 ? rooms : null },
     nota_precio: `Total de la estancia completa: ${nights} ${nights === 1 ? "noche" : "noches"} (entrada ${checkin}, salida ${checkout}) para ${adults} ${adults === 1 ? "adulto" : "adultos"}`
-      + `${totalRaw > 0 ? ", con impuestos y cargos según Google Hotels" : "; calculado noche × noches (Google no dio el total)"}. Google Hotels no indica cuántas habitaciones: confírmalo al reservar.`,
+      + `${totalRaw > 0 ? ", con impuestos y cargos según Google Hotels" : "; calculado noche × noches (Google no dio el total)"}`
+      + (rooms > 1
+        ? `. Precio de ${rooms} habitaciones (la tarifa de una habitación × ${rooms}): confirma las habitaciones al reservar.`
+        : ". Google Hotels no indica cuántas habitaciones: confírmalo al reservar."),
     lat: p?.gps_coordinates?.latitude ?? null,
     lng: p?.gps_coordinates?.longitude ?? null,
     check_in_time: p.check_in_time ?? null,
@@ -117,6 +133,10 @@ export type HotelsSearchEnv = {
 export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ status: number; body: Record<string, unknown> }> {
   const { city, checkin, checkout, adults = 1, hotel_class = "", query = "", sort = "value" } = body ?? {};
   const childAges = childAgesOf(body?.children_ages);
+  // Grupos de 5 o más (recorrido del dueño, Las Vegas 10-nov-2026, familia de 5): Google Hotels con adults=5 busca UNA
+  // habitación para 5 y solo devuelve suites y tiempos compartidos (Residence Inn del aeropuerto, Marriott's Grand
+  // Chateau), nunca los hoteles del Strip. Se busca por habitación y el precio se multiplica por las habitaciones.
+  const roomPlan = groupRooms(Number(adults) || 1, childAges);
   const marker = resolveTpMarker(env.marker);
   const fallas: string[] = [];
   let results: any[] = [];
@@ -133,10 +153,10 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
     u.searchParams.set("q", q);
     u.searchParams.set("check_in_date", checkin);
     u.searchParams.set("check_out_date", checkout);
-    u.searchParams.set("adults", String(adults));
-    if (childAges.length) {
-      u.searchParams.set("children", String(childAges.length));
-      u.searchParams.set("children_ages", childAges.join(","));
+    u.searchParams.set("adults", String(roomPlan.adults));
+    if (roomPlan.childAges.length) {
+      u.searchParams.set("children", String(roomPlan.childAges.length));
+      u.searchParams.set("children_ages", roomPlan.childAges.join(","));
     }
     u.searchParams.set("currency", "USD");
     u.searchParams.set("hl", "es");
@@ -178,7 +198,7 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       return withNightly
         .sort((a: any, b: any) => a.nightly - b.nightly)
         .slice(0, 15)
-        .map(({ p, nightly, totalRaw }: any) => hotelResult(p, nightly, totalRaw, nightsSafe, city, checkin, checkout, adults, marker, childAges));
+        .map(({ p, nightly, totalRaw }: any) => hotelResult(p, nightly * roomPlan.rooms, totalRaw * roomPlan.rooms, nightsSafe, city, checkin, checkout, adults, marker, childAges, roomPlan.rooms));
     } catch (e) {
       console.error("hotels err", (e as Error).message);
       fallas.push("google_hotels_error");
