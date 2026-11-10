@@ -16,6 +16,7 @@ import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPER
 import { transitScheduleUrl } from "@/lib/takeMeThere";
 import { arrivalByLand, arrivalStepTitle } from "@/lib/groundTrip";
 import { driverOption, type DriverOption } from "@/lib/driverService";
+import { CRUISE_PRICE_NOTE, cruiseLinks } from "@/lib/cruiseLinks";
 
 export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<number> | number[]; selHoteles?: Record<string, number> | null;
   /** Modo elegido por traslado ("traslado:roma>florencia" → "tren"). */
@@ -98,7 +99,41 @@ const DRIVER_COUNTRIES = new Set(["IN", "EG", "MA", "TH", "ID"]);
  * búsquedas precargadas. Precio solo el que estimó el plan; lo demás dice "por cotizar". El botón de
  * compra es el de la opción elegida (`chosenMode`), o la primera del plan.
  */
+/**
+ * Tramo en crucero (logistics.sea_legs): se compra con la naviera, no es un «Ferry» con Ferryhopper (recorrido crucero
+ * 9-nov-2026: «Ferry Miami → Miami · Ver salidas y precio en vivo»). Sin precio: por cotizar con la naviera.
+ */
+function cruiseStep(trip: any, sea: any, from: string, to: string, date: string | null, n: number): LegStep {
+  const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
+  const cruise = { naviera: sea.naviera ?? null, barco: null, puerto_salida: sea.puerto_salida ?? from, puerto_llegada: sea.puerto_llegada ?? to,
+    fecha_salida: sea.fecha_salida ?? date ?? null, fecha_llegada: sea.fecha_llegada ?? null, noches: Number(sea.noches) || null };
+  const links = cruiseLinks(cruise as any, from, to);
+  const main = links[0] ?? null;
+  const noches = Number(sea.noches) || 0;
+  const label = `Crucero${sea.naviera ? ` ${sea.naviera}` : ""}`;
+  const choice: LegChoice = {
+    mode: "crucero", label, provider: sea.naviera ?? null, duration: noches ? `${noches} noches a bordo` : null, pricePp: null, fromPlan: true,
+    url: main?.url ?? null, site: main?.label ?? null, buttonLabel: main ? `Ver en ${main.label}` : null, completa: main?.nota ?? CRUISE_PRICE_NOTE,
+    lleva: [], fallbackHref: main ? null : "/dashboard/cruceros", row: null,
+    ...(links.length > 1 ? { links: links.slice(1).map((l): LegLink => ({ kind: "alternativa", label: l.label, url: l.url, site: l.label })) } : {}),
+  };
+  const date8 = isoOk(date) ? date : null;
+  const item: PurchaseItem = {
+    key: `traslado:${normKey(from)}>${normKey(to)}`, kind: "vuelo", category: "activity",
+    title: `${label} · ${sameCity(from, to) ? `sale y regresa a ${from}` : `${from} → ${to}`}`,
+    subtitle: [date8 ? fmtDayShort(date8) : null, noches ? `${noches} noches a bordo` : null, `${travelers} ${travelers === 1 ? "viajero" : "viajeros"}`].filter(Boolean).join(" · "),
+    price: null, currency: "MXN", priceNote: CRUISE_PRICE_NOTE,
+    source: { fuente: null, estado: null, consultadoAt: null }, estimate: true,
+    site: choice.site, url: choice.url, action: null, lleva: [], completa: choice.completa, buttonLabel: choice.buttonLabel,
+    optional: false, fallbackHref: choice.fallbackHref, col: null, index: -1, offer: null, city: to,
+  };
+  return { kind: "traslado", n, title: `${label}: ${from} → ${to}`, from, to, date, options: [], choices: [choice], chosen: "crucero", item };
+}
+
 export function legStep(trip: any, from: string, to: string, date: string | null, n: number, chosenMode?: string | null): LegStep {
+  const sea = (Array.isArray(trip?.itinerario_json?.logistics?.sea_legs) ? trip.itinerario_json.logistics.sea_legs : [])
+    .find((l: any) => l?.tipo !== "ferry" && sameCity(l?.from, from) && sameCity(l?.to, to));
+  if (sea) return cruiseStep(trip, sea, from, to, date, n);
   const plan = legOptionsFor(trip, from, to);
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
   const km = distanceKm(from, to);
@@ -242,7 +277,8 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
     choices.forEach((c, k) => {
       // En orden: buildPurchasePlan agrega un hotel por estancia (Delhi puede aparecer dos veces).
       const item = (c.index >= 0 && c.hotel ? hotelItems.shift() : null) ?? null;
-      steps.push({ kind: "hospedaje", n: n++, title: `Hotel en ${c.stay.city}`, city: c.stay.city, stay: c.stay, item,
+      // 0 noches (puerto donde termina el crucero): no hay paso de hotel, sí el tramo para llegar.
+      if (c.stay.nights > 0) steps.push({ kind: "hospedaje", n: n++, title: `Hotel en ${c.stay.city}`, city: c.stay.city, stay: c.stay, item,
         options: c.options.slice(0, 3).concat(c.index >= 0 && !c.options.slice(0, 3).includes(c.index) ? [c.index] : []),
         chosen: c.index, skipped: c.index === -2, nights: c.stay.nights, userChosen: c.chosen && c.index >= 0 });
       // Entre ciudades (París → Roma), el día que se sale de esta ciudad.

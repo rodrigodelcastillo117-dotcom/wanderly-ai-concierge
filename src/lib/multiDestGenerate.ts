@@ -42,7 +42,10 @@ export type MultiDestResult = { logistics: any; tripId?: string };
 
 /** Lo que se manda a logistics-plan (sin la llave). Las noches por ciudad solo si cuadran. */
 export function logisticsPlanArgs(a: MultiDestArgs) {
-  const nights = Array.isArray(a.nightsPerCity) && a.nightsPerCity.length === a.stops.length && a.nightsPerCity.every((n) => Number.isInteger(n) && n >= 1)
+  // 0 noches solo en la última ciudad si llega en crucero (desembarca y regresa a casa el mismo día).
+  const lastByCruise = (a.seaLegs ?? []).some((l) => l.index === a.stops.length - 2 && l.tipo !== "ferry");
+  const nights = Array.isArray(a.nightsPerCity) && a.nightsPerCity.length === a.stops.length
+    && a.nightsPerCity.every((n, i) => Number.isInteger(n) && (n >= 1 || (n === 0 && lastByCruise && i === a.stops.length - 1)))
     ? a.nightsPerCity : null;
   return {
     origin: a.origin,

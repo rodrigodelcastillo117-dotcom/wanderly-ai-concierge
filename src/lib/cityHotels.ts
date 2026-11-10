@@ -54,6 +54,8 @@ export function cityHotelChoices(trip: any, sel: { selHospedaje?: number; selHot
   const list: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
   const travelers = Math.max(1, Math.round(Number(trip?.num_viajeros) || 1));
   return cityStays(trip).map((stay) => {
+    // 0 noches (desembarca del crucero y regresa a casa el mismo día): sin hotel que elegir ni sumar.
+    if (stay.nights <= 0) return { stay, index: -1, hotel: null, options: [], total: 0, chosen: false };
     const options = hotelOptionsForCity(trip, stay.city);
     const own = Object.entries(sel.selHoteles ?? {}).find(([c]) => sameCity(c, stay.city))?.[1];
     let index = -1;

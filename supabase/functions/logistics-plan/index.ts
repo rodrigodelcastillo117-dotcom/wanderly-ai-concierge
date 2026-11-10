@@ -534,12 +534,19 @@ Deno.serve(async (req) => {
 
     // Crucero/ferry: las noches a bordo no llevan hotel (las ciudades reparten el resto del viaje).
     const seaLegs = normalizeSeaLegs(body.sea_legs, body.destinations);
-    const landNights = Math.max(body.destinations.length, nights - seaNights(seaLegs));
+    // Crucero al final que desembarca y regresa a casa el mismo día (recorrido crucero 9-nov-2026: la app pide 0 noches
+    // en el puerto de llegada): esa ciudad no lleva hotel y las noches en tierra son de las demás.
+    const nDest = body.destinations.length;
+    const ultimaEnBarco = seaLegs.some((l) => l.index === nDest - 2 && l.tipo === "crucero")
+      && Array.isArray(body.nights_per_city) && body.nights_per_city.length === nDest && Number(body.nights_per_city[nDest - 1]) === 0;
+    const landNights = Math.max(nDest - (ultimaEnBarco ? 1 : 0), nights - seaNights(seaLegs));
     const travelerNotes = typeof body.traveler_notes === "string" ? body.traveler_notes.replace(/\s+/g, " ").trim().slice(0, 900) : "";
 
     // Ventanas de fechas por ciudad para consultar hoteles reales.
     // Las noches por ciudad que eligió el viajero (planeador) mandan si cuadran con el viaje; si no, el reparto parejo.
-    const nightsPerCity = chosenNights(body.nights_per_city, body.destinations.length, landNights) ?? splitNights(landNights, body.destinations.length);
+    const nightsPerCity = ultimaEnBarco
+      ? [...(chosenNights(body.nights_per_city!.slice(0, -1), nDest - 1, landNights) ?? splitNights(landNights, nDest - 1)), 0]
+      : chosenNights(body.nights_per_city, body.destinations.length, landNights) ?? splitNights(landNights, body.destinations.length);
     const today = new Date();
     const fallbackStart = addDays(today.toISOString().slice(0, 10), 45);
     let cursor = body.fecha_salida ?? fallbackStart;
@@ -668,7 +675,8 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     // validación de lugares fuera de la lista y, en roadtrip, distancia real por tramo.
     const cityLivePromises = cityWindows.map((w, i) =>
       Promise.all([
-        invokeFn("hotels-search", authHeader, {
+        // 0 noches (desembarca del crucero y regresa a casa): sin búsqueda de hotel.
+        w.nights === 0 ? Promise.resolve(null) : invokeFn("hotels-search", authHeader, {
           city: w.city,
           checkin: w.checkin,
           checkout: w.checkout,
@@ -790,7 +798,7 @@ Entrega JSON con:
 
 Ciudad: ${city}
 Punto anterior: ${prevPoint}
-Viajeros: ${viajeros} | Noches: ${cityNights} (${w.checkin} → ${w.checkout})${i === 0 && openJaw.ok && !openJaw.arrival.exact ? `\nAeropuerto de llegada: ${openJaw.arrival.city} (${openJaw.arrival.airport}), a ${openJaw.arrival.km} km en línea recta.` : ""}
+Viajeros: ${viajeros} | Noches: ${cityNights} (${w.checkin} → ${w.checkout})${cityNights === 0 ? "\nNOCHES 0: el viajero desembarca del crucero aquí y regresa a casa el mismo día. hospedaje = [] y nada de noche en la ciudad." : ""}${i === 0 && openJaw.ok && !openJaw.arrival.exact ? `\nAeropuerto de llegada: ${openJaw.arrival.city} (${openJaw.arrival.airport}), a ${openJaw.arrival.km} km en línea recta.` : ""}
 Ruta completa del viaje (contexto): ${body.origin} → ${cityList}
 NIVEL DE PRESUPUESTO DEL USUARIO: ${selectedTier}. El hospedaje del tier "${selectedTier}" es el que se usará para el total.
 ${roadtripMode ? "MODO: ROADTRIP — arrival_options principal SIEMPRE en coche con km, horas y paradas." : ""}${i > 0 && seaLegs.some((l) => l.index === i - 1) ? `\nEl viajero llega a ${city} en ${seaLegs.find((l) => l.index === i - 1)!.tipo} desde ${prevPoint} (puerto ${seaLegs.find((l) => l.index === i - 1)!.puerto_llegada}): arrival_options = cómo ir del puerto al hotel; NO incluyas el barco ni le pongas precio.` : i > 0 && legModes[i - 1] ? `\nEl viajero eligió llegar desde ${prevPoint} en ${legModes[i - 1] === "avion" ? "avión" : legModes[i - 1]}: esa es la opción PRINCIPAL de arrival_options.${legModes[i - 1] === "coche" && roadTrip?.legs.find((l) => l.index === i - 1)?.distance_km ? ` Distancia ${roadTrip.legs.find((l) => l.index === i - 1)!.distance_km} km (no inventes otra).` : ""}` : ""}
@@ -1018,6 +1026,8 @@ Entrega JSON con:
           });
       })();
 
+      // 0 noches: sin hotel (aunque la IA proponga uno).
+      if (cityWindows[i]?.nights === 0) hospedaje = [];
       return { ...pd, hospedaje, experiencias, arrival_options };
     });
 

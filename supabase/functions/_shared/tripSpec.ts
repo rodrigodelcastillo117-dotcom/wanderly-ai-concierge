@@ -930,9 +930,18 @@ export function routeOfSpec(spec: TripSpec): SpecRoute {
   const explicit = allExplicit && said.length > 0;
   const sea = seaLegs.reduce((a, l) => a + l.noches, 0);
   const nightsTotal = isoNights(spec.fecha_salida, spec.fecha_regreso);
-  const given = stays.map((s) => s.noches);
+  // La parada del crucero con «noches» = las del barco (así la arma la IA): son noches a bordo, no en tierra.
+  const given = stays.map((s) => (s.llegada_por === "crucero" && s.crucero?.noches && s.noches === s.crucero.noches ? null : s.noches));
+  // Crucero al final (Miami 2 noches → crucero 5 → casa): el puerto donde desembarca recibe las noches que sobran;
+  // 0 = desembarca y vuela a casa el mismo día (antes el plan repartía 1 + 1 y ponía hotel después del crucero).
+  const lastI = stays.length - 1;
+  const lastByCruise = lastI >= 1 && stays[lastI].llegada_por === "crucero";
+  if (lastByCruise && given[lastI] == null && nightsTotal && given.slice(0, lastI).every((n) => Number.isInteger(n) && (n as number) >= 1)) {
+    const rest = nightsTotal - sea - (given.slice(0, lastI) as number[]).reduce((a, b) => a + b, 0);
+    if (rest >= 0) given[lastI] = rest;
+  }
   let noches: number[] | null = null;
-  if (given.every((n) => Number.isInteger(n) && (n as number) >= 1)) {
+  if (given.every((n, i) => Number.isInteger(n) && ((n as number) >= 1 || (n === 0 && i === lastI && lastByCruise)))) {
     const sum = (given as number[]).reduce((a, b) => a + b, 0);
     if (!nightsTotal || sum + sea === nightsTotal) noches = given as number[];
   }

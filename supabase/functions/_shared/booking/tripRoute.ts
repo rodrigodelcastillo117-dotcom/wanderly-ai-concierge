@@ -149,7 +149,8 @@ export function cityStays(trip: TripRouteLike | null | undefined): CityStay[] {
   const fromPlan = per.length === cities.length
     && (per[0]?.checkin === start || (enVueloPlan >= 1 && enVueloPlan <= 2 && per[0]?.checkin === addDaysIso(start, enVueloPlan)))
     && per[per.length - 1]?.checkout === end
-    && per.every((p) => isIsoDate(p?.checkin) && isIsoDate(p?.checkout) && p.checkout > p.checkin);
+    // El puerto donde termina el crucero puede tener 0 noches (desembarca y regresa a casa el mismo día).
+    && per.every((p, i) => isIsoDate(p?.checkin) && isIsoDate(p?.checkout) && (p.checkout > p.checkin || (i === per.length - 1 && i > 0 && p.checkout === p.checkin)));
   if (fromPlan) {
     return primeraNocheEnVuelo(per.map((p, i) => ({ city: cities[i], checkin: p.checkin, checkout: p.checkout, nights: nightsBetween(p.checkin, p.checkout) })), start, trip);
   }
