@@ -133,11 +133,41 @@ export function parseTripFallback(query: string, today = new Date()): TripFallba
     fechaRegreso = iso(nextWeekday(viernes, 0));
   }
 
-  let viajeros: number | null = null;
-  const n = text.match(/(\d{1,2})\s*(?:personas|viajeros|adultos|pax)/);
-  if (n) viajeros = Number(n[1]);
-  else if (/\b(pareja|novi[oa]|espos[oa]|luna de miel)\b/.test(text)) viajeros = 2;
-  else if (/\b(solo|sola)\b/.test(text)) viajeros = 1;
+  const viajeros = contarViajeros(text);
 
   return { destino, fechaSalida, fechaRegreso, viajeros };
+}
+
+const NUM: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+const numOf = (w: string) => (/^\d+$/.test(w) ? Number(w) : NUM[w] ?? NaN);
+const NUMW = "(\\d{1,2}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)";
+
+/**
+ * Cuántos viajan, de lo escrito (sin acentos, en minúsculas). «con mi esposa y nuestros 2 hijos» = 4 (recorrido familia
+ * 9-nov-2026: salía 2 porque solo contaba «esposa»). Total explícito («4 personas», «somos 5») manda; si no, adultos
+ * («2 adultos», o yo + mi pareja/papás…) + niños («2 hijos», «3 niños», «mi hija»).
+ */
+export function contarViajeros(text: string): number | null {
+  const t = ` ${text} `;
+  const total = new RegExp(`\\b${NUMW}\\s*(?:personas|viajeros|pax)\\b|\\b(?:somos|seremos|vamos)\\s+${NUMW}\\b|\\bfamilia de\\s+${NUMW}\\b`).exec(t);
+  if (total) {
+    const n = numOf(total[1] ?? total[2] ?? total[3]);
+    if (n >= 1 && n <= 30) return n;
+  }
+  const adultosM = new RegExp(`\\b${NUMW}\\s*adult[oa]s?\\b`).exec(t);
+  const ninosM = [...t.matchAll(new RegExp(`\\b${NUMW}\\s*(?:ninos|ninas|nino|nina|hijos|hijas|hijo|hija|menores|bebes|bebe|chicos|nietos|sobrinos)\\b`, "g"))];
+  let ninos = ninosM.reduce((a, m) => a + (numOf(m[1]) || 0), 0);
+  if (!ninos && /\b(?:mi|con mi|y mi)\s+(?:hijo|hija|bebe|nino|nina)\b/.test(t)) ninos = 1;
+  let adultos: number | null = adultosM ? numOf(adultosM[1]) : null;
+  if (adultos == null) {
+    let a = 0;
+    if (/\b(?:espos[oa]|marido|mujer|pareja|novi[oa]|luna de miel)\b/.test(t)) a += 1;
+    if (/\bmis (?:papas|padres|suegros|abuelos)\b/.test(t)) a += 2;
+    else if (/\bmi (?:mama|papa|suegr[oa]|abuel[oa]|herman[oa]|amig[oa])\b/.test(t)) a += 1;
+    if (a > 0 || ninos > 0) adultos = 1 + a;
+    else if (/\b(?:solo|sola)\b/.test(t)) return 1;
+  }
+  if (adultos == null) return null;
+  const n = adultos + ninos;
+  return n >= 1 && n <= 30 ? n : null;
 }

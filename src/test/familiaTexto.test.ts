@@ -22,3 +22,21 @@ describe("viaje en familia", () => {
     expect(s.viajeros).toBe(4);
   });
 });
+
+import { contarViajeros, parseTripFallback } from "@/lib/parseTripFallback";
+describe("cuántos viajan", () => {
+  const c = (q: string) => parseTripFallback(q).viajeros;
+  it("familia: yo + esposa + 2 hijos = 4 (antes 2)", () => expect(c(Q)).toBe(4));
+  it("casos comunes", () => {
+    expect(c("Cancún con mi esposa")).toBe(2);
+    expect(c("Mazatlán 2 adultos y 3 niños")).toBe(5);
+    expect(c("Oaxaca somos 6")).toBe(6);
+    expect(c("Puebla 4 personas")).toBe(4);
+    expect(c("Roma con mis papás")).toBe(3);
+    expect(c("Madrid con mi hija")).toBe(2);
+    expect(c("Tulum dos adultos y un bebé")).toBe(3);
+    expect(c("Viaje sola a Lisboa")).toBe(1);
+    expect(c("Viaje a Lisboa")).toBeNull();
+  });
+  it("contarViajeros recibe el texto ya normalizado", () => expect(contarViajeros("con mi esposa y nuestros 2 hijos de 6 y 9 anos")).toBe(4));
+});
