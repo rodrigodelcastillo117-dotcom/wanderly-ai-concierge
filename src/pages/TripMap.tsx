@@ -125,6 +125,9 @@ const TripMap = () => {
   const [mapReady, setMapReady] = useState(false);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  // Qué hay dibujado: la leyenda muestra solo eso (recorrido 10-nov-2026: un viaje a Cancún en avión mostraba
+  // Puerto, Metro, Tren y Crucero). null = aún no se dibuja: leyenda completa.
+  const [enMapa, setEnMapa] = useState<Set<string> | null>(null);
   const tipMapa = useTooltipShown("mapa");
 
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -220,6 +223,7 @@ const TripMap = () => {
     overlaysRef.current.forEach((o) => o.setMap?.(null));
     overlaysRef.current = [];
 
+    const dibujado = new Set<string>();
     (async () => {
       const hosp: any[] = Array.isArray(trip.hospedaje_json) ? trip.hospedaje_json : [];
       const rest: any[] = Array.isArray(trip.restaurantes_json) ? trip.restaurantes_json : [];
@@ -356,6 +360,7 @@ const TripMap = () => {
             offset: "0", repeat: "14px",
           }];
         }
+        dibujado.add(mode);
         const poly = new g.Polyline(opts);
         overlaysRef.current.push(poly);
 
@@ -413,6 +418,10 @@ const TripMap = () => {
       placeMarkers(portStops, "#7fd4ff", "⚓");
       placeMarkers(restStops, "#f87171", "R");
       placeMarkers(tourStops, "#a78bfa", "T");
+      if (hotelStops.length) dibujado.add("hotel");
+      if (portStops.length) dibujado.add("port");
+      if (restStops.length) dibujado.add("restaurant");
+      if (tourStops.length) dibujado.add("tour");
 
       // Marcadores numerados para origen + destinos (1, 2, 3…) — parada 1 = origen
       const numberedStops: Stop[] = routeStops.length ? routeStops : hotelStops;
@@ -469,6 +478,7 @@ const TripMap = () => {
               });
               m.addListener("click", () => info.open({ anchor: m, map }));
               overlaysRef.current.push(m);
+              dibujado.add("metro");
             }
           }
         } catch { /* sin metro nearby */ }
@@ -481,6 +491,7 @@ const TripMap = () => {
       } else if (!bounds.isEmpty()) {
         map.fitBounds(bounds, 60);
       }
+      if (!cancelled) setEnMapa(dibujado);
     })();
 
     return () => { cancelled = true; };
@@ -533,18 +544,25 @@ const TripMap = () => {
           </div>
         )}
 
-        {/* Leyenda */}
+        {/* Leyenda: solo lo que hay en el mapa */}
         <div className="flex flex-wrap items-center gap-3 mb-3 text-[11px] text-foreground/70">
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#d4af37]" /> Hotel</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f87171]" /> Restaurante</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#a78bfa]" /> Tour</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#7fd4ff]" /> Puerto</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa]" /> Metro</span>
-          <span className="mx-1 opacity-30">|</span>
-          <span className="inline-flex items-center gap-1.5"><Plane className="w-3 h-3 text-[#f5e6a8]" /> Avión</span>
-          <span className="inline-flex items-center gap-1.5"><TrainFront className="w-3 h-3 text-[#e8c766]" /> Tren</span>
-          <span className="inline-flex items-center gap-1.5"><Ship className="w-3 h-3 text-[#7fd4ff]" /> Crucero</span>
-          <span className="inline-flex items-center gap-1.5"><Car className="w-3 h-3 text-[#d4af37]" /> Tierra</span>
+          {(() => {
+            const ver = (k: string) => !enMapa || enMapa.has(k);
+            const lugares = [
+              ver("hotel") && <span key="h" className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#d4af37]" /> Hotel</span>,
+              ver("restaurant") && <span key="r" className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f87171]" /> Restaurante</span>,
+              ver("tour") && <span key="t" className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#a78bfa]" /> Tour</span>,
+              ver("port") && <span key="p" className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#7fd4ff]" /> Puerto</span>,
+              ver("metro") && <span key="m" className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa]" /> Metro</span>,
+            ].filter(Boolean);
+            const modos = [
+              ver("flight") && <span key="f" className="inline-flex items-center gap-1.5"><Plane className="w-3 h-3 text-[#f5e6a8]" /> Avión</span>,
+              ver("train") && <span key="tr" className="inline-flex items-center gap-1.5"><TrainFront className="w-3 h-3 text-[#e8c766]" /> Tren</span>,
+              ver("cruise") && <span key="c" className="inline-flex items-center gap-1.5"><Ship className="w-3 h-3 text-[#7fd4ff]" /> Crucero</span>,
+              ver("land") && <span key="l" className="inline-flex items-center gap-1.5"><Car className="w-3 h-3 text-[#d4af37]" /> Tierra</span>,
+            ].filter(Boolean);
+            return <>{lugares}{lugares.length > 0 && modos.length > 0 && <span className="mx-1 opacity-30">|</span>}{modos}</>;
+          })()}
         </div>
 
         {/* Map */}

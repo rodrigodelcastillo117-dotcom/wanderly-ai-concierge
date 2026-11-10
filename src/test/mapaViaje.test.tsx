@@ -37,6 +37,14 @@ describe("mapa del viaje", () => {
   });
 });
 
+describe("leyenda del mapa (10-nov-2026: solo lo que hay en el mapa)", () => {
+  it("mientras el mapa no se dibuja, la leyenda sale completa (no se pierde nada)", async () => {
+    render(<MemoryRouter initialEntries={["/dashboard/viajes/c0b1/mapa"]}><Routes><Route path="/dashboard/viajes/:id/mapa" element={<TripMap />} /></Routes></MemoryRouter>);
+    await screen.findByRole("button", { name: "Día 5" });
+    for (const k of ["Hotel", "Restaurante", "Tour", "Puerto", "Metro", "Avión", "Tren", "Crucero", "Tierra"]) expect(screen.getByText(k)).toBeInTheDocument();
+  });
+});
+
 describe("modo de cada tramo entre ciudades", () => {
   it("manda el tramo cotizado del plan: el Shinkansen es tren aunque haya una alternativa de vuelo", async () => {
     const { planLegMode } = await import("@/pages/TripMap");
