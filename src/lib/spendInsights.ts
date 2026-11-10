@@ -8,11 +8,12 @@
 import { convert, type FxTable } from "@/lib/fx";
 import { canonicalCategory } from "@/lib/expenseCategories";
 import { parseLocalDate } from "@/lib/localDate";
+import { tripBudget } from "@/lib/tripSpend";
 
 export type InsightExpense = { amount: number; currency: string; category: string; expense_date: string; trip_id?: string | null };
 export type InsightTrip = {
   id: string; destino: string; fecha_salida?: string | null; fecha_regreso?: string | null;
-  total_estimado?: number | null; moneda?: string | null;
+  total_estimado?: number | null; moneda?: string | null; presupuesto_objetivo?: number | null; num_viajeros?: number | null;
 };
 
 export type TripTotal = { tripId: string | null; label: string; total: number; count: number; unconverted: number };
@@ -95,9 +96,9 @@ export function spendInsights(
       diasTranscurridos = Math.round((today.getTime() - start.getTime()) / DAY) + 1;
       if (diasViaje) diasTranscurridos = Math.min(diasTranscurridos, diasViaje);
     }
-    const moneda = String(at.moneda || "MXN").toUpperCase();
-    const presupuestoOrig = Number(at.total_estimado) || 0;
-    const presupuesto = presupuestoOrig > 0 ? convert(presupuestoOrig, moneda, "MXN", fx) : null;
+    // El mismo presupuesto que la pestaña Gastos del viaje: el que puso la persona y, si no hay, la cotización
+    // (recorrido Gastos 10-nov-2026: Los Cabos con presupuesto de $100,000 aquí salía «de $132,529», la cotización).
+    const presupuesto = tripBudget(at, fx)?.total ?? null;
     active = {
       tripId: at.id,
       label: at.destino,

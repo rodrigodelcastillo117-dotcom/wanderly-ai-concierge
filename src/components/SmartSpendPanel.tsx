@@ -124,7 +124,8 @@ const SmartSpendPanel = ({ items, trips, activeTripId, onAddExpense }: Props) =>
           {delta != null ? (
             <p className={`flex items-center gap-1 text-[11px] mt-1 ${delta >= 0 ? "text-destructive" : "text-emerald-500"}`}>
               {delta >= 0 ? <TrendingUp className="w-3 h-3" aria-hidden="true" /> : <TrendingDown className="w-3 h-3" aria-hidden="true" />}
-              {Math.abs(delta).toFixed(0)}% vs mes anterior
+              {/* Con signo, como en Inicio: «100% vs mes anterior» con $0 este mes parecía que subió (recorrido Gastos 10-nov-2026). */}
+              {delta >= 0 ? "+" : "−"}{Math.abs(delta).toFixed(0)}% vs mes anterior
             </p>
           ) : <p className="text-[11px] text-muted-foreground mt-1">Sin gastos el mes pasado</p>}
         </div>

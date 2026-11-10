@@ -101,7 +101,7 @@ export const Gastos = () => {
 
   // El gasto se liga al viaje activo (el mismo que Iato y el Dashboard), y se puede cambiar.
   // Con presupuesto y moneda del viaje: el Resumen compara el gasto por día contra el presupuesto.
-  const active = useActiveTrip<any>({ columns: `${ACTIVE_TRIP_COLUMNS}, total_estimado, moneda` });
+  const active = useActiveTrip<any>({ columns: `${ACTIVE_TRIP_COLUMNS}, total_estimado, moneda, presupuesto_objetivo, num_viajeros` });
   const tripOptions = active.trips.filter((t) => !isTripEnded(t, localISODate()) || t.id === active.trip?.id);
   const formTripId = form.trip_id !== undefined ? form.trip_id : active.trip?.id ?? "";
   const tripName = (id?: string | null) => { const t = active.trips.find((x) => x.id === id); return t ? shortTripName(t) : null; };
