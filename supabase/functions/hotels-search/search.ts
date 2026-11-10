@@ -34,6 +34,12 @@ export function bookingUrl(city: string, ci: string, co: string, adults: number,
   return `https://www.booking.com/searchresults.html?${p.toString()}`;
 }
 
+// Hostales y cápsulas (nombre, tipo o cadenas conocidas): no son para una familia con niños.
+const HOSTEL_RE = /\b(hostel|hostal|hostels|albergue|backpackers?|mochiler[oa]s?|c[aá]psula|capsule|dorm|dormitorio|bunk)\b|\b(mayan monkey|mad monkey|selina|nomads|che lagarto|generator|hostelling|yha|a&o|wombat'?s|st christopher'?s|los patios hostel)\b/i;
+export function isHostel(p: any): boolean {
+  return HOSTEL_RE.test(`${p?.name ?? ""} ${p?.type ?? ""} ${p?.description ?? ""}`);
+}
+
 /** Edades de niños válidas (0–17) que manda quien llama (analizar-viaje), o []. */
 export function childAgesOf(raw: unknown): number[] {
   return (Array.isArray(raw) ? raw : []).map(Number).filter((a) => Number.isInteger(a) && a >= 0 && a <= 17).slice(0, 10);
@@ -157,6 +163,12 @@ export async function searchHotels(body: any, env: HotelsSearchEnv): Promise<{ s
       if (sort !== "price") {
         const wellRated = withNightly.filter((x: any) => Number(x.p?.overall_rating ?? 0) >= 4.0);
         if (wellRated.length >= 3) withNightly = wellRated;
+      }
+      // Con niños no se ofrecen hostales (recorrido familia 9-nov-2026: «Mayan Monkey Cancún», un hostal, era la opción
+      // económica de una familia con hijos de 6 y 9). Si así quedan menos de 3, se dejan todos.
+      if (childAges.length) {
+        const family = withNightly.filter((x: any) => !isHostel(x.p));
+        if (family.length >= 3) withNightly = family;
       }
       return withNightly
         .sort((a: any, b: any) => a.nightly - b.nightly)

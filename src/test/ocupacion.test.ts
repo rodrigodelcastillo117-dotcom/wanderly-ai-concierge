@@ -44,3 +44,36 @@ describe("Booking del viaje con niños", () => {
     }
   });
 });
+
+import { isHostel } from "../../supabase/functions/hotels-search/search.ts";
+describe("hostales fuera para familias", () => {
+  it("reconoce hostales por nombre, tipo o cadena", () => {
+    expect(isHostel({ name: "Mayan Monkey Cancún" })).toBe(true);
+    expect(isHostel({ name: "Selina Tulum" })).toBe(true);
+    expect(isHostel({ name: "Hostal del Centro" })).toBe(true);
+    expect(isHostel({ name: "Casa X", type: "Hostel" })).toBe(true);
+    expect(isHostel({ name: "Iberostar Selection Cancún" })).toBe(false);
+    expect(isHostel({ name: "Marriott Cancun, An All-Inclusive Resort" })).toBe(false);
+  });
+});
+
+import { logisticsPlanArgs, multiDestTripInsert } from "@/lib/multiDestGenerate";
+import L0 from "./fixtures/roadTripBajioLogistics.json";
+describe("niños en un viaje de varias ciudades", () => {
+  const Q = "Querétaro, San Miguel y Guanajuato en coche con mi esposa y nuestros hijos de 5 y 11 años";
+  const base: any = { userId: "u", origin: "Ciudad de México", stops: ["Querétaro", "San Miguel de Allende", "Guanajuato"], viajeros: 4, prefs: {},
+    fechaSalida: "2027-04-08", fechaRegreso: "2027-04-13", consulta: { consulta_original: Q } };
+  it("logistics-plan recibe las edades leídas del texto", () => {
+    expect(logisticsPlanArgs(base).ninos_edades).toEqual([5, 11]);
+    expect(logisticsPlanArgs({ ...base, viajeros: 2 }).ninos_edades).toBeUndefined();
+  });
+  it("el viaje guarda la ocupación del plan y Booking va con 2 adultos + 2 niños", () => {
+    const row: any = multiDestTripInsert(base, { ...(L0 as any), ocupacion: { adultos: 2, ninos: [5, 11] } });
+    expect(row.itinerario_json.ocupacion).toEqual({ adultos: 2, ninos: [5, 11] });
+    const trip = { ...row, id: "t", num_viajeros: 4 };
+    const h = trip.hospedaje_json[0];
+    const o = offerFromTripHotel({ ...h, booking_link: null }, { trip, city: h.ciudad, index: 0 });
+    const u = new URL(o.actions.map((a: any) => String(a.url ?? "")).find((x: string) => x.includes("booking.com"))!);
+    expect([u.searchParams.get("group_adults"), u.searchParams.get("group_children"), u.searchParams.getAll("age").join(",")]).toEqual(["2", "2", "5,11"]);
+  });
+});

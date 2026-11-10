@@ -3,6 +3,7 @@
 // MultiDestRoute y el planeador normal (PlanTrip, "paris roma y atenas 10 dias"), para que una ruta
 // escrita en el planeador salga EXACTAMENTE igual que una armada en "Ruta multi-destino".
 import { multiDestTripRows } from "@/lib/multiDestTrip";
+import { edadesNinos } from "../../supabase/functions/_shared/ocupacion.ts";
 import { countryForStops } from "@/lib/booking";
 import { clearRequestKey, getRequestKey } from "@/lib/requestKey";
 import type { SavedConsulta, SeaLeg } from "../../supabase/functions/_shared/tripSpec.ts";
@@ -36,7 +37,15 @@ export type MultiDestArgs = {
   travelerNotes?: string | null;
   /** Texto original + interpretación: se guarda en itinerario_json.consulta para depurar y corregir. */
   consulta?: SavedConsulta | null;
+  /** Edades de los niños; sin ellas se leen del texto original («hijos de 6 y 9 años»). */
+  ninosEdades?: number[] | null;
 };
+
+/** Niños con edad del viaje: los que llegan o los del texto original; [] si no cuadran con los viajeros. */
+function ninosDe(a: MultiDestArgs): number[] {
+  const ages = a.ninosEdades ?? edadesNinos([(a.consulta as { consulta_original?: string } | null)?.consulta_original, a.travelerNotes].filter(Boolean).join(" "));
+  return ages.length && ages.length < a.viajeros ? ages : [];
+}
 
 export type MultiDestResult = { logistics: any; tripId?: string };
 
@@ -59,6 +68,7 @@ export function logisticsPlanArgs(a: MultiDestArgs) {
     ...(a.travelClass && ["premium", "business", "primera"].includes(a.travelClass) ? { travel_class: a.travelClass } : {}),
     ...(a.seaLegs && a.seaLegs.length ? { sea_legs: a.seaLegs } : {}),
     ...(a.travelerNotes && a.travelerNotes.trim() ? { traveler_notes: a.travelerNotes.trim().slice(0, 900) } : {}),
+    ...(ninosDe(a).length ? { ninos_edades: ninosDe(a) } : {}),
   };
 }
 
@@ -102,6 +112,8 @@ export function multiDestTripInsert(a0: MultiDestArgs, logistics: any) {
       multi: true, destinations: a.stops, logistics, days,
       ...(Array.isArray(logistics?.region_expansions) && logistics.region_expansions.length ? { region_expansions: logistics.region_expansions } : {}),
       ...(a.consulta ? { consulta: a.consulta } : {}),
+      // Con niños: Comprar arma Booking con adultos + niños (offerFromTripHotel, _shared/ocupacion.ts).
+      ...(logistics?.ocupacion ? { ocupacion: logistics.ocupacion } : {}),
     },
     tips_personalizados: logistics?.resumen ? [logistics.resumen] : null,
   };

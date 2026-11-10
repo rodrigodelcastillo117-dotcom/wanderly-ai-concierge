@@ -49,6 +49,7 @@ import { nochesEnVuelo, primeraCiudadDesdeLlegada } from "./llegada.ts";
 import { porQueHotelVivo } from "./porQueHotel.ts";
 import { conRutas, gasolinaTramoMxn, llegadaPorTierra, totalLlegadaTierra } from "../_shared/llegadaTierra.ts";
 import { sameCity } from "../_shared/booking/tripRoute.ts";
+import { sanitizeOcupacion } from "../_shared/ocupacion.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,6 +80,8 @@ interface Body {
   };
   /** Noches por ciudad elegidas por el viajero (planeador): deben sumar las noches del viaje. */
   nights_per_city?: number[];
+  /** Edades de los niños (de num_viajeros): hoteles con adultos + niños (_shared/ocupacion.ts). */
+  ninos_edades?: number[];
   /** Bases elegidas por región en la UI ({ "Toscana": ["Siena","Lucca"] }); solo cuentan las de la tabla. */
   region_bases?: Record<string, unknown>;
   /** Clase del vuelo internacional ("turista" | "premium" | "business" | "primera"); turista si falta. */
@@ -518,6 +521,8 @@ Deno.serve(async (req) => {
       : Math.max(body.destinations.length * 3, 6);
 
     const viajeros = Math.max(1, Number(body.num_viajeros) || 2);
+    // Familia con niños: Google Hotels y Booking con adultos + niños (recorrido familia 9-nov-2026).
+    const ocupacion = sanitizeOcupacion(body.ninos_edades, viajeros);
     const fechas = `${body.fecha_salida ?? "flexible"} a ${body.fecha_regreso ?? "flexible"}`;
     const cityList = body.destinations.join(" → ");
     // Una carretera escrita en la ruta (Ruta 66, Carretera Austral…) también es road trip.
@@ -680,7 +685,8 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           city: w.city,
           checkin: w.checkin,
           checkout: w.checkout,
-          adults: viajeros,
+          adults: ocupacion ? ocupacion.adultos : viajeros,
+          ...(ocupacion ? { children_ages: ocupacion.ninos } : {}),
           // SerpApi ordena por precio más bajo: sin filtro de categoría el resultado son hostales.
           // Filtramos por estrellas según el nivel de presupuesto del usuario.
           hotel_class: HOTEL_CLASS_BY_TIER[selectedTier],
@@ -1140,6 +1146,7 @@ Entrega JSON con:
       fx_usd_mxn: fxUsd,
       // Tramos y experiencias: precio por persona en MXN redondeado × viajeros (Comprar lo usa para cuadrar con el total).
       redondeo_por_persona: true,
+      ...(ocupacion ? { ocupacion } : {}),
       ...(llegadaTierra ? { llegada_por_tierra: llegadaTierra } : {}),
       nights,
       desglose_presupuesto: desglose,

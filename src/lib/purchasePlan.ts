@@ -6,6 +6,7 @@
 // blanca y booking-go; aquí no se arma ninguna URL nueva salvo la renta de auto opcional (Kayak), que
 // también pasa por checkAllowlisted.
 import { restaurantPriceLabel, tourHasRealPrice, tripUsdMxnRate } from "@/lib/tripPicks";
+import { habitacionesPara, ocupacionDe } from "../../supabase/functions/_shared/ocupacion.ts";
 import { kayakCarsLink, PREFILL } from "@/lib/affiliateLinks";
 import {
   checkAllowlisted, isEstimatedTripFlight, isGroundTripOption, isTripInternationalRow, tripFlightProblems, tripFlightRoute, tripFlightSearches,
@@ -255,7 +256,9 @@ export function buildPurchasePlan(trip: any, sel: Sel, server: TripOfferActionsL
       // hotel real. Sin botón de compra: "Elegir hotel" con la búsqueda real del destino y las fechas.
       const where = hCity ?? city;
       const ci = stay?.checkin ?? trip.fecha_salida ?? null, co = stay?.checkout ?? trip.fecha_regreso ?? null;
-      const built = where && ci && co ? bookingSearchUrl({ query: where, checkin: ci, checkout: co, adults: travelers, rooms: roomsForAdults(travelers) }) : null;
+      const ocup = ocupacionDe(trip);
+      const built = where && ci && co ? bookingSearchUrl({ query: where, checkin: ci, checkout: co, adults: ocup ? ocup.adultos : travelers,
+        rooms: ocup ? habitacionesPara(ocup) : roomsForAdults(travelers), ...(ocup ? { childAges: ocup.ninos } : {}) }) : null;
       const ok = built ? checkAllowlisted(built) : null;
       const url = ok && ok.ok ? ok.url : null;
       const d = describePrefill(url, "Booking.com", trip);
