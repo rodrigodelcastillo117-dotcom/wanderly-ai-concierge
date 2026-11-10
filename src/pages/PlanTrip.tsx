@@ -39,6 +39,7 @@ import { detectRoadTrip, routePlannerPath } from "@/lib/roadtrip";
 import { RoadTripIdeas } from "@/components/roadtrip/RoadTripIdeas";
 // Intérprete de viaje completo: "Entendí…" editable antes de generar, y cobertura de lo escrito.
 import { TripSpecReview } from "@/components/plan/TripSpecReview";
+import { detectShortTrip } from "../../supabase/functions/_shared/groundTransport.ts";
 import { buildLocalSpec, finalizeSpec } from "@/lib/tripSpecLocal";
 import { generateFromSpec, interpretTrip, interpretTripAi, INTERPRET_TIMEOUT_MS } from "@/lib/tripSpecFlow";
 import { nextPlanStep, stashRouteConsulta } from "@/lib/planDirect";
@@ -235,6 +236,8 @@ const PlanTrip = () => {
   // Aviso en el paso de fechas: qué entendimos de la frase o por qué falta un dato.
   const [stepNotice, setStepNotice] = useState<string | null>(null);
   const [analysisSummary, setAnalysisSummary] = useState<string | null>(null);
+  // Origen y destino cercanos por carretera: la pantalla de espera dice «cómo llegar por carretera», no «vuelos».
+  const [analysisPorTierra, setAnalysisPorTierra] = useState(false);
   // "Planear juntos" desde el perfil de un amigo (?con=<id>): al guardarse el viaje se le invita
   // con invitar_amigo_viaje (el servidor vuelve a comprobar la amistad).
   const conParam = params.get("con");
@@ -373,6 +376,7 @@ const PlanTrip = () => {
     let ok = false;
     setDestino(args.destino);
     setAnalysisSummary(analysisSummaryOf(args));
+    setAnalysisPorTierra(!!detectShortTrip(args.ciudad_origen, args.destino));
     setAnalizando(true);
     setFallo(null);
     try {
@@ -875,7 +879,7 @@ Devuelve el destino ideal en el campo "destino" y "destinations" con esa única 
   if (analizando) {
     return (
       <DashboardLayout>
-        <AnalysisProgress destino={destino} summary={analysisSummary} />
+        <AnalysisProgress destino={destino} summary={analysisSummary} porTierra={analysisPorTierra} />
       </DashboardLayout>
     );
   }

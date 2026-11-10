@@ -421,7 +421,9 @@ export function flightIsObvious(from: unknown, to: unknown, toPais?: unknown, fr
   const b = regionOf(to, toPais);
   if (a && b && a !== b) return true;
   const km = placeDistanceKm(from, to);
-  return km != null && km >= 3000;
+  // ≥ 1,000 km en línea recta (CDMX → Cancún, 1,280 km: ~20 h manejando) ya es avión; antes 3,000 y se preguntaba
+  // «¿Cómo llegarán a Cancún: vuelo, coche, autobús…?» (recorrido familia, 9-nov-2026).
+  return km != null && km >= 1000;
 }
 
 /** De dónde sale el tramo que llega a la parada `i` (el origen o la estancia anterior). */

@@ -59,3 +59,11 @@ describe("AnalysisProgress (sin avance inventado ni cronómetro)", () => {
     expect(analysisSummaryOf({ ciudad_origen: "Monterrey", num_viajeros: 2 })).toBe("Desde Monterrey · fechas sugeridas por IATOS · 2 viajeros");
   });
 });
+
+describe("viaje corto por carretera (Valle de Bravo, 9-nov-2026)", () => {
+  it("dice «cómo llegar por carretera», no «Consultar vuelos»", () => {
+    render(<AnalysisProgress destino="Valle de Bravo" porTierra />);
+    expect(screen.getByText("Calcular cómo llegar por carretera (ruta, casetas y gasolina)")).toBeInTheDocument();
+    expect(screen.queryByText(/Consultar vuelos/)).toBeNull();
+  });
+});

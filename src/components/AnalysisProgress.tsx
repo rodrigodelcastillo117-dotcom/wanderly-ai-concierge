@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plane, Hotel, MapPin, CalendarRange, Sparkles } from "lucide-react";
+import { Plane, Hotel, MapPin, CalendarRange, Sparkles, Car } from "lucide-react";
 import { GlobeLoader } from "@/components/brand/GlobeLoader";
 import { useSlowLoading } from "@/hooks/useSlowLoading";
 import { liveSearchesPausedRecently } from "@/lib/livePause";
@@ -16,9 +16,13 @@ export const ANALYSIS_STEPS = [
   { icon: CalendarRange, label: "Armar el itinerario día por día y el presupuesto en MXN" },
 ] as const;
 
+/** Viaje corto por carretera (CDMX → Valle de Bravo): no se buscan solo vuelos, se calcula el camino (recorrido 9-nov-2026). */
+export const LAND_STEP = { icon: Car, label: "Calcular cómo llegar por carretera (ruta, casetas y gasolina)" } as const;
+
 export const SLOW_SECONDS = 90;
 
-export function AnalysisProgress({ destino, summary }: { destino: string; summary?: string | null }) {
+export function AnalysisProgress({ destino, summary, porTierra = false }: { destino: string; summary?: string | null; porTierra?: boolean }) {
+  const steps = porTierra ? [LAND_STEP, ...ANALYSIS_STEPS.slice(1)] : ANALYSIS_STEPS;
   const globe = useSlowLoading(true);
   const [paused] = useState(() => liveSearchesPausedRecently());
   // "Tarda más de lo normal": un solo aviso a los 90 s (sin contar segundos en pantalla).
@@ -56,7 +60,7 @@ export function AnalysisProgress({ destino, summary }: { destino: string; summar
 
       <p className="w-full max-w-md text-left text-xs uppercase tracking-[0.2em] text-muted-foreground mt-10 mb-3">Qué incluye este análisis</p>
       <ul className="w-full max-w-md space-y-3 text-left">
-        {ANALYSIS_STEPS.map((s) => (
+        {steps.map((s) => (
           <li key={s.label} className="flex items-center gap-3 text-sm text-foreground/90">
             <span className="w-8 h-8 shrink-0 rounded-full border border-primary/30 bg-primary/[0.06] flex items-center justify-center" aria-hidden>
               <s.icon className="w-4 h-4 text-primary" />

@@ -110,7 +110,11 @@ const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta h
   // "más o menos", "somos 2", "algo de lujo": no son lugares (caso Diego).
   "menos o u somos seremos vamos estamos queremos algo lujo lujoso lujosa tipo cerca alrededor aproximado " +
   // «Road trip en coche desde CDMX», «por carretera»: cómo se viaja, no un lugar (recorrido 9-nov-2026).
-  "road trip roadtrip coche carro auto automovil camioneta moto manejando manejar carretera").split(/\s+/));
+  "road trip roadtrip coche carro auto automovil camioneta moto manejando manejar carretera " +
+  // Quién viaja: «con mi esposa y nuestros 2 hijos de 6 y 9 años» no son lugares (recorrido familia, 9-nov-2026).
+  "nuestros nuestras nuestro nuestra sus su hijos hijas hijo hija ninos ninas nino nina bebe bebes chicos chicas peques " +
+  "esposa esposo marido mujer pareja papas papa mama padres abuelos abuela abuelo suegros sobrinos primos hermanos hermana hermano " +
+  "anos ano edad edades mayores menores familiar").split(/\s+/));
 
 const NUM_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, veinte: 20, treinta: 30 };
