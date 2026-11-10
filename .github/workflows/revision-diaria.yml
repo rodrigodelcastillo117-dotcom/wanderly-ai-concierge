@@ -1,0 +1,42 @@
+# Revisión automática diaria de producción (pedido del dueño, 10-nov-2026): entra a traveliatos.life como la cuenta
+# demo, abre Mis viajes, la ruta con el globo, un viaje e Iato (scripts/smoke/produccion.cjs). Solo lee: no cotiza,
+# no gasta ni escribe (el script bloquea las funciones de pago). Si falla, GitHub avisa por correo y deja las capturas.
+# Necesita dos secretos del repositorio (Settings → Secrets and variables → Actions): IATOS_SMOKE_EMAIL e
+# IATOS_SMOKE_PASSWORD. Sin ellos el trabajo termina con error y lo dice.
+name: Revisión diaria de producción
+
+on:
+  schedule:
+    - cron: "13 13 * * *" # 7:13 a. m. hora del centro de México
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar Playwright (solo el navegador; no las dependencias de la app)
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Revisar producción
+        env:
+          NODE_PATH: /tmp/pw/node_modules
+          IATOS_SMOKE_EMAIL: ${{ secrets.IATOS_SMOKE_EMAIL }}
+          IATOS_SMOKE_PASSWORD: ${{ secrets.IATOS_SMOKE_PASSWORD }}
+        run: node scripts/smoke/produccion.cjs
+      - name: Guardar capturas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revision-diaria
+          path: smoke-out/
+          retention-days: 14
+          if-no-files-found: ignore
