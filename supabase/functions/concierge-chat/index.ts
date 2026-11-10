@@ -58,6 +58,11 @@ import { runViatorSearch, viatorConfig } from "../_shared/viator.ts";
 import { executeAction } from "./actionExec.ts";
 import { withLocalStamp } from "../_shared/localTime.ts";
 import { runLocalTime, userClockLine } from "../_shared/worldClock.ts";
+import { mejoresFechas } from "../_shared/mejoresFechas.ts";
+import { knownCityCode } from "../_shared/fareGuard.ts";
+import { flightPlaceMetro } from "../_shared/airports.ts";
+import { resolveIata } from "../_shared/travelpayouts.ts";
+import { getUsdMxnRateInfo } from "../_shared/fx.ts";
 import { type AiResRow, aiReservationsForPrompt, isDomesticTrip, withoutAiReservationMirrors } from "./honesty.ts";
 import { idemKeyFrom, rpcIdemStore, withIdempotency } from "../_shared/idempotency.ts";
 import type { ActionContext } from "./actions.ts";
@@ -97,6 +102,25 @@ const TOOL_FUNCTIONS: Record<string, string> = {
 };
 
 /** Tope por herramienta: se sigue con lo que llegó (B-15). */
+/** «¿Cuándo es más barato ir a X?»: calendario de tarifas de Aviasales (_shared/mejoresFechas.ts). */
+async function runBestTravelDates(args: Record<string, unknown>, todayISO: string) {
+  const code = async (v: unknown) => {
+    const s = String(v ?? "").trim().slice(0, 80);
+    if (!s) return null;
+    return knownCityCode(s) ?? flightPlaceMetro(s) ?? (await resolveIata(s));
+  };
+  const [origen, destino] = await Promise.all([code(args.origin), code(args.destination)]);
+  if (!origen || !destino) return { disponible: false, estado: "sin_resultados", motivo: "No reconocí el aeropuerto de origen o de destino; pide la ciudad." };
+  const fx = await getUsdMxnRateInfo().catch(() => null);
+  const r = await mejoresFechas(
+    { origen, destino, mes: typeof args.month === "string" ? args.month : null },
+    { token: Deno.env.get("TRAVELPAYOUTS_TOKEN") ?? "", usdMxn: fx?.rate ?? 0, hoyISO: todayISO, timeoutMs: 7000 },
+  );
+  if (!((fx?.rate ?? 0) > 0) || r.motivo === "sin_token") return { disponible: false, estado: "no_respondio", motivo: "El calendario de tarifas no está disponible ahora." };
+  if (!r.ok) return { disponible: false, estado: "sin_resultados", motivo: "Aviasales no tiene tarifas recientes para esa ruta.", google_flights: r.google_flights };
+  return r;
+}
+
 const TOOL_TIMEOUTS: Record<string, number> = {
   check_flight_status: 9000, search_flights: 14000, search_hotels: 14000, search_places: 8000,
   // search_events: google_events tarda más que una búsqueda web (prueba real 23-oct: se cortaba a 7.5 s).
@@ -107,6 +131,8 @@ const TOOL_TIMEOUTS: Record<string, number> = {
   get_travel_advisory: 9000,
   // Reloj de IATOS (sin red): responde al instante.
   get_local_time: 1000,
+  // Calendario de tarifas de Aviasales: dos consultas en paralelo (por mes y por día) más el tipo de cambio.
+  best_travel_dates: 10000,
   // Gastos registrados (una lectura de la base con la sesión del usuario).
   get_trip_expenses: 3000,
   // Abre el caso (una escritura) y avisa al equipo (hasta 3 s; si tarda, sigue en segundo plano).
@@ -864,6 +890,7 @@ function makeRawExecTool(c: { supabase: any; authHeader: string; userId: string;
     }
     // Hora actual en otra ciudad (N-P1-6): Intl + zona IANA, sin red.
     if (name === "get_local_time") return runLocalTime(args, { now: new Date(), userTz: c.tz ?? null });
+    if (name === "best_travel_dates") return runBestTravelDates(args, c.todayISO);
     if (name === "search_prive") {
       return runSearchPrive(args, { rpc: (fn, params) => c.supabase.rpc(fn, params) as any, priveSession: c.priveSession, todayISO: c.todayISO });
     }

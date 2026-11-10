@@ -48,7 +48,9 @@ export type Intent =
   | "time"
   // Ola 9.5 (29-oct-2026): "¿cuánto llevo gastado?" (Iato decía "no tengo registro de gastos" con 6 gastos
   // registrados) y "ármame el plan del sábado" (sin datos consultados: 7 s en blanco y clima sin fuente).
-  | "expense_query" | "day_plan";
+  | "expense_query" | "day_plan"
+  // «¿Cuándo es más barato ir a Cancún?» (pedido del dueño, 10-nov-2026): calendario de tarifas (best_travel_dates).
+  | "cheap_dates";
 
 export const CHIP_INTENTS: readonly Intent[] = [
   "dining_near_hotel", "transport", "emergency", "flight_status", "luggage", "members_followup", "trip_overview",
@@ -90,6 +92,13 @@ const CUSTOM_QUESTION = /\b(propinas?|se acostumbra|costumbres?|etiqueta|es (nor
 /** Sí pide lugares. */
 const RECOMMEND = /\b(recomienda\w*|recomiendame|donde (como|ceno|desayuno|hay)|busca\w*|opciones|mejores|cerca|lugares?|sugiere\w*|sugiereme)\b/;
 
+/** «¿Cuándo es más barato ir a X?», «¿qué mes conviene por precio?», «fechas más baratas para volar a X». */
+export function cheapDatesRequested(message: unknown): boolean {
+  const m = normText(message);
+  return /\b(cuando|que (mes|fecha|fechas|dia|dias|temporada)|en que (mes|fecha|temporada)|mejores? (fechas?|mes|meses|dias?|temporada)|fechas?|mes|meses|temporada)\b.{0,60}\b(mas barat\w*|mas econ\w*|barat\w*|economic\w*|conviene|por precio|menos caro)\b/.test(m)
+    || /\b(mas barat\w*|mas economic\w*)\b.{0,40}\b(fechas?|mes|meses|dias?|temporada|volar|vuelo|vuelos|ir)\b/.test(m);
+}
+
 /** "Plan de luna de miel en Florencia", "lo TOP de Roma: desayunos, cenas, museos y experiencias". */
 export function honeymoonRequested(message: unknown): boolean {
   const m = normText(message);
@@ -126,6 +135,7 @@ export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   if (honeymoonRequested(message)) out.add("honeymoon_plan");
   if (weatherRequested(message)) out.add("weather");
   if (timeRequested(message)) out.add("time");
+  if (cheapDatesRequested(message)) out.add("cheap_dates");
   // "cenar cerca de mi hotel" ya es dining_near_hotel.
   if (out.has("dining_near_hotel")) out.delete("dining");
   // Auditoría 10 #16: "registra un gasto de 150 pesos en comida" no es buscar restaurantes, y "¿cuánta
@@ -483,6 +493,11 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.toolHints.push("get_local_time");
   }
 
+  if (has("cheap_dates")) {
+    plan.notes.push("Fechas por precio: usa best_travel_dates (origen = ciudad de salida del viaje o la que diga; si no la sabes, pregúntala). Da los meses y días más baratos tal cual vienen, por persona en pesos, diciendo si es solo ida o ida y vuelta, que son tarifas de referencia de Aviasales (no en vivo) y que se confirman en Google Flights. Nunca digas de memoria qué mes es más barato.");
+    plan.toolHints.push("best_travel_dates");
+  }
+
   if (has("place_fact")) {
     const q = cleanFactQuery(i.message) || i.message.slice(0, 160);
     plan.prefetch.push({ name: "web_search", args: { query: q }, reason: "dato práctico" });
@@ -773,6 +788,7 @@ export function toolStatusText(name: string, args: Record<string, unknown>): str
     case "search_tours": return `Buscando tours en Viator: ${clip(args.city, 30)}…`;
     case "search_members_venues": return `Revisando Solo para miembros en ${clip(args.city, 30)}…`;
     case "get_local_time": return `Consultando la hora en ${clip(args.city ?? args.timezone, 30)}…`;
+    case "best_travel_dates": return `Buscando las fechas más baratas a ${clip(args.destination, 30)} (Aviasales)…`;
     case "search_prive": return "Revisando el catálogo Privé…";
     case "get_weather": return `Consultando el clima de ${clip(args.city, 30)} (MET Norway)…`;
     case "get_travel_advisory": return `Revisando avisos oficiales de ${clip(args.pais ?? args.destino, 30)}…`;

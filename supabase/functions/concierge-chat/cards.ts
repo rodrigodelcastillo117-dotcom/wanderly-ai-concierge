@@ -641,6 +641,7 @@ const TOOL_LABEL: Record<string, string> = {
   check_flight_status: "estado del vuelo",
   search_members_venues: "Solo para miembros",
   get_weather: "clima",
+  best_travel_dates: "fechas más baratas",
 };
 
 const ALREADY_HONEST = /no (est[aá]|esta) disponible|no disponible|no (pude|pudimos|logr[eé]|tengo|hay)|sin resultados|no (encontr|tra)|no (me )?respondi|fuera de servicio|no se pudo|l[ií]mite de b[uú]squedas/i;

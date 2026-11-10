@@ -144,6 +144,7 @@ export const HERRAMIENTAS_IATO = [
   "get_travel_advisory", // avisos de viaje (Departamento de Estado)
   "get_weather", // clima (MET Norway / NASA POWER)
   "get_local_time", // hora local
+  "best_travel_dates", // fechas más baratas para volar (Aviasales), 10-nov-2026
   "search_events", // eventos
   "search_tours", // tours y experiencias (Viator)
   "search_attractions", // ranking de la ciudad (TripAdvisor)

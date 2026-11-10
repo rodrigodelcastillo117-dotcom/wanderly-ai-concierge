@@ -176,6 +176,25 @@ export const TOOL_DEFS: ToolDef[] = [
     },
   },
   {
+    // Pedido del dueño (10-nov-2026): «mejores fechas para viajar al lugar por precios».
+    name: "best_travel_dates",
+    description:
+      "Meses y días MÁS BARATOS para volar de una ciudad a otra, con el calendario de tarifas de Aviasales (búsquedas recientes de otros viajeros). " +
+      "Úsala SIEMPRE que pregunten cuándo conviene ir, cuál es el mes o la fecha más barata, si es mejor ir en otra fecha o «qué fechas me recomiendas por precio». " +
+      "Origen: la ciudad de salida del viaje o, si no hay, pregúntala. Si dan un mes, pásalo en month para ver sus días más baratos. " +
+      "Son tarifas de referencia (no en vivo): dilo, da el precio por persona en pesos tal cual, di si es solo ida o ida y vuelta, y sugiere confirmar en Google Flights. " +
+      "Si no trae datos, dilo; nunca digas de memoria qué mes es más barato.",
+    input_schema: {
+      type: "object",
+      properties: {
+        destination: { type: "string", description: "Ciudad o aeropuerto de destino, ej. 'Cancún' o 'MAD'" },
+        origin: { type: "string", description: "Ciudad o aeropuerto de salida, ej. 'Ciudad de México'" },
+        month: { type: "string", description: "AAAA-MM para ver los días más baratos de ese mes (opcional)" },
+      },
+      required: ["destination", "origin"],
+    },
+  },
+  {
     name: "search_events",
     description:
       "Eventos reales (Ticketmaster y Google Events): conciertos, teatro, deportes, festivales y espectáculos en una ciudad y un rango de fechas, " +
