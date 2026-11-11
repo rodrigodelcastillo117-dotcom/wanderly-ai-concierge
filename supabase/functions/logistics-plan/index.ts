@@ -512,6 +512,8 @@ Deno.serve(async (req) => {
     const t0 = Date.now();
     const marks: Record<string, number> = {};
     const mark = (k: string) => { marks[k] = Date.now() - t0; };
+    /** Marca cuándo termina cada consulta (para medir qué frena el plan; sale en «tiempos» de la respuesta). */
+    const timed = <T,>(k: string, p: Promise<T>): Promise<T> => p.then((v) => { mark(k); return v; }, (e) => { mark(`${k}_error`); throw e; });
     // Tipo de cambio en paralelo con el perfil (no depende de él).
     const fxPromise = getUsdMxnRateInfo();
 
@@ -574,7 +576,7 @@ Deno.serve(async (req) => {
     // de SerpApi por plan, 0 si la misma ruta, fechas, viajeros y clase ya están en caché.
     const openJaw: ReturnType<typeof planOpenJaw> = llegadaTierra ? { ok: false, reason: "por_tierra" } : planOpenJaw({ ...body, num_viajeros: viajeros });
     const multiFlightsPromise = openJaw.ok
-      ? invokeFn("flights-search", authHeader, openJawSearchBody(openJaw), analysisHeaders)
+      ? timed("vuelos_google", invokeFn("flights-search", authHeader, openJawSearchBody(openJaw), analysisHeaders))
       : Promise.resolve(null);
     const tpFlightsPromise = llegadaTierra ? Promise.resolve(null) : invokeFn("travelpayouts-flights", authHeader, {
       origin_city: body.origin,
@@ -587,11 +589,11 @@ Deno.serve(async (req) => {
 
     const google = googleTransportFor("logistics-plan", __user.id);
     // Atracciones por ciudad (no dependen del perfil): arrancan ya.
-    const attractionsPromises = cityWindows.map((w) => invokeFn("tripadvisor-search", authHeader, {
+    const attractionsPromises = cityWindows.map((w, i) => timed(`atracciones_${i + 1}`, invokeFn("tripadvisor-search", authHeader, {
       query: w.city,
       category: "attractions",
       language: "es_MX",
-    }));
+    })));
     // roadtrip: distancia, tiempo y casetas reales por tramo en coche (una llamada por tramo, caché 24 h).
     const roadTripPromise = planRoadTrip({
       destinations: body.destinations,
@@ -688,7 +690,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
     const cityLivePromises = cityWindows.map((w, i) =>
       Promise.all([
         // 0 noches (desembarca del crucero y regresa a casa): sin búsqueda de hotel.
-        w.nights === 0 ? Promise.resolve(null) : invokeFn("hotels-search", authHeader, {
+        w.nights === 0 ? Promise.resolve(null) : timed(`hoteles_${i + 1}`, invokeFn("hotels-search", authHeader, {
           city: w.city,
           checkin: w.checkin,
           checkout: w.checkout,
@@ -697,12 +699,12 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
           // SerpApi ordena por precio más bajo: sin filtro de categoría el resultado son hostales.
           // Filtramos por estrellas según el nivel de presupuesto del usuario.
           hotel_class: HOTEL_CLASS_BY_TIER[selectedTier],
-        }, analysisHeaders),
+        }, analysisHeaders)),
 
         attractionsPromises[i],
         // Una búsqueda por ciudad (Text Search Enterprise + Atmosphere, la misma de analizar-viaje).
         google
-          ? restaurantsForCity(google, w.city, { preferences: foodPref }).then((r) => (r.ok ? r.places : [])).catch(() => [])
+          ? timed(`restaurantes_${i + 1}`, restaurantsForCity(google, w.city, { preferences: foodPref }).then((r) => (r.ok ? r.places : [])).catch(() => []))
           : Promise.resolve([]),
       ]).then(([hotels, attractions, restaurants]) => ({ hotels, attractions, restaurants })),
     );
@@ -765,7 +767,8 @@ Entrega JSON con:
 4. mandatory_costs con currency_buffer_pct=3.
 5. resumen breve (2-3 frases). NO calcules totales: el total lo calcula el sistema.`;
 
-      return callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema, aiBudget())
+      mark("ia_global_inicio");
+      return timed("ia_global", callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema, aiBudget()))
       .catch((e) => {
         console.error("global failed:", e.message);
         return { flights: [], internal_transport: [], days: [], mandatory_costs: {}, resumen: "" };
@@ -834,7 +837,8 @@ Entrega JSON con:
 - restaurantes: 4-5 en ${city} acordes al estilo del usuario; si arriba hay lista de GOOGLE MAPS, elige SOLO de esa lista (nombre exacto). Sin enlaces.
 - experiencias: 4-5 en ${city}; prioriza las de la lista de arriba con fuente="${attrSource}" y su rating real.`;
 
-      return callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, aiBudget())
+      mark(`ia_ciudad_${i + 1}_inicio`);
+      return timed(`ia_ciudad_${i + 1}`, callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, aiBudget()))
         .then((r) => ({ ...r, city, nights: cityNights, checkin: w.checkin, checkout: w.checkout }))
         .catch((e) => {
           console.error(`city ${city} failed:`, e.message);
@@ -1207,7 +1211,8 @@ Entrega JSON con:
       ok: true,
       tripId: null,
       result: logistics,
-      response: new Response(JSON.stringify({ logistics }), {
+      // tiempos: cuánto tardó cada etapa (para medir la velocidad desde fuera; no se muestra en pantalla).
+      response: new Response(JSON.stringify({ logistics, tiempos: marks }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }),
