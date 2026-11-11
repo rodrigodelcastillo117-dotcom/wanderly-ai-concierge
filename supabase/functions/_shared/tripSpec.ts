@@ -608,7 +608,7 @@ function coveredNames(spec: TripSpec): Set<string> {
 function mentionValid(spec: TripSpec, m: Mention): boolean {
   switch (m.estado) {
     case "parada": return !!m.ref && spec.paradas.some((s) => s.id === m.ref)
-      || spec.paradas.some((s) => [s.ciudad, s.de_region, s.texto, s.pais].some((n) => normText(n) === normText(m.texto)));
+      || spec.paradas.some((s) => [s.ciudad, s.de_region, s.texto, s.pais].some((n) => normText(n) === normText(m.texto) || (!!bareKey(m.texto) && normText(n) === bareKey(m.texto))));
     case "tramo": return spec.paradas.some((s) => s.llegada_por !== "por_definir") || spec.regreso.modo !== "por_definir";
     case "pregunta": return spec.preguntas.some((q) => !q.resuelta && (q.id === m.ref || normText(q.texto) === normText(m.texto)));
     case "origen": return !!spec.origen;
@@ -618,6 +618,10 @@ function mentionValid(spec: TripSpec, m: Mention): boolean {
   return false;
 }
 
+/** «a Bacalar», «hacia la Toscana» → «bacalar», «toscana»: la mención sin la preposición ni el artículo de adelante. */
+const LEAD_WORDS = /^(?:(?:a|al|en|de|del|desde|hacia|hasta|para|por|rumbo\s+a|la|el|los|las)\s+)+/;
+export const bareKey = (t: unknown) => normText(t).replace(LEAD_WORDS, "").trim();
+
 /** Arregla menciones inválidas: las vuelve pregunta (nunca las borra). */
 export function repairCoverage(spec: TripSpec): void {
   for (const m of spec.menciones) {
@@ -625,8 +629,10 @@ export function repairCoverage(spec: TripSpec): void {
     if (m.tipo === "otro" && isNotPlace(m.texto)) { m.estado = "preferencia"; m.ref = null; continue; }
     // Lo que ya está en el viaje no se vuelve pregunta: «Perú» es el país de Lima; un tramo o el regreso
     // cuya pregunta se descartó por obvia quedan como tramo/regreso (R2: «Mencionaste «Perú»: ¿dónde va?»).
+    // «a Bacalar» es la parada Bacalar (recorrido mochilero, 11-nov-2026: «Mencionaste «a Bacalar»: ¿dónde va?»).
     const k = normText(m.texto);
-    const stop = spec.paradas.find((s) => [s.ciudad, s.de_region, s.texto, s.pais].some((n) => normText(n) === k));
+    const kb = bareKey(m.texto);
+    const stop = spec.paradas.find((s) => [s.ciudad, s.de_region, s.texto, s.pais].some((n) => normText(n) === k || (!!kb && normText(n) === kb)));
     const alt: MentionState | null = stop ? "parada" : m.tipo === "tramo" || m.tipo === "crucero" ? "tramo" : m.tipo === "regreso" ? "regreso" : m.tipo === "origen" ? "origen" : null;
     if (alt && mentionValid(spec, { ...m, estado: alt, ref: stop?.id ?? null })) { m.estado = alt; m.ref = stop?.id ?? null; continue; }
     const q: Question = { id: newId("q"), tipo: "lugar_desconocido", texto: m.texto,
@@ -646,6 +652,15 @@ export function ensureCoverage(spec: TripSpec, extra: Array<{ texto: string; tip
   for (const e of extra) {
     const k = normText(e.texto);
     if (!k) continue;
+    const kb = bareKey(e.texto);
+    if (kb && kb !== k && covered.has(kb)) {
+      if (!spec.menciones.some((m) => normText(m.texto) === k)) {
+        const stop = spec.paradas.find((s) => [s.ciudad, s.de_region, s.texto].some((n) => normText(n) === kb));
+        spec.menciones.push({ texto: e.texto, tipo: e.tipo, estado: stop ? "parada" : "tramo", ref: stop?.id ?? null });
+        repairCoverage(spec);
+      }
+      continue;
+    }
     // Cuándo o cómo («último momento: este viernes», «voy»): no es lugar, no se pregunta (notPlace.ts).
     if (e.tipo === "otro" && isNotPlace(e.texto)) {
       if (!spec.menciones.some((m) => normText(m.texto) === k)) spec.menciones.push({ texto: e.texto, tipo: "otro", estado: "preferencia", ref: null });

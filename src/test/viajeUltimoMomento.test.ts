@@ -100,4 +100,19 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     expect(out.preguntas.filter((q) => q.tipo === "lugar_desconocido" && !q.resuelta)).toEqual([]);
     expect(out.paradas.map((s) => s.ciudad)).toEqual(["Oaxaca"]);
   });
+
+  it("«a Bacalar» es la parada Bacalar: no pregunta «¿dónde va en tu viaje?» (mochilero, 11-nov-2026)", () => {
+    const t = "Viaje de mochilero a Bacalar 4 noches del 15 al 19 de enero de 2027, voy solo, lo más barato posible, hostales y transporte en autobús";
+    const r = validateTripSpec(JSON.stringify({
+      origen: "Ciudad de México", paradas: [{ id: "p1", ciudad: "Bacalar", rol: "estancia", noches: 4, texto: "Bacalar" }],
+      fecha_salida: "2027-01-15", fecha_regreso: "2027-01-19", viajeros: 1,
+      menciones: [{ texto: "a Bacalar", tipo: "ciudad", estado: "parada", ref: "x9" }, { texto: "hacia la Riviera", tipo: "region", estado: "parada" }],
+    }), t);
+    if (!r.ok) throw new Error("spec inválido");
+    const qs = r.spec.preguntas.filter((q) => q.tipo === "lugar_desconocido" && !q.resuelta).map((q) => q.texto);
+    expect(qs).not.toContain("a Bacalar");
+    const out = ensureCoverage(r.spec, [{ texto: "a Bacalar", tipo: "ciudad" }]);
+    expect(out.preguntas.filter((q) => !q.resuelta && /Bacalar/.test(q.texto))).toEqual([]);
+    expect(parseMultiCityText(t).cities).toEqual(["Bacalar"]);
+  });
 });
