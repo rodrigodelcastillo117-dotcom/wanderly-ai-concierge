@@ -44,7 +44,7 @@ import { annotateNoLivePrice, noLivePriceReason } from "../_shared/flightNoPrice
 import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
-import { flightAlternatives } from "./flightAlternatives.ts";
+import { flightAlternatives, preferComfortableEquilibrio } from "./flightAlternatives.ts";
 import { moreTours } from "./moreTours.ts";
 import { learnedHotelTier, tierFromTripText } from "../_shared/learnedTier.ts";
 import { tripDatesProblem } from "./dates.ts";
@@ -1132,7 +1132,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // «Ver más vuelos»: hasta 5 vuelos reales más de la misma búsqueda de Google Flights (tier "alternativa"); el total
     // usa el vuelo del nivel (flightAlternatives.ts).
     if (!shortTrip && googleFlightsLive && Array.isArray(a.vuelos)) {
-      a.vuelos = [...a.vuelos, ...flightAlternatives(a.vuelos, googleFlights.results, { fxUsd, consultedAt: sourceConsultedAt(googleFlights, liveConsultedAt) })];
+      a.vuelos = preferComfortableEquilibrio([...a.vuelos, ...flightAlternatives(a.vuelos, googleFlights.results, { fxUsd, consultedAt: sourceConsultedAt(googleFlights, liveConsultedAt) })]);
     }
 
     // Itinerario con fechas reales, todos los días del calendario y el día de llegada / salida según las

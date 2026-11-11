@@ -48,3 +48,36 @@ export function flightAlternatives(vuelos: any[], live: any[], o: { fxUsd: numbe
   }
   return out;
 }
+
+const hourOf = (t: unknown) => (typeof t === "string" && /^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}/.test(t) ? Number(t.slice(11, 13)) : null);
+/** ¿Horario incómodo? Sale antes de las 6:00, o llega a las 23:00 o más tarde / de madrugada (antes de las 6:00). */
+export function awkwardHours(v: any): boolean {
+  const s = hourOf(v?.salida), l = hourOf(v?.llegada);
+  return (s != null && s < 6) || (l != null && (l >= 23 || l < 6));
+}
+
+/**
+ * «Equilibrado» no puede ser peor en precio Y en horario que otra opción real (recorrido 11-nov-2026, viaje de negocios
+ * CDMX→Monterrey: «Equilibrado» Viva 22:55 → 00:32 por $5,523 mientras Viva 16:00 costaba $4,926; se perdía el primer día).
+ * Si el vuelo del nivel tiene horario incómodo y hay una alternativa real con horario normal que cuesta lo mismo o menos,
+ * esa pasa a ser «Equilibrado» y la otra queda como alternativa. Con 2 o más opciones así, la más cara de ellas (la más
+ * cercana al precio que eligió la cotización). Nada cambia si no hay una mejor.
+ */
+export function preferComfortableEquilibrio(vuelos: any[]): any[] {
+  const rows = Array.isArray(vuelos) ? vuelos : [];
+  const i = rows.findIndex((v) => v?.tier === "equilibrio" && !v?.modo);
+  if (i < 0 || !awkwardHours(rows[i])) return rows;
+  const price = Number(rows[i]?.precio_por_persona) || 0;
+  if (!(price > 0)) return rows;
+  const better = rows
+    .map((v, j) => [v, j] as const)
+    .filter(([v]) => v?.tier === "alternativa" && hourOf(v?.salida) != null && hourOf(v?.llegada) != null && !awkwardHours(v)
+      && (Number(v?.precio_por_persona) || 0) > 0 && Number(v.precio_por_persona) <= price)
+    .sort((a, b) => Number(b[0].precio_por_persona) - Number(a[0].precio_por_persona))[0];
+  if (!better) return rows;
+  const [alt, j] = better;
+  const out = [...rows];
+  out[i] = { ...alt, tier: "equilibrio", notas: `${alt.notas ?? ""} Elegido como «Equilibrado»: mismo precio o menos que el de horario incómodo, y llegas a una hora razonable.`.trim() };
+  out[j] = { ...rows[i], tier: "alternativa" };
+  return out;
+}
