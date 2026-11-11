@@ -163,18 +163,41 @@ export function myTeamRequests(): Promise<MyTeamResult> {
   if (teamInflight) return teamInflight;
   teamInflight = (async (): Promise<MyTeamResult> => {
     try {
-      const { data, error } = await supabase.rpc("my_team_requests" as any);
-      if (error) return { ok: false, message: error.message };
-      const rows = Array.isArray(data) ? (data as MyTeamRequest[]) : [];
-      teamCache = { at: Date.now(), data: rows };
-      return { ok: true, data: rows };
-    } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "error" };
+      // Recién iniciada la sesión (enlace del correo → login), la primera lectura puede llegar antes que la sesión y fallar
+      // (dueño, 11-nov-2026: «me dijo error, le piqué reintentar»). Se reintenta sola dos veces, esperando la sesión.
+      let last = "error";
+      for (let intento = 0; intento < 3; intento++) {
+        if (intento > 0) {
+          await new Promise((r) => setTimeout(r, 700 * intento));
+          try { await supabase.auth.getSession(); } catch { /* se reintenta igual */ }
+        }
+        try {
+          const { data, error } = await supabase.rpc("my_team_requests" as any);
+          if (error) { last = error.message; continue; }
+          const rows = Array.isArray(data) ? (data as MyTeamRequest[]) : [];
+          teamCache = { at: Date.now(), data: rows };
+          return { ok: true, data: rows };
+        } catch (e) {
+          last = e instanceof Error ? e.message : "error";
+        }
+      }
+      return { ok: false, message: last };
     } finally {
       teamInflight = null;
     }
   })();
   return teamInflight;
+}
+
+/** «Enviada hace 3 h», «Enviada el 9 jun a las 18:38» (antes «Pedida 9 jun, 18:38 h»). */
+export function sentText(iso: string | null | undefined, now = new Date()): string {
+  const w = whenText(iso, now);
+  if (!w) return "";
+  if (/^(hace|justo)/.test(w)) return `Enviada ${w}`;
+  const t = new Date(String(iso));
+  const day = t.toLocaleDateString("es-MX", { day: "numeric", month: "short", timeZone: "America/Mexico_City" }).replace(/\.$/, "");
+  const hour = t.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Mexico_City" });
+  return `Enviada el ${day} a las ${hour}`;
 }
 
 /** Lectura anticipada (sin esperar ni mostrar errores): la pestaña ya la tiene al abrirse. */

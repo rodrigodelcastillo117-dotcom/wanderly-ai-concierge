@@ -85,3 +85,17 @@ export function userStageText(stage: string | null | undefined, type?: string | 
 /** Tipos que, mientras sigan abiertos, todavía NO son una reserva (se dice en pantalla). */
 export const isBookingLike = (type: string | null | undefined) =>
   ["reservation", "prive_request", "members_nightlife_reservation", "ai_reservation", "booking_assist", "transport", "jet", "pickup"].includes(String(type ?? ""));
+
+
+/**
+ * Título para la persona: lo que escribió va entre comillas y con mayúscula («Pregunta general: «Mi vuelo cómo va»»).
+ * Antes: «Pregunta general: mi vuelo como estga» (dueño, 11-nov-2026: «veo errores… hasta de gramática»).
+ */
+export function displayRequestTitle(title: string | null | undefined): string {
+  const t = String(title ?? "").trim();
+  const m = /^(Urgente|Importante|Pregunta general|Solicitud|Opinión|Comentario):\s*(.+)$/s.exec(t);
+  if (!m) return t;
+  const said = m[2].trim().replace(/^[«"“']+|[»"”']+$/g, "");
+  if (!said) return m[1];
+  return `${m[1]}: «${said.charAt(0).toLocaleUpperCase("es-MX")}${said.slice(1)}»`;
+}

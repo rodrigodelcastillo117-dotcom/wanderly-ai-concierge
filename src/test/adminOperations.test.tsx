@@ -174,7 +174,7 @@ describe("Mis solicitudes (usuario)", () => {
     expect(within(rows[0]).getByText("Confirmación Contramar #4471")).toBeInTheDocument();
     expect(within(rows[0]).getByText(/Contramar · 2 nov.*20:30 h · 4 personas/)).toBeInTheDocument();
     expect(within(rows[1]).getByText("En proceso · una persona del equipo IATOS la está atendiendo · aún no es una reserva")).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/te avisamos aquí y por correo cuando haya respuesta/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/Te avisamos aquí y por correo en cuanto te respondan/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/\b\d+\s*minutos\b|en breve/);
   });
 
@@ -183,8 +183,9 @@ describe("Mis solicitudes (usuario)", () => {
     const { unmount } = render(<MyTeamRequests />);
     expect(await screen.findByText(/Aún no le has pedido nada a una persona del equipo/)).toBeInTheDocument();
     unmount();
-    rpc.mockResolvedValueOnce({ data: null, error: { message: "x" } });
+    // Falla de verdad (los 3 intentos: se reintenta sola por si la sesión venía llegando, 11-nov-2026).
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "x" } }).mockResolvedValueOnce({ data: null, error: { message: "x" } }).mockResolvedValueOnce({ data: null, error: { message: "x" } });
     render(<MyTeamRequests />);
-    expect(await screen.findByText(/No pudimos cargar tus solicitudes/)).toBeInTheDocument();
+    expect(await screen.findByText(/No pudimos cargar tus solicitudes/, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
 });

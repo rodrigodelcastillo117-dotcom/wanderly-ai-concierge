@@ -4,10 +4,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Clock, Loader2, MessageSquare, RefreshCw, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cachedMyTeamRequests, formatRequested, invalidateMyTeamRequests, myTeamRequests, whenText, type MyTeamRequest } from "@/lib/opsDesk";
+import { cachedMyTeamRequests, formatRequested, invalidateMyTeamRequests, myTeamRequests, sentText, whenText, type MyTeamRequest } from "@/lib/opsDesk";
 import { confirmIncident, messageIncident, promisedTime } from "@/lib/incident";
 import { Textarea } from "@/components/ui/textarea";
-import { folioOf, isBookingLike, opsTypeLabel, userStageText } from "../../../supabase/functions/_shared/ops-labels.ts";
+import { displayRequestTitle, folioOf, isBookingLike, opsTypeLabel, userStageText } from "../../../supabase/functions/_shared/ops-labels.ts";
 
 const OPEN = new Set(["nueva", "en_proceso"]);
 
@@ -158,10 +158,10 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-primary text-[10px] tracking-[0.25em] uppercase">{opsTypeLabel(r.type)}</p>
-                    <h3 className="font-display text-base md:text-lg break-words">{r.title}</h3>
+                    <h3 className="font-display text-base md:text-lg break-words">{displayRequestTitle(r.title)}</h3>
                     <p className="text-xs text-muted-foreground">
                       {[place, when, r.party_size ? `${r.party_size} ${r.party_size === 1 ? "persona" : "personas"}` : null].filter(Boolean).join(" · ")}
-                      {(place || when || r.party_size) ? " · " : ""}Pedida {whenText(r.created_at)} · Folio {folioOf(r.id)}
+                      {(place || when || r.party_size) ? " · " : ""}{sentText(r.created_at)} · Folio {folioOf(r.id)}
                     </p>
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export function MyTeamRequests({ compact = false }: { compact?: boolean }) {
                   <p className="text-[11px] text-muted-foreground">
                     {r.type === "opinion"
                       ? "La lee una persona del equipo IATOS; si te responde, lo verás aquí."
-                      : "La atiende una persona del equipo IATOS; te avisamos aquí y por correo cuando haya respuesta."}
+                      : "Te avisamos aquí y por correo en cuanto te respondan."}
                   </p>
                 ) : null}
               </li>

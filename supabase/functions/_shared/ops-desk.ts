@@ -12,7 +12,7 @@ import {
 } from "./email-kit.ts";
 import { escapeHtml, firstNameOf, oneLine, safeUrl } from "./email-format.ts";
 import { conciergeRequestOpsEmail, type OpsRequestInput, requestedTimes } from "./email-ops.ts";
-import { folioOf, opsTypeLabel, userStageText } from "./ops-labels.ts";
+import { displayRequestTitle, folioOf, opsTypeLabel, userStageText } from "./ops-labels.ts";
 import { opinionTeamEmail } from "./opinion.ts";
 
 /** Lo que devuelven _ops_request_json / _ops_ai_json (SQL). */
@@ -113,7 +113,7 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const name = firstNameOf(c.name);
   const type = opsTypeLabel(it.type);
   const place = oneLine(it.place ?? it.experience?.name, 120) || null;
-  const what = place ? `${type} · ${place}` : (oneLine(it.title, 160) || type);
+  const what = place ? `${type} · ${place}` : (oneLine(displayRequestTitle(it.title), 160) || type);
   const times = requestedTimes(it.requested_for, it.experience?.timezone ?? null);
   const party = Number(it.party_size) > 0 ? Math.round(Number(it.party_size)) : null;
   const folio = it.ref_code || folioOf(it.id);
@@ -126,7 +126,8 @@ export function teamReplyEmail(c: ReplyClaim, siteUrl?: string | null, supportEm
   const title = KIND_TITLE[c.reply.kind] ?? KIND_TITLE.respuesta;
   const subject = oneLine(`${title}: ${what}`, 150);
   const preheader = oneLine(body, 120);
-  const url = myRequestsUrl(site);
+  // El botón lleva a ESTA solicitud (antes a la lista).
+  const url = `${myRequestsUrl(site)}&id=${encodeURIComponent(String(it.id ?? ""))}`;
   const reason = it.type === "opinion"
     ? "Recibes este correo porque nos mandaste tu opinión desde la app y aceptaste que te escribiéramos."
     : it.type === "incidente"
