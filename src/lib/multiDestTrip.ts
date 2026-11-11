@@ -135,7 +135,7 @@ export function multiDestTripRows(logistics: any, stops: string[], origin: strin
       tours_json.push({
         nombre: t.nombre, duracion: t.duracion || "", precio_por_persona: mxn(t.price_per_person_usd), fuente: t.fuente ?? "estimado",
         ...(t.estado_dato ? { estado_dato: t.estado_dato } : {}), rating: t.rating ?? null, por_que: t.por_que || "", ciudad: pd.city,
-        ...pick(t, ["place_id", "maps_url", "num_reviews", "verificado", "nota_verificacion"]),
+        ...pick(t, ["place_id", "maps_url", "num_reviews", "verificado", "nota_verificacion", "alternativa"]),
       });
     });
   });

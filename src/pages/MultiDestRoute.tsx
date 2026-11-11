@@ -810,7 +810,8 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                         <span className="text-xs text-muted-foreground ml-2">{pd.nights} noche(s)</span>
                       </p>
                       <ul className="space-y-2 text-sm">
-                        {(pd.hospedaje ?? []).map((h: any, j: number) => (
+                        {/* Las opciones extra («Otra opción», 11-nov-2026) se ven en Comprar → «Ver más»; aquí, las elegidas. */}
+                        {(pd.hospedaje ?? []).filter((h: any) => h?.tier !== "alternativa").map((h: any, j: number) => (
                           <li key={j} className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="text-xs uppercase tracking-widest text-muted-foreground">{h.tier}</span>
@@ -825,9 +826,9 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                           </li>
                         ))}
                       </ul>
-                      {(pd.experiencias ?? []).length > 0 && (
+                      {(pd.experiencias ?? []).some((e: any) => !e?.alternativa) && (
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {pd.experiencias.map((e: any, j: number) => (
+                          {pd.experiencias.filter((e: any) => !e?.alternativa).map((e: any, j: number) => (
                             <span
                               key={j}
                               className="px-2.5 py-1 rounded-full bg-surface border border-border text-xs inline-flex items-center gap-1.5"

@@ -11,6 +11,7 @@ import { getAuthUser, unauthorizedResponse } from "../_shared/verify-auth.ts";
 import { dbCacheStore, internalHeaders } from "../_shared/serpRuntime.ts";
 import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
 import { makeResolver, markUnverified, tourBacked, verifyTours } from "../_shared/place-verify.ts";
+import { moreExperiences } from "./moreExperiences.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import {
   invalidRequestResponse,
@@ -855,11 +856,12 @@ Entrega JSON con:
     // Restaurantes: solo los de la lista de Google o los que Google encuentra por nombre. Experiencias fuera
     // de la lista del proveedor: se buscan; si no aparecen, "Sin verificar".
     const verifyStore = dbCacheStore();
+    const attrSourceOf = (raw: any) => (typeof raw?.attractions?.source === "string" ? raw.attractions.source : "tripadvisor");
     const cityVerifiedPromises = cityPromises.map(async (p, i) => {
       const pd: any = await p;
       const liveRaw: any = await cityLivePromises[i];
       const attrLive = liveRaw?.attractions?.ok === true && Array.isArray(liveRaw?.attractions?.results) ? liveRaw.attractions.results : null;
-      const experiencias = labelExperiences(pd.experiencias, attrLive, typeof liveRaw?.attractions?.source === "string" ? liveRaw.attractions.source : "tripadvisor", pd.city ?? null);
+      const experiencias = labelExperiences(pd.experiencias, attrLive, attrSourceOf(liveRaw), pd.city ?? null);
       try {
         const resolvePlaces = makeResolver(google, verifyStore, { deadline: Math.min(Date.now() + 10_000, __deadline - 8_000), concurrency: 4, timeoutMs: 3_500 });
         const places = Array.isArray(liveRaw?.restaurants) ? liveRaw.restaurants : [];
@@ -868,7 +870,9 @@ Entrega JSON con:
           verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 8),
           verifyTours(experiencias, pd.city, resolvePlaces),
         ]);
-        return { ...pd, restaurantes: rest.restaurantes, experiencias: exps.tours, _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
+        // Más experiencias reales de la lista de la ciudad para «Ver más» (moreExperiences.ts), sin precio inventado.
+        const extra = moreExperiences(exps.tours, attrLive, { source: attrSourceOf(liveRaw), city: pd.city ?? null });
+        return { ...pd, restaurantes: rest.restaurantes, experiencias: [...exps.tours, ...extra], _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
       } catch (e) {
         console.warn(`logistics-plan: verificación de ${pd.city} falló`, e instanceof Error ? e.message : e);
         return {
