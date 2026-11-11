@@ -654,7 +654,7 @@ Aplica la instrucción (puede pedir agregar, quitar, reemplazar, reordenar o exp
                     <Plane className="w-4 h-4 text-primary" />
                     <span className="text-primary tracking-[0.25em] uppercase text-xs">Vuelos</span>
                   </div>
-                  {generated.logistics.flights.map((f: any, i: number) => (
+                  {generated.logistics.flights.filter((f: any) => f?.tier !== "alternativa").map((f: any, i: number) => (
                     <div key={i} className="p-5 md:p-6 border-b border-border last:border-0">
                       <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
                         <span className="font-mono text-primary">{String(i + 1).padStart(2, "0")}</span>

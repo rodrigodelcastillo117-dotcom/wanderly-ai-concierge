@@ -146,7 +146,7 @@ export function openJawTiers(resp: any, p: OpenJawPlan, opts: { fx: number; now?
   const consultadoAt = String(real[0]?.consultado_at ?? resp.consulted_at ?? new Date(now).toISOString());
   const fr = frescuraPrecio({ estado: guardado ? "OBSOLETO" : (resp.estado_dato ?? null), consultadoAt }, now);
   const nota = p.notes.join(" · ");
-  const build = (r: any, tier: Tier) => {
+  const build = (r: any, tier: Tier | "alternativa") => {
     const total = Math.round(price(r));
     const pp = Math.round(total / travelers);
     const layovers = (Array.isArray(r.layovers) ? r.layovers : []).map((l: any) => {
@@ -191,9 +191,22 @@ export function openJawTiers(resp: any, p: OpenJawPlan, opts: { fx: number; now?
       notes: `Precio total ida y regreso (${p.legs[0].from}→${p.legs[0].to} · ${p.legs[1].from}→${p.legs[1].to}) para ${travelers} ${travelers === 1 ? "viajero" : "viajeros"}, según Google Flights. Horarios del vuelo de ida; el regreso se elige en Google Flights.`,
     };
   };
+  // «Ver más vuelos» también en varias ciudades (pedido del dueño, 11-nov-2026): hasta 5 resultados reales más de la
+  // misma búsqueda, sin repetir y sin precios desproporcionados (≤ 1.5× el premium o 2.5× el más barato).
+  const used = new Set([tiers.ahorro, tiers.equilibrio, tiers.premium]);
+  const sig = (r: any) => `${(Array.isArray(r?.airlines) ? r.airlines.join("+") : r?.airline ?? "").toLowerCase()}|${Math.round(price(r))}|${r?.departure?.time ?? ""}`;
+  const seen = new Set([...used].map(sig));
+  const cap = Math.max(price(tiers.premium) * 1.5, price(tiers.ahorro) * 2.5);
+  const alternativas: any[] = [];
+  for (const r of [...real].sort((a, b) => price(a) - price(b))) {
+    if (alternativas.length >= 5) break;
+    if (used.has(r) || price(r) > cap || seen.has(sig(r))) continue;
+    seen.add(sig(r));
+    alternativas.push(build(r, "alternativa"));
+  }
   return {
     live: true,
-    flights: [build(tiers.ahorro, "ahorro"), build(tiers.equilibrio, "equilibrio"), build(tiers.premium, "premium")],
+    flights: [build(tiers.ahorro, "ahorro"), build(tiers.equilibrio, "equilibrio"), build(tiers.premium, "premium"), ...alternativas],
     consultado_at: consultadoAt,
     frescura: fr.frescura,
     precio_guardado: guardado,

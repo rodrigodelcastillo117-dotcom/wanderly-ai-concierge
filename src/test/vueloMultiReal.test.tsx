@@ -106,7 +106,10 @@ describe("los 3 tiers salen de resultados REALES", () => {
   it("ahorro = el más barato, premium = el más rápido, equilibrio = el más cómodo de los que cuestan menos que premium; aerolínea, horarios, escalas, total y enlace", async () => {
     const { q } = await quote();
     expect(q.live).toBe(true);
-    const flights = (q as any).flights;
+    // Los 3 niveles; detrás, las opciones extra de «Ver más vuelos» (11-nov-2026), que no cambian los niveles.
+    const all = (q as any).flights;
+    expect(all.slice(3).every((f: any) => f.tier === "alternativa")).toBe(true);
+    const flights = all.slice(0, 3);
     expect(flights.map((f: any) => f.tier)).toEqual(["ahorro", "equilibrio", "premium"]);
     expect(flights.map((f: any) => f.airline_suggested)).toEqual(["Iberia", "Air France", "Air France"]);
     expect(flights.map((f: any) => f.price_total_mxn)).toEqual([38940, 41210, 58700]);

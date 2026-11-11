@@ -962,7 +962,8 @@ Entrega JSON con:
     // Dedupe: mismo tramo + mismo tier nunca dos veces.
     const seenFlights = new Set<string>();
     flights = flights.filter((f) => {
-      const key = `${(f.from ?? "").toLowerCase()}|${(f.to ?? "").toLowerCase()}|${f.tier ?? ""}`;
+      // Las opciones extra («alternativa») son varias del mismo tramo: se distinguen por precio y salida.
+      const key = `${(f.from ?? "").toLowerCase()}|${(f.to ?? "").toLowerCase()}|${f.tier ?? ""}${f.tier === "alternativa" ? `|${f.price_total_mxn ?? ""}|${f.salida ?? ""}` : ""}`;
       if (seenFlights.has(key)) return false;
       seenFlights.add(key);
       return true;
