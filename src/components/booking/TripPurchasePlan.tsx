@@ -102,6 +102,8 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
   const { rows, marks, mark: saveMark, unmark: removeMark } = marksState ?? ownMarks;
   const owner = ownerId ?? trip?.user_id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
+  // «Ver más hoteles» abierto por paso (pedido del dueño, 10-nov-2026: «no da más opciones, solo te da 3»).
+  const [verMas, setVerMas] = useState<Record<number, boolean>>({});
   const taste = useTasteProfile(userId);
   const [restPicks, setRestPicks] = useRestaurantPicks(trip?.id ?? null);
 
@@ -400,7 +402,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                       <PriceSourceBadge className="mt-2" source={h0?.fuente_precio} estado={h0?.estado_dato} consultadoAt={h0?.consultado_at ?? trip.created_at} />
                     ); })()}
                     <div role="radiogroup" aria-label={`Opciones de ${s.title.toLowerCase()}`} className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
-                      {s.options.map((i) => {
+                      {(verMas[s.n] ? [...s.options, ...(s.moreOptions ?? [])] : s.options).map((i) => {
                         const h = trip.hospedaje_json[i];
                         // Palomita solo en lo que eligió la persona; el de la cotización se marca aparte ("En la cotización").
                         const chosen = s.userChosen && s.chosen === i;
@@ -432,6 +434,13 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                         );
                       })}
                     </div>
+                    {(s.moreOptions?.length ?? 0) > 0 && (
+                      <button type="button" data-testid="hotel-ver-mas" aria-expanded={!!verMas[s.n]}
+                        onClick={() => setVerMas((m) => ({ ...m, [s.n]: !m[s.n] }))}
+                        className="mt-2 min-h-[32px] text-xs font-medium text-primary underline-offset-2 hover:underline">
+                        {verMas[s.n] ? "Ver menos hoteles" : `Ver más hoteles (${s.moreOptions!.length})`}
+                      </button>
+                    )}
                     {/* Ofertas reales por proveedor del hotel elegido (Google Hotels), solo al pulsar. */}
                     {(() => {
                       const h = s.chosen >= 0 ? trip.hospedaje_json?.[s.chosen] : null;

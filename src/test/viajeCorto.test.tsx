@@ -131,9 +131,11 @@ describe("2 · precio del hotel: total_rate contra rate_per_night", () => {
 describe("3 · tres niveles de hotel reales y el medio por defecto", () => {
   it("con lista en vivo se guardan económico, medio y premium (no solo el que eligió la IA)", async () => {
     const t = await tepozNuevo();
-    expect(t.hospedaje_json.map((h: any) => [h.tier, h.nombre])).toEqual([
+    expect(t.hospedaje_json.filter((h: any) => h.tier !== "alternativa").map((h: any) => [h.tier, h.nombre])).toEqual([
       ["ahorro", "Hotel Tepoztlán Centro"], ["equilibrio", "Posada del Tepozteco"], ["premium", "The Red Tree House"],
     ]);
+    // Más opciones reales de la misma búsqueda para «Ver más hoteles» (pedido del dueño, 10-nov-2026).
+    expect(t.hospedaje_json.filter((h: any) => h.tier === "alternativa").length).toBeGreaterThan(0);
     for (const h of t.hospedaje_json) {
       expect(h).toMatchObject({ fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO" });
       expect(h.property_token).toBeTruthy(); // "Ver ofertas reales" (HotelOffersButton) aparece con el token

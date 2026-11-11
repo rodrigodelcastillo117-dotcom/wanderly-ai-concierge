@@ -268,7 +268,10 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
     }
   }
 
-  const hoteles: any[] = Array.isArray(a?.hospedaje) ? a.hospedaje : [];
+  // Las alternativas («Ver más hoteles») no son la referencia del total: solo los 3 niveles.
+  const todos: any[] = Array.isArray(a?.hospedaje) ? a.hospedaje : [];
+  const conNivel = todos.filter((h) => String(h?.tier ?? "") !== "alternativa");
+  const hoteles: any[] = conNivel.length ? conNivel : todos;
   const ordenados = [...hoteles].sort((x, y) => (Number(x?.precio_por_noche) || 0) - (Number(y?.precio_por_noche) || 0));
   const porTier = input.hotelTier ? hoteles.find((h) => String(h?.tier ?? "") === input.hotelTier && Number(h?.precio_por_noche) > 0) : null;
   let hotelReferencia = porTier ?? (ordenados.length ? ordenados[Math.floor(ordenados.length / 2)] : null);
