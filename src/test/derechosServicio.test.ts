@@ -206,6 +206,10 @@ describe("correos que reenvía el usuario (casos+<token>@)", () => {
     // "Aceptó" no se da por hecho: el remitente original (la aerolínea) no se puede verificar en un reenvío.
     expect(r.body.resultado).toBe("otro");
   });
+  it("estado dice si el envío por correo está encendido (la app enseña «Enviar en mi nombre» solo entonces)", async () => {
+    expect((await estadoReclamos(setup({ flag: true }).deps, USER)).body.envio_activo).toBe(true);
+    expect((await estadoReclamos(setup({ flag: false }).deps, USER)).body.envio_activo).toBe(false);
+  });
   it("de otra dirección → se ignora sin guardar el contenido", async () => {
     const t = setup();
     await estadoReclamos(t.deps, USER);

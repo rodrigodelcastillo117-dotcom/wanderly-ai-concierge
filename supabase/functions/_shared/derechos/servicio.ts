@@ -246,7 +246,10 @@ export async function estadoReclamos(d: ReclamosDeps, userId: string, i: { id?: 
   });
   if (i?.id && !list.length) return fail(404, "NOT_FOUND");
   const tok = await d.db.rpc<string>("claim_forward_token", { _user_id: userId });
-  return ok({ reclamos: list, direccion_casos: tok.data ? direccionCasos(tok.data, d.config.replyDomain ?? DOMINIO_RESPUESTA) : null });
+  // La app enseña «Enviar en mi nombre» solo si el envío por correo está encendido (app_flags.reclamos_enabled);
+  // apagado, ofrece copiar la carta y abrir el formulario oficial. Si no se puede leer, cuenta como apagado.
+  const flag = await (async () => await d.db.rpc<boolean>("app_flag", { _key: "reclamos_enabled" }))().catch(() => null);
+  return ok({ reclamos: list, direccion_casos: tok.data ? direccionCasos(tok.data, d.config.replyDomain ?? DOMINIO_RESPUESTA) : null, envio_activo: flag?.data === true });
 }
 
 export async function cancelarReclamo(d: ReclamosDeps, userId: string, i: { id?: string }): Promise<Resultado> {

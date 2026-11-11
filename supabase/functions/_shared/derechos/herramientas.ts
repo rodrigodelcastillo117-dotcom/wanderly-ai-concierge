@@ -202,6 +202,11 @@ export type ContextoHerramienta = {
   hoy?: string | null;
 };
 
+// La carta queda guardada en la app (Concierge › Mis solicitudes › Mis reclamos): ahí se ve, se copia, se abre el
+// formulario oficial y, con el envío encendido, se manda con un toque y un sí. Iato lo dice al prepararla.
+export const DONDE_VER_RECLAMOS = "La carta queda guardada en Concierge › Mis solicitudes › Mis reclamos (ahí se puede ver, copiar y enviar).";
+const conDondeVerla = (b: Record<string, unknown>) => (b?.ok === true ? { ...b, donde_verla: DONDE_VER_RECLAMOS } : b);
+
 export async function runReclamosTool(name: string, a: Record<string, unknown>, ctx: ContextoHerramienta): Promise<unknown> {
   switch (name) {
     case "revisar_derechos_vuelo": {
@@ -236,13 +241,13 @@ export async function runReclamosTool(name: string, a: Record<string, unknown>, 
           },
           pasajero, trip_id: s(a.trip_id, 40), actor: "iato",
         });
-        return r.body;
+        return conDondeVerla(r.body);
       }
       const r = await prepararReclamoVuelo(ctx.deps, ctx.userId, {
         caso: casoDesdeArgs(a, ctx.hoy), pasajero, relato: s(a.relato, 1500), eleccion: (s(a.eleccion) as never) ?? null, trip_id: s(a.trip_id, 40),
         correo_proveedor: correo && fuente ? { email: correo, fuente } : null, actor: "iato",
       });
-      return r.body;
+      return conDondeVerla(r.body);
     }
     case "enviar_reclamo": {
       if (!ctx.deps) return { error: "reclamos_no_disponible" };

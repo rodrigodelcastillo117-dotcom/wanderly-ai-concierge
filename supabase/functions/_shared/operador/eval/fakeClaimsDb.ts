@@ -122,6 +122,7 @@ export function fakeClaimsDb(state: { flag: boolean; now: () => Date }) {
         return { data: { ok: true, claim: pub(c) }, error: null };
       }
       case "claim_forward_token": { if (!tokens.has(a._user_id)) tokens.set(a._user_id, "f".repeat(24)); return { data: tokens.get(a._user_id), error: null }; }
+      case "app_flag": return { data: a._key === "reclamos_enabled" ? state.flag : false, error: null };
       case "claim_store_forward": {
         const ref = /C-[A-Z0-9]{6}/.exec(`${a._p.subject} ${a._p.text}`)?.[0];
         const c = ref ? [...claims.values()].find((x) => x.ref_code === ref && x.user_id === a._user_id) : null;

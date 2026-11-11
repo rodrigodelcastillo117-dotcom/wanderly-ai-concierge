@@ -83,4 +83,4 @@ Se registra un **segundo webhook** en Resend apuntando a `reclamos-inbound` (sec
 3. pg_cron diario para `reclamos-cron` (mismo patrón que `ai-reservations-cron`): `docs/ops/programar-reclamos.sql` (tarea `reclamos-seguimiento-diario`, 15:41 UTC = 09:41 en CDMX).
 4. Conectar `nucleoDesdeEntorno` al núcleo de incidentes.
 5. Encender `app_flags.reclamos_enabled` cuando el dueño lo apruebe.
-6. Botón de confirmar envío en la app (hoy el consentimiento se da en el chat con el folio, o por la API `confirmar_envio`).
+6. ~~Botón de confirmar envío en la app~~ Hecho (11-nov-2026): Concierge › Mis solicitudes › **Mis reclamos** (`src/components/concierge/MyClaims.tsx`): ver y copiar la carta, abrir el formulario oficial, «Ya la envié», «Ya me resolvieron» y «Enviar en mi nombre» con confirmación (solo si `estado` devuelve `envio_activo`, es decir, con la bandera encendida y correo verificado).

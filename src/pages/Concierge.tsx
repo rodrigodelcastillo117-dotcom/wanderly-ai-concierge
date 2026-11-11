@@ -14,6 +14,7 @@ import { FlightStatusDialog } from "@/components/FlightStatusDialog";
 import { TravelerAvatar } from "@/components/TravelerAvatar";
 import { MembersOnlyPanel } from "@/components/MembersOnlyPanel";
 import { MyTeamRequests } from "@/components/concierge/MyTeamRequests";
+import { MyClaims } from "@/components/concierge/MyClaims";
 import { prefetchMyTeamRequests } from "@/lib/opsDesk";
 import { FixerButton } from "@/components/FixerButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -620,6 +621,8 @@ const Concierge = () => {
           <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4">
             <AiReservationsLinkNote />
             <MyTeamRequests />
+            {/* Reclamos a aerolíneas y hoteles: la carta que preparó Iato, lista para enviar (con tu sí). */}
+            <MyClaims onAskIato={(t) => { setInput(t); switchTab("chat"); }} />
           </div>
         ) : tab === "members" ? (
           <div className="flex-1 overflow-y-auto">

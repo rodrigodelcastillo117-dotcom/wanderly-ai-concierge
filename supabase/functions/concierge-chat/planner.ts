@@ -121,6 +121,23 @@ export function specialDiningPhrase(message: unknown): string | null {
   return null;
 }
 
+/**
+ * ¿El problema del vuelo está pasando ahora, es una pregunta hipotética o ya pasó (reclamar)? (recorrido
+ * 11-nov-2026: «Si mi vuelo se retrasa más de 3 horas, ¿qué derechos tengo?» buscaba vuelos alternativos y
+ * proponía abrir un caso «Vuelo cancelado»; «Mi vuelo… se retrasó 5 horas el 2 de noviembre. Quiero reclamar»
+ * también). Solo "ahora" busca alternativas y ofrece a una persona del equipo para reubicarte.
+ */
+export function disruptionTiming(message: string): "ahora" | "hipotetica" | "pasada" {
+  const m = normText(message);
+  const pastVerb = /\b(se retraso|se cancelo|se demoro|cancelaron|retrasaron|demoraron|fue cancelado|estuvo retrasado|llego tarde|llegamos tarde|salio tarde|salimos tarde|nos cancelaron|me cancelaron|perdi|perdimos)\b/.test(m);
+  const now = /\b(hoy|ahorita|ahora mismo|acaban? de|estoy en el aeropuerto|estamos en el aeropuerto|en la sala|en la puerta)\b/.test(m);
+  if (!pastVerb && /\b(si|en caso de que?|que pasa si|que hago si)\b.{0,30}\b(retras|cancel|demor|overbook|sobreventa|pierdo|perdemos)\w*/.test(m)) return "hipotetica";
+  const pastDate = /\b(ayer|antier|anteayer|la semana pasada|el mes pasado|el ano pasado|hace \d+ (dias|semanas|meses))\b|\bel \d{1,2} de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/.test(m);
+  const claim = /\b(reclam\w*|compensaci\w*|indemniz\w*|queja)\b/.test(m);
+  if (pastVerb && !now && (pastDate || claim)) return "pasada";
+  return "ahora";
+}
+
 /** Intenciones del mensaje. Un botón rápido manda la suya y manda sobre el texto. */
 export function detectIntents(message: string, chipIntent?: unknown): Intent[] {
   const m = normText(message);
@@ -364,7 +381,16 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.notes.push(`Menciona en una línea el estado real del vuelo ${flightSoon.code} de hoy (viene en <datos_consultados>).`);
   }
 
-  if (flightIntent) {
+  // Hipotético o ya pasado: no hay vuelo que vigilar ni alternativas que buscar; se explican derechos y,
+  // si ya pasó, se ofrece preparar el reclamo.
+  const timing = flightIntent && (has("flight_disruption") || has("missed_connection")) ? disruptionTiming(i.message) : "ahora";
+  if (flightIntent && timing !== "ahora") {
+    const kindWord = /retras|demor/.test(normText(i.message)) && !/cancel/.test(normText(i.message)) ? "retrasado" : has("missed_connection") ? "conexión perdida" : "cancelado";
+    plan.prefetch.push({ name: "web_search", args: { query: `derechos del pasajero vuelo ${kindWord} ${flight?.airline ?? ""}`.replace(/\s+/g, " ").trim() }, reason: "derechos del pasajero" });
+    plan.notes.push(timing === "hipotetica"
+      ? "Pregunta hipotética (no está pasando): explica sus derechos según la ley que aplique (con revisar_derechos_vuelo si sabes ruta y aerolínea). No busques vuelos alternativos ni abras un caso con el equipo."
+      : "Ya pasó (quiere reclamar): evalúa con revisar_derechos_vuelo y ofrece preparar la carta con preparar_reclamo (pide solo los datos que falten). No busques vuelos alternativos ni abras un caso de reubicación con el equipo.");
+  } else if (flightIntent) {
     if (flight?.code) {
       plan.prefetch.push({ name: "check_flight_status", args: { flight: flight.code, ...(flight.date ? { date: flight.date } : {}) }, reason: "estado del vuelo" });
       plan.suggestedActions.push({ type: "track_flight", params: { vuelo: flight.code, fecha: flight.date ?? i.todayISO, ...(tripId ? { trip_id: tripId } : {}) } });
@@ -373,7 +399,7 @@ export function planTurn(i: PlanInput): TurnPlan {
     }
   }
 
-  if (has("flight_disruption") || has("missed_connection")) {
+  if ((has("flight_disruption") || has("missed_connection")) && timing === "ahora") {
     const origin = has("missed_connection") ? (flight?.to ?? null) : (flight?.from ?? trip?.ciudad_origen ?? null);
     const dest = has("missed_connection") ? (trip?.destino ?? flight?.to ?? null) : (flight?.to ?? trip?.destino ?? null);
     if (origin && dest && origin !== dest) {
@@ -844,6 +870,7 @@ export function leadSentence(plan: Pick<TurnPlan, "intents" | "prefetch">, opts:
   }
   if (has("flight_disruption") || has("missed_connection")) {
     const what = has("missed_connection") ? "tu conexión" : code ? `tu vuelo ${code}` : "tu vuelo";
+    if (disruptionTiming(opts.message ?? "") !== "ahora") return "Reviso tus derechos como pasajero.";
     return `Reviso en tiempo real ${what}${flights ? ", busco alternativas" : ""} y tus derechos como pasajero.`;
   }
   // Modo exigente: la respuesta es un plan comparado con encabezado propio; una frase de una sola
