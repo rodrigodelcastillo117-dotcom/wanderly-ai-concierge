@@ -124,6 +124,22 @@ export function stableStringify(v: unknown): string {
 
 const keyOf = (name: string, args: Record<string, unknown>) => `${name}:${stableStringify(args)}`;
 
+const FINAL_NUDGE = "(Aviso de IATOS, no del viajero) Ya no hay más búsquedas en este turno: responde AHORA al viajero, completo y concreto, solo con los datos de arriba. Si algo no lo pudiste confirmar, dilo y di qué hacer.";
+
+/** Agrega el aviso al último mensaje del usuario (los turnos se alternan; tras resultados de herramientas va en ese mismo mensaje). */
+export function withFinalNudge(messages: AMessage[]): AMessage[] {
+  const out = [...messages];
+  const last = out[out.length - 1];
+  if (last?.role === "user") {
+    out[out.length - 1] = typeof last.content === "string"
+      ? { role: "user", content: `${last.content}\n\n${FINAL_NUDGE}` }
+      : { role: "user", content: [...last.content, { type: "text" as const, text: FINAL_NUDGE }] };
+  } else {
+    out.push({ role: "user", content: FINAL_NUDGE });
+  }
+  return out;
+}
+
 export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
   const now = a.now ?? Date.now;
   const t0 = now();
@@ -234,6 +250,37 @@ export async function runAgentTurn(a: AgentInput): Promise<AgentResult> {
       return { type: "tool_result", tool_use_id: tu.id, content: JSON.stringify({ ...prepared, ...note }) };
     }));
     messages.push({ role: "user", content: results });
+  }
+  // Respuesta vacía tras consultar herramientas (recorrido 11-nov-2026, «Si mi vuelo se retrasa más de 3 horas, ¿qué derechos
+  // tengo?»: solo quedaba la frase de inicio «Reviso en tiempo real tu vuelo… y tus derechos» y nada más). El modelo quiso seguir
+  // buscando al llegar al tope: una última llamada SIN herramientas para que conteste con lo que ya tiene.
+  if (!res.finalText.trim() && res.toolRuns.length > 0 && stepIdx < a.chain.length) {
+    const budgetMs = a.hardBudgetMs !== undefined ? a.hardBudgetMs - (now() - t0) : undefined;
+    if (budgetMs === undefined || budgetMs >= MIN_MODEL_CALL_MS) {
+      const filter = new AnswerStreamFilter();
+      let shown = "";
+      try {
+        const result = await a.callModel(a.chain[stepIdx], {
+          stableSystem: a.stableSystem, dynamicSystem: a.dynamicSystem,
+          messages: withFinalNudge(messages),
+          tools: a.tools, toolChoice: "none", maxTokens: a.maxTokens, ...(budgetMs !== undefined ? { budgetMs } : {}),
+        }, {
+          onText: (d) => {
+            const v = filter.push(d);
+            if (v) { if (res.firstTextMs === null) res.firstTextMs = now() - t0; shown += v; a.emit.delta(v); }
+          },
+        });
+        const tail = filter.flush();
+        if (tail) { shown += tail; a.emit.delta(tail); }
+        res.usage.push({ provider: result.provider, model: result.model, ...result.usage });
+        res.finalText = result.text;
+        res.streamed = shown;
+      } catch (e) {
+        const err = e instanceof ProviderError ? e : new ProviderError("network", 0, (e as Error)?.message ?? "error");
+        res.failures.push({ key: a.chain[stepIdx].key, kind: err.kind, status: err.status });
+        if (shown) a.emit.reset();
+      }
+    }
   }
   return res;
 }
