@@ -14,7 +14,8 @@ describe("logistics-plan dentro del tiempo de la plataforma", () => {
     expect(budget).toBeLessThan(150_000);
     expect(src).toMatch(/signal: AbortSignal\.timeout\(Math\.max\(10_000, timeoutMs\)\)/);
     expect(src).toMatch(/signal: AbortSignal\.timeout\(40_000\)/);
-    expect(src.match(/callAI\([^)]*aiBudget\(\)\)/g)?.length).toBe(2);
+    // Cada llamada al modelo: tope = mín(45 s, lo que le queda al plan) y un reintento solo si queda tiempo (aiRetry.ts, 11-nov-2026).
+    expect(src.match(/callAIRetry\(\(ms\) => callAI\([^)]*, ms\), aiBudget/g)?.length).toBe(2);
   });
   it("si una ciudad o el global no alcanzan, se entrega parcial en vez de fallar todo", () => {
     expect(src).toMatch(/city \$\{city\} failed/);
