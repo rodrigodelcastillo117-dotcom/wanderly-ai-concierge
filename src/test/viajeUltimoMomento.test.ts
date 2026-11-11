@@ -52,6 +52,14 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     ["Quiero ir a Disney en Orlando con mis hijos", ["Orlando"]],
     ["Banff y Vancouver en verano", ["Banff", "Vancouver"]],
     ["Me quiero escapar este puente, algo cerca de CDMX", []],
+    ["Quiero llevar a mis papás a Guanajuato y San Miguel de Allende, ellos caminan poco", ["Guanajuato", "San Miguel de Allende"]],
+    ["Aniversario en Huatulco, 5 noches, todo incluido frente al mar", ["Huatulco"]],
+    ["Graduación: Cancún con 6 amigos en julio, fiesta y playa", ["Cancún"]],
+    ["Ruta del vino: Valle de Guadalupe y Ensenada 3 días", ["Valle de Guadalupe", "Ensenada"]],
+    ["Semana Santa en Puerto Escondido y Mazunte", ["Puerto Escondido", "Mazunte"]],
+    ["Me voy a Chiapas: San Cristóbal, Palenque y el Cañón del Sumidero", ["Chiapas", "San Cristóbal de las Casas", "Palenque", "Cañón del Sumidero"]],
+    ["Safari en Kenia y playa en Zanzíbar", ["Zanzíbar"]],
+    ["Me quiero escapar a la playa este puente", []],
   ])("«%s»: solo lugares, nada que preguntar de más", (t, cities) => {
     const p = parseMultiCityText(t, { origin: "Ciudad de México" });
     expect(p.cities).toEqual(cities);

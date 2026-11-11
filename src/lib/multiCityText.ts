@@ -75,10 +75,10 @@ export const MX_PLACES = ["Saltillo", "Zacatecas", "Durango", "Morelia", "Torre�
   "Mahahual", "Puerto Morelos", "Chetumal", "Cuatro Ciénegas", "Parras", "Mexicali", "Rosarito", "Tampico", "Villahermosa",
   "Orizaba", "Coatepec", "Papantla", "Tlacotalpan", "Mitla", "Hierve el Agua", "Uxmal", "Chichén Itzá", "Calakmul",
   "Cabo San Lucas", "San José del Cabo", "Huatulco", "Mazatlán", "Acapulco", "Guanajuato", "San Miguel de Allende",
-  "Playa del Carmen", "Tulum"];
+  "Playa del Carmen", "Tulum", "Mazunte", "Zipolite", "Akumal", "Celestún", "Yelapa", "Tapalpa", "Xilitla", "Cañón del Sumidero"];
 for (const name of MX_PLACES) add(name, { name, country: "México" });
 for (const [alias, name] of [["cuatrocienegas", "Cuatro Ciénegas"], ["chichen itza", "Chichén Itzá"], ["san cristobal", "San Cristóbal de las Casas"],
-  ["huasca", "Huasca de Ocampo"], ["sma", "San Miguel de Allende"]] as Array<[string, string]>) add(alias, { name, country: "México" });
+  ["huasca", "Huasca de Ocampo"], ["sma", "San Miguel de Allende"], ["canon del sumidero", "Cañón del Sumidero"], ["sumidero", "Cañón del Sumidero"]] as Array<[string, string]>) add(alias, { name, country: "México" });
 const EXTRA_CITY_ALIASES: Array<[string, string]> = [["cape town", "Ciudad del Cabo"], ["capetown", "Ciudad del Cabo"]];
 for (const [alias, city] of EXTRA_CITY_ALIASES) { const e = CATALOG.get(norm(city)); if (e) add(alias, e); }
 const MAX_WORDS = 5;
@@ -103,7 +103,7 @@ function asCountry(chunk: string): string | null {
 
 // Palabras que no son lugar: conectores, verbos de viaje, quién viaja.
 const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta hacia para con sin mi mis tu un una unos unas " +
-  "viaje viajes viajar viajamos viajo ir irme irnos iremos ire voy cada disney volver regresar necesito necesitamos escapar escaparme escaparnos llevame llevanos largo quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
+  "viaje viajes viajar viajamos viajo ir irme irnos iremos ire voy cada disney llevar llevarlos llevarlas cruzar ellos ellas volver regresar necesito necesitamos escapar escaparme escaparnos llevame llevanos largo quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
   "luego despues primero despues finalmente terminar terminando empezar empezando empezamos acabar pasando pasar pasear " +
   "vacaciones escapada solo sola pareja familia amigos amigas novia novio esposa esposo hijos personas persona viajeros viajero adultos " +
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +

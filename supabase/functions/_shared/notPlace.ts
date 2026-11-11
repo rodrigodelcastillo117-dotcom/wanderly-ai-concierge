@@ -33,6 +33,16 @@ export const TIMING_AND_VIBE: RegExp[] = [
   /(?<![a-záéíóúñ\d])(?:a\s+las?\s+)?\d{1,2}:\d{2}(?:\s*(?:am|pm|hrs?|h))?(?![a-záéíóúñ\d])/gi,
   // «algo cerca de CDMX», «un lugar cerca de Monterrey»: la ciudad es referencia, no parada (se resuelve con la IA).
   /(?<![a-záéíóúñ])(?:algo|un\s+lugar|alg[uú]n\s+lugar|un\s+sitio|un\s+destino|un\s+pueblo|una\s+playa|playas?)\s+(?:cerca|cerquita|no\s+lejos)\s+de\s+[^,;.\n]+/gi,
+  // Barrido de frases 11-nov-2026: quién y cómo, no dónde.
+  /(?<![a-záéíóúñ])(?:ellos|ellas|el|ella)?\s*(?:caminan?|caminamos|camina)\s+(?:poco|muy\s+poco|despacio|con\s+bast[oó]n)(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:frente\s+(?:al\s+mar|a\s+la\s+playa)|con\s+vista\s+al\s+mar|vista\s+al\s+mar|pie\s+de\s+playa)(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:sol\s+y\s+playa|playa\s+y\s+sol|fiesta|antros?|vida\s+nocturna|ruta\s+del\s+vino|ruta\s+de\s+(?:los\s+)?vinos|enoturismo|safari|pueblos?\s+m[aá]gicos?)(?![a-záéíóúñ])/gi,
+  // «playa» suelta (no «Playa del Carmen»): el gusto, no un lugar.
+  /(?<![a-záéíóúñ])(?:la\s+)?playas?(?=\s*(?:[,;.\n]|$)|\s+(?:y|en|este|esta|para|con)\b)/gi,
+  /(?<![a-záéíóúñ])(?:para\s+)?ver\s+(?:las?\s+|los?\s+)?(?:ballenas|tortugas|delfines|luci[eé]rnagas|auroras?(?:\s+boreales?)?|cerezos|mariposas(?:\s+monarcas?)?|monarcas|atardeceres|estrellas|volcanes|flamencos)(?![a-záéíóúñ])/gi,
+  // «en tren» NO se quita: es cómo se llega (el planeador lo usa para el tramo; pruebas N-08/N-09).
+  /(?<![a-záéíóúñ])en\s+(?:camper|campervan|motorhome|autocaravana|moto|bici|bicicleta)(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:graduaci[oó]n|boda|despedida(?:\s+de\s+solter[oa]s?)?|reuni[oó]n\s+familiar)(?![a-záéíóúñ])/gi,
   // Reparto entre ciudades: «3 noches en cada una», «2 días por ciudad» (recorrido Roma y Florencia, 11-nov-2026)
   /(?<![a-záéíóúñ])(?:(?:en|por|para)\s+)?cada\s+(?:una|uno|ciudad|lugar|destino|parada|sitio)(?![a-záéíóúñ])/gi,
   /(?<![a-záéíóúñ])(?:por|en)\s+(?:ciudad|destino|parada)(?![a-záéíóúñ])/gi,
@@ -51,12 +61,14 @@ const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta h
   "voy vamos vas va iremos ire irme irnos viaje viajar viajo viajamos quiero queremos quisiera este esta estos estas " +
   "pareja novia novio esposa esposo familia amigos tanto mucho poco algo muy mas que fin semana finde " +
   "salgo salimos salida regreso regresamos vuelta cada volver regresar necesito necesitamos escapar escaparme escaparnos " +
-  "llevame llevanos lleva viajo largo primera vez posible").split(/\s+/));
+  "llevame llevanos lleva llevar llevarlos llevarlas viajo largo primera vez posible cruzar recorrer ellos ellas").split(/\s+/));
 
 /** ¿El texto completo dice solo cuándo/cómo (nada que pueda ser un lugar)? «voy», «este viernes 13 de noviembre». */
 export function isNotPlace(text: string): boolean {
   const t = String(text ?? "").trim();
   if (!t) return false;
+  // «algo de playa» puede ser el destino que falta decidir: no se calla, se pregunta (viajeComplejo, texto ambiguo).
+  if (/\bplayas?\b/.test(norm(t))) return false;
   const rest = norm(stripTimingAndVibe(t))
     .replace(new RegExp(norm(`\\b${MONTH}\\b`), "g"), " ")
     .replace(/[\d:.,;!?¡¿"'()\-–]+/g, " ")

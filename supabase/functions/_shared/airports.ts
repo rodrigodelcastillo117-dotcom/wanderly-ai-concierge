@@ -174,6 +174,7 @@ export const CITIES: CityAirports[] = [
   C("Osaka", "OSA", ["KIX", "ITM"], "Japón", "JP", "AS", 34.434, 135.244),
   C("Cusco", "CUZ", ["CUZ"], "Perú", "PE", "SA", -13.536, -71.939, ["cuzco"]),
   C("Marrakech", "RAK", ["RAK"], "Marruecos", "MA", "AF", 31.607, -8.036, ["marrakesh"]),
+  C("Zanzíbar", "ZNZ", ["ZNZ"], "Tanzania", "TZ", "AF", -6.222, 39.225, ["zanzibar"]),
   C("Casablanca", "CAS", ["CMN"], "Marruecos", "MA", "AF", 33.367, -7.59),
   C("Johannesburgo", "JNB", ["JNB"], "Sudáfrica", "ZA", "AF", -26.134, 28.242, ["johannesburg"]),
   C("El Cairo", "CAI", ["CAI"], "Egipto", "EG", "AF", 30.122, 31.406, ["cairo", "el cairo"]),
@@ -301,6 +302,7 @@ export const TOWNS: Town[] = [
   T("Cholula", "MX", 19.064, -98.303), T("Cuetzalan", "MX", 20.018, -97.522), T("Tequila", "MX", 20.882, -103.836),
   T("Bernal", "MX", 20.741, -99.941, ["pena de bernal"]), T("Mineral del Chico", "MX", 20.215, -98.731), T("Tlaxcala", "MX", 19.318, -98.238),
   T("Xilitla", "MX", 21.385, -98.99), T("Tapalpa", "MX", 19.944, -103.759),
+  T("Cañón del Sumidero", "MX", 16.85, -93.08, ["canon del sumidero", "sumidero"]),
   // Lugares que se escriben como destino y no tienen aeropuerto (barrido de frases, 11-nov-2026).
   T("Machu Picchu", "PE", -13.163, -72.545, ["aguas calientes", "machupicchu", "machu pichu"]),
   T("Sedona", "US", 34.869, -111.761), T("Gran Cañón", "US", 36.057, -112.14, ["gran canon", "grand canyon", "el gran canon"]),
