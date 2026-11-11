@@ -22,8 +22,9 @@ describe("más opciones ordenadas por el perfil", () => {
     expect(cards.length + more.length).toBe(list.length);
     const firstItalian = more.findIndex((c) => /italian/i.test(list[c.index!].cocina));
     expect(firstItalian).toBe(0);
-    expect(more[0].slot).toBe("para_ti");
-    expect(more[0].reason).toMatch(/italiana|perfil/i);
+    const first = more[0];
+    expect(first.slot).toBe("para_ti");
+    expect("reason" in first ? first.reason : null).toMatch(/italiana|perfil/i);
   });
   it("sin perfil, ordena por calificación y nada se llama «Para ti»", () => {
     const r = rankForProfile(list, idx, "restaurante", null);
