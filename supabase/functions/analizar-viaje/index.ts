@@ -46,6 +46,7 @@ import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } f
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { flightAlternatives } from "./flightAlternatives.ts";
 import { moreTours } from "./moreTours.ts";
+import { learnedHotelTier } from "../_shared/learnedTier.ts";
 import { tripDatesProblem } from "./dates.ts";
 import { storedTripDestino } from "../_shared/tripName.ts";
 import {
@@ -584,6 +585,9 @@ Deno.serve(async (req) => {
     }).then((r) => r.profile).catch(() => null);
 
     // Cuatro lecturas independientes en paralelo (antes iban una tras otra).
+    // Lo que ELIGIÓ en sus viajes (hotel tocado en Comprar): el nivel de hotel aprende de eso (learnedTier.ts).
+    const learnedPromise = Promise.resolve(supabase.from("trips").select("hospedaje_json, selections").eq("user_id", user.id)
+      .order("created_at", { ascending: false }).limit(30)).then((r: any) => (r?.error ? null : learnedHotelTier(r?.data))).catch(() => null);
     const [{ data: travelProfile }, { data: profile }, { data: vault }, { data: aiPrefs }] = await Promise.all([
       supabase.from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("profiles").select("full_name, ciudad_origen").eq("id", user.id).maybeSingle(),
@@ -1157,7 +1161,7 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
     // usuario verá (vuelo equilibrio × viajeros; hotel medio × noches × habitaciones), respetando
     // lo que el usuario excluyó, y total_estimado = suma exacta del desglose.
     const budget = reconcileBudget(a, {
-      dias, viajeros: body.num_viajeros, notas: body.notas_usuario, hotelTier: preferredHotelTier(travelProfile?.presupuesto_rango),
+      dias, viajeros: body.num_viajeros, notas: body.notas_usuario, hotelTier: (await learnedPromise)?.tier ?? preferredHotelTier(travelProfile?.presupuesto_rango),
       internacional: paisO && paisD ? paisO !== paisD : null, reconstruir: !desgloseModelo,
     });
     if (budget.reconstruido) console.warn("analizar-viaje: desglose reconstruido con las opciones", { destino: body.destino, total: budget.total, porCotizar: budget.porCotizar });

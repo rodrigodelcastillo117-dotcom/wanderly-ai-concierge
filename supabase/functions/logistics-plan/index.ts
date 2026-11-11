@@ -51,6 +51,7 @@ import { conRutas, gasolinaTramoMxn, llegadaPorTierra, totalLlegadaTierra } from
 import { sameCity } from "../_shared/booking/tripRoute.ts";
 import { porcionesComida, sanitizeOcupacion } from "../_shared/ocupacion.ts";
 import { pickCityHotels } from "./hotelPick.ts";
+import { learnedHotelTier } from "../_shared/learnedTier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -613,6 +614,8 @@ Deno.serve(async (req) => {
     let foodPref: string | null = null;
     let presupuestoRango: string | null = null;
     let tasteWait: Promise<unknown> | null = null;
+    // Nivel de hotel aprendido de lo que eligió en sus viajes (learnedTier.ts); si no hay, el de su perfil.
+    let learnedPromise: Promise<{ tier: Tier } | null> = Promise.resolve(null);
     try {
       const token = authHeader.replace(/^Bearer\s+/i, "");
       if (token) {
@@ -625,6 +628,8 @@ Deno.serve(async (req) => {
           // Gustos demostrados (incluye lo aprendido del diario), con caché y tope de tiempo.
           const tastePromise = getTasteProfile({ db: supa, cache: adminClient(), userId: user.id, todayISO: tasteToday(), timeoutMs: 1200 })
             .then((r) => r.profile).catch(() => null);
+          learnedPromise = Promise.resolve(supa.from("trips").select("hospedaje_json, selections").eq("user_id", user.id)
+            .order("created_at", { ascending: false }).limit(30)).then((r: any) => (r?.error ? null : learnedHotelTier(r?.data))).catch(() => null);
           const [{ data: prefs }, { data: tp }, { data: prof }] = await Promise.all([
             supa.from("ai_user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
             supa.from("travel_profiles").select("*").eq("user_id", user.id).maybeSingle(),
@@ -668,7 +673,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       console.warn("perfil:", e);
     }
 
-    const selectedTier: Tier = tierFromPresupuesto(presupuestoRango);
+    const selectedTier: Tier = (await learnedPromise)?.tier ?? tierFromPresupuesto(presupuestoRango);
     const fxInfo = await fxPromise;
     const fxUsd = fxInfo.rate;
     mark("contexto");
