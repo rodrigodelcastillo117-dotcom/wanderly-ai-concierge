@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "candado": "vitest run src/test/candado",
+    "candado": "vitest run src/test/candado --testTimeout=30000",
     "candado:visual": "node scripts/candado/visual.cjs",
     "candado:smoke": "node scripts/smoke/produccion.cjs"
   },

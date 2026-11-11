@@ -10,7 +10,7 @@ import { Check, ChevronLeft, ChevronRight, ExternalLink, Sparkles, Star, Ticket,
 import { SmartImage } from "@/components/media/SmartImage";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { activityQuery, cuisineQuery } from "@/lib/categoryImagery";
-import { buildPickCards, missingTiersLine, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tourHasRealPrice, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
+import { buildPickCards, morePickCards, missingTiersLine, parsePriceRange, restaurantPriceLabel, SLOT_LABEL, TIER_LABEL, tierOf, tourHasRealPrice, tripUsdMxnRate, type PickCard, type PickKind, type TasteProfile } from "@/lib/tripPicks";
 import { logBookingClick } from "@/lib/trackBooking";
 import { ViatorToursDialogButton } from "@/components/booking/ViatorTours";
 import { restaurantBooking } from "../../../supabase/functions/_shared/restaurantBooking.ts";
@@ -84,6 +84,10 @@ export function TripPicksCarousel({ kind, city, list, indices, taste, trip, acti
   // Un nivel sin opción verificada no ocupa una tarjeta vacía: se dice en una línea pequeña (claude/viaje-corto).
   const cards = useMemo(() => all.filter((c) => c.index != null), [all]);
   const missingLine = missingTiersLine(all);
+  // «Ver más» (pedido del dueño, 11-nov-2026: «más opciones de todo… en base al usuario»): el resto, ordenado por su perfil.
+  const more = useMemo(() => morePickCards(list, indices, cards, kind, taste), [list, indices, cards, kind, taste]);
+  const [showMore, setShowMore] = useState(false);
+  const visible = showMore ? [...cards, ...more] : cards;
   const track = useRef<HTMLDivElement>(null);
   const reduce = usePrefersReducedMotion();
   const [can, setCan] = useState({ prev: false, next: false });
@@ -96,7 +100,7 @@ export function TripPicksCarousel({ kind, city, list, indices, taste, trip, acti
     el.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     return () => { el.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
-  }, [cards.length]);
+  }, [visible.length]);
 
   const go = (dir: -1 | 1) => {
     const el = track.current;
@@ -129,8 +133,14 @@ export function TripPicksCarousel({ kind, city, list, indices, taste, trip, acti
       <div ref={track} role="list" aria-label={label}
         className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-smooth px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0 motion-reduce:scroll-auto"
         style={{ scrollPaddingInline: "16px" }}>
-        {cards.map((c, k) => <Card key={`${c.slot}-${c.index ?? k}`} card={c} {...{ kind, city, list, trip, actionFor, isChosen, onChoose, extra }} />)}
+        {visible.map((c, k) => <Card key={`${c.slot}-${c.index ?? k}`} card={c} {...{ kind, city, list, trip, actionFor, isChosen, onChoose, extra }} />)}
       </div>
+      {more.length > 0 && (
+        <button type="button" data-testid={`picks-${kind}-ver-mas`} aria-expanded={showMore} onClick={() => setShowMore((v) => !v)}
+          className="min-h-[32px] text-xs font-medium text-primary underline-offset-2 hover:underline">
+          {showMore ? `Ver menos ${kind === "restaurante" ? "restaurantes" : "experiencias"}` : `Ver más ${kind === "restaurante" ? "restaurantes" : "experiencias"} (${more.length})`}
+        </button>
+      )}
       {missingLine && <p className="text-[11px] text-muted-foreground" data-testid={`picks-${kind}-sin-nivel`}>{missingLine}</p>}
     </div>
   );

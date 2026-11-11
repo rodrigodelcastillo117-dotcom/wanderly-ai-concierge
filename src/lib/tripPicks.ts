@@ -15,11 +15,11 @@
 import { fxSourceName } from "@/lib/fx";
 export type PickTier = "economico" | "medio" | "caro";
 /** "lugar": experiencia sin precio real (se muestra sin nivel de precio: "Precio en el sitio"). */
-export type PickSlot = PickTier | "recomendado" | "lugar";
+export type PickSlot = PickTier | "recomendado" | "lugar" | "para_ti" | "opcion";
 export type PickKind = "restaurante" | "experiencia";
 
 export const TIER_LABEL: Record<PickTier, string> = { economico: "Económico", medio: "Medio", caro: "Caro" };
-export const SLOT_LABEL: Record<PickSlot, string> = { ...TIER_LABEL, recomendado: "Recomendado por IATOS", lugar: "Para visitar" };
+export const SLOT_LABEL: Record<PickSlot, string> = { ...TIER_LABEL, recomendado: "Recomendado por IATOS", lugar: "Para visitar", para_ti: "Para ti", opcion: "Otra opción" };
 export const MISSING_LABEL: Record<PickTier, string> = {
   economico: "Sin opción económica verificada",
   medio: "Sin opción de precio medio verificada",
@@ -199,7 +199,16 @@ export type Recommendation = { index: number; reason: string; /** true si coinci
  * null si no hay nada en qué basarse (sin perfil, sin calificación y sin "por qué").
  */
 export function recommend(list: any[], candidates: number[], kind: PickKind, taste: TasteProfile | null): Recommendation | null {
-  if (!candidates.length) return null;
+  return rankForProfile(list, candidates, kind, taste)[0] ?? null;
+}
+
+/**
+ * Todas las opciones de `candidates` ordenadas para el perfil de la persona (lo que más visita, lo que declaró, su
+ * presupuesto y la calificación), cada una con el porqué. Es lo que hace a IATOS «aprender del cliente» (pedido del
+ * dueño, 11-nov-2026): «Ver más» enseña primero lo que va con sus gustos.
+ */
+export function rankForProfile(list: any[], candidates: number[], kind: PickKind, taste: TasteProfile | null): Recommendation[] {
+  if (!candidates.length) return [];
   type Scored = { i: number; score: number; reason: string | null; matched: boolean };
   const scored: Scored[] = candidates.map((i) => {
     const x = list[i];
@@ -227,8 +236,23 @@ export function recommend(list: any[], candidates: number[], kind: PickKind, tas
     }
     return { i, score, reason, matched: !!(visited || declared) };
   });
-  const best = scored.filter((s) => s.reason).sort((a, b) => b.score - a.score)[0];
-  return best ? { index: best.i, reason: best.reason!, matched: best.matched } : null;
+  return scored.filter((s) => s.reason).sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => ({ index: s.i, reason: s.reason!, matched: s.matched }));
+}
+
+/**
+ * «Ver más» de una ciudad: lo que no está en las tarjetas, ordenado para el perfil. Lo que coincide con sus gustos va
+ * como «Para ti» con su porqué; lo demás como «Otra opción» (y su calificación).
+ */
+export function morePickCards(list: any[], indices: number[], shown: PickCard[], kind: PickKind, taste: TasteProfile | null): PickCard[] {
+  const used = new Set(shown.map((c) => c.index).filter((i): i is number => i != null));
+  const rest = indices.filter((i) => !used.has(i));
+  const ranked = rankForProfile(list, rest, kind, taste);
+  const rankedIdx = new Set(ranked.map((r) => r.index));
+  return [
+    ...ranked.map((r): PickCard => ({ slot: r.matched ? "para_ti" : "opcion", index: r.index, reason: r.matched ? r.reason : null })),
+    ...rest.filter((i) => !rankedIdx.has(i)).map((i): PickCard => ({ slot: "opcion", index: i })),
+  ];
 }
 
 export type PickCard =

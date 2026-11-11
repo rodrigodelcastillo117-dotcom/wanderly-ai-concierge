@@ -45,6 +45,7 @@ import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
 import { flightAlternatives } from "./flightAlternatives.ts";
+import { moreTours } from "./moreTours.ts";
 import { tripDatesProblem } from "./dates.ts";
 import { storedTripDestino } from "../_shared/tripName.ts";
 import {
@@ -1076,7 +1077,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       ? supabase.from("trips").select("itinerario_json").eq("id", targetTripId).maybeSingle()
       : Promise.resolve({ data: null });
     const [rest, toursV] = await Promise.all([
-      verifyRestaurants(a.restaurantes, googleRestaurants, body.destino, resolvePlaces),
+      // Hasta 10 restaurantes reales (los de la IA + la lista de Google, que ya se buscó con sus gustos de comida).
+      verifyRestaurants(a.restaurantes, googleRestaurants, body.destino, resolvePlaces, 10),
       verifyTours(a.tours, body.destino, resolvePlaces),
       usagePromise,
     ]);
@@ -1085,7 +1087,8 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       console.warn("analizar-viaje: lugares", { destino: body.destino, restaurantes_quitados: rest.quitados, restaurantes_sin_verificar: rest.sin_verificar, tours_sin_verificar: toursV.sin_verificar, resueltos: rest.resueltos + toursV.resueltos });
     }
     a.restaurantes = rest.restaurantes;
-    a.tours = toursV.tours;
+    // Más experiencias reales de la misma lista de atracciones para «Ver más» (moreTours.ts), sin precio inventado.
+    a.tours = [...toursV.tours, ...(tripadvisorLive ? moreTours(toursV.tours, tripadvisor.results, { source: placesSource, city: body.destino }) : [])];
 
     // Hotel en 3 niveles (económico, medio, premium) con hoteles REALES de Google Hotels: antes se guardaba
     // lo que escribiera la IA (caso Tepoztlán: un solo hotel). Si el cliente excluyó el hospedaje, se respeta.

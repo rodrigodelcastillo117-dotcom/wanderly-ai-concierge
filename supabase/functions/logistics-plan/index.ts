@@ -859,7 +859,8 @@ Entrega JSON con:
         const resolvePlaces = makeResolver(google, verifyStore, { deadline: Math.min(Date.now() + 10_000, __deadline - 8_000), concurrency: 4, timeoutMs: 3_500 });
         const places = Array.isArray(liveRaw?.restaurants) ? liveRaw.restaurants : [];
         const [rest, exps] = await Promise.all([
-          verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 5),
+          // Hasta 8 restaurantes reales por ciudad («Ver más» en Comprar, 11-nov-2026).
+          verifyRestaurants(pd.restaurantes, places, pd.city, resolvePlaces, 8),
           verifyTours(experiencias, pd.city, resolvePlaces),
         ]);
         return { ...pd, restaurantes: rest.restaurantes, experiencias: exps.tours, _v: { rq: rest.quitados, rs: rest.sin_verificar, es: exps.sin_verificar } };
