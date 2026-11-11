@@ -103,7 +103,7 @@ function asCountry(chunk: string): string | null {
 
 // Palabras que no son lugar: conectores, verbos de viaje, quién viaja.
 const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta hacia para con sin mi mis tu un una unos unas " +
-  "viaje viajes viajar viajamos viajo ir irme irnos iremos ire voy cada volver regresar necesito necesitamos escapar escaparme escaparnos llevame llevanos largo quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
+  "viaje viajes viajar viajamos viajo ir irme irnos iremos ire voy cada disney volver regresar necesito necesitamos escapar escaparme escaparnos llevame llevanos largo quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
   "luego despues primero despues finalmente terminar terminando empezar empezando empezamos acabar pasando pasar pasear " +
   "vacaciones escapada solo sola pareja familia amigos amigas novia novio esposa esposo hijos personas persona viajeros viajero adultos " +
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +

@@ -68,6 +68,11 @@ export const CITIES: CityAirports[] = [
   C("Las Vegas", "LAS", ["LAS"], "Estados Unidos", "US", "NA", 36.084, -115.154),
   C("Orlando", "ORL", ["MCO"], "Estados Unidos", "US", "NA", 28.429, -81.309),
   C("Vancouver", "YVR", ["YVR"], "Canadá", "CA", "NA", 49.195, -123.184),
+  // Bases de naturaleza que la gente escribe (barrido de frases, 11-nov-2026): Banff → Calgary, Sedona/Gran Cañón → Phoenix.
+  C("Calgary", "YYC", ["YYC"], "Canadá", "CA", "NA", 51.131, -114.01),
+  C("Phoenix", "PHX", ["PHX"], "Estados Unidos", "US", "NA", 33.434, -112.012),
+  C("El Calafate", "FTE", ["FTE"], "Argentina", "AR", "SA", -50.28, -72.053, ["calafate"]),
+  C("Capadocia", "NAV", ["NAV", "ASR"], "Turquía", "TR", "EU", 38.772, 34.535, ["cappadocia", "goreme"]),
   C("Montreal", "YMQ", ["YUL"], "Canadá", "CA", "NA", 45.47, -73.741, ["montreal"]),
   // Europa
   C("Madrid", "MAD", ["MAD"], "España", "ES", "EU", 40.472, -3.561),
@@ -252,6 +257,10 @@ export const TOWNS: Town[] = [
   // Escapadas por carretera desde CDMX, sin aeropuerto comercial (caso Tepoztlán, 27-oct-2026).
   T("Tepoztlán", "MX", 18.985, -99.1, ["tepoztlan"]), T("Valle de Bravo", "MX", 19.195, -100.131), T("Taxco", "MX", 18.556, -99.605),
   T("Malinalco", "MX", 18.948, -99.495), T("Tequisquiapan", "MX", 20.522, -99.892),
+  // Lugares que se escriben como destino y no tienen aeropuerto (barrido de frases, 11-nov-2026).
+  T("Machu Picchu", "PE", -13.163, -72.545, ["aguas calientes", "machupicchu", "machu pichu"]),
+  T("Sedona", "US", 34.869, -111.761), T("Gran Cañón", "US", 36.057, -112.14, ["gran canon", "grand canyon", "el gran canon"]),
+  T("Banff", "CA", 51.178, -115.571),
 ];
 const TOWN_BY_NAME = new Map<string, Town>();
 for (const t of TOWNS) for (const n of [t.name, ...(t.aliases ?? [])]) TOWN_BY_NAME.set(normCity(n), t);

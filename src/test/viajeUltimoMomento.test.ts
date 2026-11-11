@@ -46,6 +46,12 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     ["Oaxaca para el Día de Muertos, 5 días, me encanta la comida", ["Oaxaca"]],
     ["Mochilero por Europa 3 semanas: Madrid, París, Ámsterdam y Berlín, lo más barato posible", ["Madrid", "París", "Ámsterdam", "Berlín"]],
     ["Viajo solo a Medellín y Cartagena dos semanas, primera vez en Colombia", ["Medellín", "Cartagena"]],
+    ["Machu Picchu y Cusco", ["Machu Picchu", "Cusco"]],
+    ["Sedona y el Gran Cañón desde Las Vegas", ["Sedona", "Gran Cañón"]],
+    ["Capadocia y Estambul 8 días", ["Capadocia", "Estambul"]],
+    ["Quiero ir a Disney en Orlando con mis hijos", ["Orlando"]],
+    ["Banff y Vancouver en verano", ["Banff", "Vancouver"]],
+    ["Me quiero escapar este puente, algo cerca de CDMX", []],
   ])("«%s»: solo lugares, nada que preguntar de más", (t, cities) => {
     const p = parseMultiCityText(t, { origin: "Ciudad de México" });
     expect(p.cities).toEqual(cities);

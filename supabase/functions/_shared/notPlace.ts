@@ -31,6 +31,8 @@ export const TIMING_AND_VIBE: RegExp[] = [
   /(?<![a-záéíóúñ])(?:es\s+)?(?:(?:mi|nuestra|la)\s+)?primera\s+vez(?![a-záéíóúñ])/gi,
   // «a las 10:30», «7:15 pm»
   /(?<![a-záéíóúñ\d])(?:a\s+las?\s+)?\d{1,2}:\d{2}(?:\s*(?:am|pm|hrs?|h))?(?![a-záéíóúñ\d])/gi,
+  // «algo cerca de CDMX», «un lugar cerca de Monterrey»: la ciudad es referencia, no parada (se resuelve con la IA).
+  /(?<![a-záéíóúñ])(?:algo|un\s+lugar|alg[uú]n\s+lugar|un\s+sitio|un\s+destino|un\s+pueblo|una\s+playa|playas?)\s+(?:cerca|cerquita|no\s+lejos)\s+de\s+[^,;.\n]+/gi,
   // Reparto entre ciudades: «3 noches en cada una», «2 días por ciudad» (recorrido Roma y Florencia, 11-nov-2026)
   /(?<![a-záéíóúñ])(?:(?:en|por|para)\s+)?cada\s+(?:una|uno|ciudad|lugar|destino|parada|sitio)(?![a-záéíóúñ])/gi,
   /(?<![a-záéíóúñ])(?:por|en)\s+(?:ciudad|destino|parada)(?![a-záéíóúñ])/gi,
