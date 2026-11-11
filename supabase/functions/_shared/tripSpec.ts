@@ -19,7 +19,7 @@
 //  - No se inventan lugares, puertos, navieras ni fechas: lo que propone Iato va marcado `sugerida`.
 
 import { CITIES, cityAirports, placeDistanceKm, type Region } from "./airports.ts";
-import { isNotPlace } from "./notPlace.ts";
+import { isLodgingArea, isNotPlace } from "./notPlace.ts";
 
 export const TRIP_SPEC_VERSION = 1;
 /** Texto máximo que se interpreta (el texto completo se guarda siempre; esto solo limita lo que lee la IA). */
@@ -300,7 +300,8 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     const tipo: MentionKind = ["pais", "region", "ciudad", "puerto", "aeropuerto", "crucero", "tramo", "regreso", "origen"].includes(m?.tipo) ? m.tipo : "otro";
     const estado: MentionState = ["parada", "tramo", "pregunta", "excluido", "origen", "regreso", "preferencia"].includes(m?.estado) ? m.estado : "pregunta";
     // «este viernes 13 de noviembre», «me voy»: dicen cuándo o cómo, no son lugar (notPlace.ts, 11-nov-2026).
-    if (estado === "pregunta" && tipo === "otro" && isNotPlace(texto)) return { texto, tipo, estado: "preferencia", ref: null } as Mention;
+    // Una fecha («salgo el 17 de noviembre») nunca es lugar, la IA la etiquete como la etiquete.
+    if (estado !== "excluido" && estado !== "preferencia" && isNotPlace(texto)) return { texto, tipo, estado: "preferencia", ref: null } as Mention;
     return { texto, tipo, estado, ref: str(m?.ref, 24) } as Mention;
   }).filter(Boolean) as Mention[];
 
@@ -626,7 +627,7 @@ export const bareKey = (t: unknown) => normText(t).replace(LEAD_WORDS, "").trim(
 export function repairCoverage(spec: TripSpec): void {
   for (const m of spec.menciones) {
     if (mentionValid(spec, m)) continue;
-    if (m.tipo === "otro" && isNotPlace(m.texto)) { m.estado = "preferencia"; m.ref = null; continue; }
+    if (isNotPlace(m.texto) || isLodgingArea(m.texto, spec.consulta_original)) { m.estado = "preferencia"; m.ref = null; continue; }
     // Lo que ya está en el viaje no se vuelve pregunta: «Perú» es el país de Lima; un tramo o el regreso
     // cuya pregunta se descartó por obvia quedan como tramo/regreso (R2: «Mencionaste «Perú»: ¿dónde va?»).
     // «a Bacalar» es la parada Bacalar (recorrido mochilero, 11-nov-2026: «Mencionaste «a Bacalar»: ¿dónde va?»).
@@ -662,7 +663,7 @@ export function ensureCoverage(spec: TripSpec, extra: Array<{ texto: string; tip
       continue;
     }
     // Cuándo o cómo («último momento: este viernes», «voy»): no es lugar, no se pregunta (notPlace.ts).
-    if (e.tipo === "otro" && isNotPlace(e.texto)) {
+    if (isNotPlace(e.texto) || isLodgingArea(e.texto, spec.consulta_original)) {
       if (!spec.menciones.some((m) => normText(m.texto) === k)) spec.menciones.push({ texto: e.texto, tipo: "otro", estado: "preferencia", ref: null });
       continue;
     }

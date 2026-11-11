@@ -64,3 +64,17 @@ export function isNotPlace(text: string): boolean {
     .filter((w) => w && !FILLER.has(w));
   return rest.length === 0;
 }
+
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+ * ¿«San Pedro» es la ZONA del hotel en la frase («hotel en San Pedro», «hospedaje cerca de Polanco»)? Entonces es una
+ * preferencia de hospedaje, no una parada (recorrido viaje de trabajo a Monterrey, 11-nov-2026: «Mencionaste
+ * «San Pedro»: ¿dónde va en tu viaje?»).
+ */
+export function isLodgingArea(text: string, consulta: string): boolean {
+  const t = norm(String(text ?? "")).replace(/^(?:(?:en|el|la|los|las|de|del)\s+)+/, "").trim();
+  if (!t) return false;
+  const c = norm(String(consulta ?? ""));
+  const re = new RegExp(`\\b(?:hotel(?:es)?|hospedaje|alojamiento|hostal(?:es)?|airbnb|cuartos?|habitaci(?:o|on|ones)|quedarme|quedarnos|dormir)\\s+(?:en|por|cerca\\s+de|junto\\s+a|en\\s+la\\s+zona\\s+de|por\\s+la\\s+zona\\s+de|en\\s+la\\s+colonia)\\s+(?:(?:la|el|los|las)\\s+)?${esc(t)}\\b`);
+  return re.test(c);
+}

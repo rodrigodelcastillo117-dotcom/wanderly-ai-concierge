@@ -115,4 +115,31 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     expect(out.preguntas.filter((q) => !q.resuelta && /Bacalar/.test(q.texto))).toEqual([]);
     expect(parseMultiCityText(t).cities).toEqual(["Bacalar"]);
   });
+
+  it("viaje de trabajo: «salgo el 17 de noviembre», «a Monterrey» y «hotel en San Pedro» no se preguntan como ciudades", () => {
+    const t = "Viaje de trabajo a Monterrey, salgo el 17 de noviembre y regreso el 19, voy solo, hotel en San Pedro";
+    const local = buildLocalSpec(t, { today: new Date(2026, 10, 11) });
+    expect(local.paradas.map((p) => p.ciudad)).toEqual(["Monterrey"]);
+    expect(local.preguntas.filter((q) => q.tipo === "lugar_desconocido")).toEqual([]);
+    expect([local.fecha_salida, local.fecha_regreso]).toEqual(["2026-11-17", "2026-11-19"]);
+    const r = validateTripSpec(JSON.stringify({
+      origen: "Ciudad de México", paradas: [{ id: "p1", ciudad: "Monterrey", rol: "estancia", noches: 2, texto: "Monterrey" }],
+      fecha_salida: "2026-11-17", fecha_regreso: "2026-11-19", viajeros: 1,
+      menciones: [
+        { texto: "salgo el 17 de noviembre", tipo: "tramo", estado: "tramo" },
+        { texto: "a Monterrey", tipo: "ciudad", estado: "parada" },
+        { texto: "San Pedro", tipo: "ciudad", estado: "parada" },
+      ],
+    }), t);
+    if (!r.ok) throw new Error("spec inválido");
+    const out = ensureCoverage(r.spec, local.menciones.map((m) => ({ texto: m.texto, tipo: m.tipo })));
+    expect(out.preguntas.filter((q) => !q.resuelta && q.tipo === "lugar_desconocido").map((q) => q.texto)).toEqual([]);
+  });
+
+  it("isLodgingArea: la zona del hotel sí; una ciudad del viaje escrita sola no", async () => {
+    const { isLodgingArea } = await import("../../supabase/functions/_shared/notPlace");
+    expect(isLodgingArea("San Pedro", "viaje a Monterrey, hotel en San Pedro")).toBe(true);
+    expect(isLodgingArea("Polanco", "CDMX 3 días, hospedaje cerca de Polanco")).toBe(true);
+    expect(isLodgingArea("Monterrey", "viaje a Monterrey, hotel en San Pedro")).toBe(false);
+  });
 });

@@ -7,6 +7,7 @@
 // Lee la frase en el orden escrito con los mismos separadores que multiCityText ("," "y" "→" "a"…) y
 // reconoce marcas de tramo: "un crucero", "crucero desde X", "desembarco en X", "tren a X", "regreso a X",
 // "regreso por/vía X". Nada se inventa: país sin ciudad conocida y lugar desconocido → pregunta.
+import { isLodgingArea } from "../../supabase/functions/_shared/notPlace.ts";
 import { marcarSalida, parseMultiCityText, SEPARATOR, stripNonPlaces, durationOf, type PlaceItem } from "@/lib/multiCityText";
 import { parseTripFallback } from "@/lib/parseTripFallback";
 import { mainCityOf } from "@/lib/tripCoverage";
@@ -182,6 +183,8 @@ export function buildLocalSpec(text: string, ctx: LocalContext = {}): TripSpec {
       }
       return;
     }
+    // «hotel en San Pedro»: la zona del hotel, no una parada (se guarda como preferencia; notPlace.isLodgingArea).
+    if (isLodgingArea(writtenAs, raw)) { mention(writtenAs, "otro", "preferencia", null); return; }
     // No reconocido: va como parada tal como lo escribió y se pregunta (no se borra ni se adivina).
     const s = pushStop(it.name, { texto: writtenAs });
     const q = { id: newId("q"), tipo: "lugar_desconocido" as const, texto: writtenAs,
