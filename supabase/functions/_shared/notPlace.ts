@@ -17,6 +17,23 @@ export const TIMING_AND_VIBE: RegExp[] = [
   /(?<![a-záéíóúñ])(?:(?:este|esta)\s+)?(?:hoy|ma[nñ]ana|pasado\s+ma[nñ]ana|esta\s+semana|la\s+(?:pr[oó]xima|siguiente)\s+semana|este\s+fin(?:de)?(?:\s+de\s+semana)?|este\s+finde|el\s+finde)(?![a-záéíóúñ])/gi,
   // «regreso el 15», «regresamos el 20 de noviembre»
   new RegExp(`(?<![a-záéíóúñ])(?:regres[oa]|regresamos|regresando|vuelvo|volvemos|volviendo)(?:\\s+(?:el|la|los))?(?:\\s+\\d{1,2}(?:\\s+de\\s+${MONTH})?)?(?=\\s*(?:[,;.\\n]|$))`, "gi"),
+  // «a finales de junio», «principios de mayo», «mediados de año» (el mes se lee aparte)
+  /(?<![a-záéíóúñ])(?:(?:a|para|en|hacia)\s+)?(?:finales|principios|mediados|inicios)\s+de(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:temprano|en\s+la\s+(?:ma[nñ]ana|tarde|noche)|por\s+la\s+(?:ma[nñ]ana|tarde|noche))(?![a-záéíóúñ])/gi,
+  // «este puente», «fin de semana largo»
+  /(?<![a-záéíóúñ])(?:(?:este|el|un|para\s+el|en\s+el)\s+)?puente(?:\s+largo)?(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:un\s+|este\s+|el\s+)?fin\s+de\s+semana(?:\s+largo)?(?![a-záéíóúñ])/gi,
+  // «lo más barato posible», «lo mejor posible»
+  /(?<![a-záéíóúñ])lo\s+(?:m[aá]s\s+)?[a-záéíóúñ]+\s+posible(?![a-záéíóúñ])/gi,
+  // Lo que quiere vivir, no dónde: «para ver los cerezos», «ver la aurora boreal» (el lugar que sigue con «en» se queda)
+  /(?<![a-záéíóúñ])(?:para\s+)?ver\s+(?:el|la|los|las)\s+[a-záéíóúñ]+(?:\s+(?!en\b|de\b)[a-záéíóúñ]+)?(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:me|nos|le|les)\s+(?:encanta|encantan|gusta|gustan|fascina|fascinan|interesa|interesan)\s+[^,;.\n]*/gi,
+  /(?<![a-záéíóúñ])(?:es\s+)?(?:(?:mi|nuestra|la)\s+)?primera\s+vez(?![a-záéíóúñ])/gi,
+  // «a las 10:30», «7:15 pm»
+  /(?<![a-záéíóúñ\d])(?:a\s+las?\s+)?\d{1,2}:\d{2}(?:\s*(?:am|pm|hrs?|h))?(?![a-záéíóúñ\d])/gi,
+  // Reparto entre ciudades: «3 noches en cada una», «2 días por ciudad» (recorrido Roma y Florencia, 11-nov-2026)
+  /(?<![a-záéíóúñ])(?:(?:en|por|para)\s+)?cada\s+(?:una|uno|ciudad|lugar|destino|parada|sitio)(?![a-záéíóúñ])/gi,
+  /(?<![a-záéíóúñ])(?:por|en)\s+(?:ciudad|destino|parada)(?![a-záéíóúñ])/gi,
   // Gusto y presupuesto: «algo bonito», «sin gastar tanto», «barato»
   /(?<![a-záéíóúñ])(?:algo\s+)?(?:bonit[oa]|tranquil[oa]|rom[aá]ntic[oa]|especial|diferente|relajad[oa]|divertid[oa]|barat[oa]|econ[oó]mic[oa]|sencill[oa])(?![a-záéíóúñ])/gi,
   /(?<![a-záéíóúñ])(?:sin\s+gastar(?:\s+(?:tanto|mucho|demasiado|de\s+m[aá]s))?|gastando\s+poco|con\s+poco\s+(?:dinero|presupuesto)|bajo\s+presupuesto|presupuesto\s+(?:bajo|ajustado|limitado))(?![a-záéíóúñ])/gi,
@@ -31,7 +48,8 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta hacia para con sin mi mis tu un una nos me te se " +
   "voy vamos vas va iremos ire irme irnos viaje viajar viajo viajamos quiero queremos quisiera este esta estos estas " +
   "pareja novia novio esposa esposo familia amigos tanto mucho poco algo muy mas que fin semana finde " +
-  "salgo salimos salida regreso regresamos regreso vuelta").split(/\s+/));
+  "salgo salimos salida regreso regresamos vuelta cada volver regresar necesito necesitamos escapar escaparme escaparnos " +
+  "llevame llevanos lleva viajo largo primera vez posible").split(/\s+/));
 
 /** ¿El texto completo dice solo cuándo/cómo (nada que pueda ser un lugar)? «voy», «este viernes 13 de noviembre». */
 export function isNotPlace(text: string): boolean {

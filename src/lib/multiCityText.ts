@@ -103,7 +103,7 @@ function asCountry(chunk: string): string | null {
 
 // Palabras que no son lugar: conectores, verbos de viaje, quién viaja.
 const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta hacia para con sin mi mis tu un una unos unas " +
-  "viaje viajes viajar viajamos ir irme irnos iremos ire voy quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
+  "viaje viajes viajar viajamos viajo ir irme irnos iremos ire voy cada volver regresar necesito necesitamos escapar escaparme escaparnos llevame llevanos largo quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
   "luego despues primero despues finalmente terminar terminando empezar empezando empezamos acabar pasando pasar pasear " +
   "vacaciones escapada solo sola pareja familia amigos amigas novia novio esposa esposo hijos personas persona viajeros viajero adultos " +
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +
@@ -186,7 +186,7 @@ export function stripNonPlaces(text: string): string {
 }
 
 // Separadores entre paradas (sobre el texto original; "después" con o sin acento).
-export const SEPARATOR = /\s*(?:(?<=[a-záéíóúñ]{3})\.\s+(?=[A-ZÁÉÍÓÚÑ])|→|->|=>|>|,|;|\+|\/|\||\s[-–]\s|\s+y\s+luego\s+|\s+y\s+despu[eé]s\s+|\s+luego\s+|\s+despu[eé]s\s+|\s+y\s+|\s+e\s+|\s+hasta\s+|\s+a\s+|\s+al\s+)\s*/i;
+export const SEPARATOR = /\s*(?:(?<=[a-záéíóúñ]{3})\.\s+(?=[A-ZÁÉÍÓÚÑ])|(?<!\d):(?!\d)|→|->|=>|>|,|;|\+|\/|\||\s[-–]\s|\s+y\s+luego\s+|\s+y\s+despu[eé]s\s+|\s+luego\s+|\s+despu[eé]s\s+|\s+y\s+|\s+e\s+|\s+hasta\s+|\s+a\s+|\s+al\s+)\s*/i;
 const ORIGIN_PREFIX = /^(?:desde|saliendo\s+de|salgo\s+de|salimos\s+de|partiendo\s+de)\s+/i;
 
 type Segment = { cities: Entry[]; unknown: string | null; country: string | null; region: string | null; origin: Entry | null; text: string };
