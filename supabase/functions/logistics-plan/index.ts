@@ -51,7 +51,7 @@ import { conRutas, gasolinaTramoMxn, llegadaPorTierra, totalLlegadaTierra } from
 import { sameCity } from "../_shared/booking/tripRoute.ts";
 import { porcionesComida, sanitizeOcupacion } from "../_shared/ocupacion.ts";
 import { pickCityHotels } from "./hotelPick.ts";
-import { learnedHotelTier } from "../_shared/learnedTier.ts";
+import { learnedHotelTier, tierFromTripText } from "../_shared/learnedTier.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -673,7 +673,7 @@ INSTRUCCIÓN: Cada recomendación debe sentirse hecha A LA MEDIDA de este perfil
       console.warn("perfil:", e);
     }
 
-    const selectedTier: Tier = (await learnedPromise)?.tier ?? tierFromPresupuesto(presupuestoRango);
+    const selectedTier: Tier = tierFromTripText(travelerNotes) ?? (await learnedPromise)?.tier ?? tierFromPresupuesto(presupuestoRango);
     const fxInfo = await fxPromise;
     const fxUsd = fxInfo.rate;
     mark("contexto");

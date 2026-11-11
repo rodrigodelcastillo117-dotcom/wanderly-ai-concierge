@@ -18,3 +18,15 @@ describe("aprende el nivel de hotel de las elecciones", () => {
     expect(learnedHotelTier(null)).toBeNull();
   });
 });
+
+describe("el texto del viaje manda", () => {
+  it("«de lujo» → premium; «algo económico» → ahorro; sin pedirlo → nada", async () => {
+    const { tierFromTripText } = await import("../../supabase/functions/_shared/learnedTier");
+    expect(tierFromTripText("Luna de miel en Los Cabos, algo romántico y de lujo")).toBe("premium");
+    expect(tierFromTripText("hotel 5 estrellas")).toBe("premium");
+    expect(tierFromTripText("algo económico, somos mochileros")).toBe("ahorro");
+    expect(tierFromTripText("nada de lujo, lo más barato")).toBe("ahorro");
+    expect(tierFromTripText("Cancún con mi familia")).toBeNull();
+    expect(tierFromTripText(null)).toBeNull();
+  });
+});
