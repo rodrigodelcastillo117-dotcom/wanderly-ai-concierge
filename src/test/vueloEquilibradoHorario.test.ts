@@ -33,3 +33,16 @@ describe("«Equilibrado» con horario razonable", () => {
     expect(awkwardHours(v("x", 1))).toBe(false);
   });
 });
+
+describe("«Ahorro» es el vuelo más barato", () => {
+  it("intercambia nivel si «Equilibrado» o «Premium» cuesta menos (mochilero CDMX → Bacalar)", async () => {
+    const { cheapestIsAhorro } = await import("../../supabase/functions/analizar-viaje/flightAlternatives");
+    const rows = [v("ahorro", 3172), v("equilibrio", 2556), v("premium", 3209)];
+    const out = cheapestIsAhorro(rows);
+    expect(out.find((x) => x.tier === "ahorro")!.precio_por_persona).toBe(2556);
+    expect(out.find((x) => x.tier === "equilibrio")!.precio_por_persona).toBe(3172);
+    expect(cheapestIsAhorro([v("ahorro", 2000), v("equilibrio", 2500)])).toEqual([v("ahorro", 2000), v("equilibrio", 2500)]);
+    const bus = { tier: "ahorro", modo: "autobus", precio_por_persona: 0 };
+    expect(cheapestIsAhorro([bus, v("equilibrio", 2500)])).toEqual([bus, v("equilibrio", 2500)]);
+  });
+});

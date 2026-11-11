@@ -81,3 +81,23 @@ export function preferComfortableEquilibrio(vuelos: any[]): any[] {
   out[j] = { ...rows[i], tier: "alternativa" };
   return out;
 }
+
+/**
+ * «Ahorro» es el vuelo más barato de los tres niveles (recorrido mochilero CDMX → Bacalar, 11-nov-2026: «Ahorro» Volaris $3,172
+ * y «Equilibrado» Aeroméxico $2,556). Si otro nivel cuesta menos, intercambian nivel. Solo vuelos (no autobús ni coche).
+ */
+export function cheapestIsAhorro(vuelos: any[]): any[] {
+  const rows = Array.isArray(vuelos) ? [...vuelos] : [];
+  const isFlight = (v: any) => !v?.modo && Number(v?.precio_por_persona) > 0;
+  const a = rows.findIndex((v) => v?.tier === "ahorro" && isFlight(v));
+  if (a < 0) return rows;
+  let best = a;
+  rows.forEach((v, i) => {
+    if ((v?.tier === "equilibrio" || v?.tier === "premium") && isFlight(v) && Number(v.precio_por_persona) < Number(rows[best].precio_por_persona)) best = i;
+  });
+  if (best === a) return rows;
+  const tierB = rows[best].tier;
+  rows[best] = { ...rows[best], tier: "ahorro" };
+  rows[a] = { ...rows[a], tier: tierB };
+  return rows;
+}

@@ -44,7 +44,7 @@ import { annotateNoLivePrice, noLivePriceReason } from "../_shared/flightNoPrice
 import { cleanNarrative, NARRATIVE_RULES, tasteLabels } from "./narrative.ts";
 import { coerceDesglose, detectExclusions, normalizarVuelos, reconcileBudget } from "./budget.ts";
 import { buildHotelTiers, preferredHotelTier } from "./hotelTiers.ts";
-import { flightAlternatives, preferComfortableEquilibrio } from "./flightAlternatives.ts";
+import { cheapestIsAhorro, flightAlternatives, preferComfortableEquilibrio } from "./flightAlternatives.ts";
 import { moreTours } from "./moreTours.ts";
 import { learnedHotelTier, tierFromTripText } from "../_shared/learnedTier.ts";
 import { tripDatesProblem } from "./dates.ts";
@@ -1115,6 +1115,9 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       if (capped.acotados.length) console.warn("analizar-viaje: estimados acotados (trayecto corto)", capped.acotados, body.destino);
       a.desglose_presupuesto = capped.desglose;
     }
+
+    // «Ahorro» siempre es el vuelo más barato de los tres niveles (cheapestIsAhorro).
+    if (!shortTrip && Array.isArray(a.vuelos)) a.vuelos = cheapestIsAhorro(a.vuelos);
 
     // Viaje largo en México y pidió autobús (mochilero CDMX → Bacalar, 11-nov-2026): el autobús va primero, sin precio
     // inventado (horarios y precio en ADO); el vuelo más barato queda como otra opción (groundTransport.withRequestedBus).
