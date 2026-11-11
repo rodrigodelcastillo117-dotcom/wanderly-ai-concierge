@@ -324,7 +324,7 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                         return <PriceSourceBadge className="mt-2" source={v0?.fuente_precio} estado={v0?.estado_dato} consultadoAt={v0?.consultado_at ?? quoteCreatedAt ?? trip.created_at} approximateDates={v0?.approximate_dates} />;
                       })()}
                       <div role="radiogroup" aria-label="Opciones de vuelo" className="mt-3 grid grid-cols-1 gap-2">
-                        {s.options.map((i) => {
+                        {(verMas[s.n] ? [...s.options, ...(s.moreOptions ?? [])] : s.options).map((i) => {
                           const v = trip.vuelos_json[i];
                           const ground = isGroundTripOption(v) ? groundOptionSummary(trip, v) : null;
                           const pp = ground ? 0 : Number(v?.precio_por_persona) || 0;
@@ -354,6 +354,13 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                           );
                         })}
                       </div>
+                      {!s.ground && (s.moreOptions?.length ?? 0) > 0 && (
+                        <button type="button" data-testid="vuelo-ver-mas" aria-expanded={!!verMas[s.n]}
+                          onClick={() => setVerMas((m) => ({ ...m, [s.n]: !m[s.n] }))}
+                          className="mt-2 min-h-[32px] text-xs font-medium text-primary underline-offset-2 hover:underline">
+                          {verMas[s.n] ? "Ver menos vuelos" : `Ver más vuelos (${s.moreOptions!.length})`}
+                        </button>
+                      )}
                       {/* Por tierra: casetas reales, gasolina estimada con su fórmula, o "precio en ADO". */}
                       {s.ground && (() => { const v = trip.vuelos_json[s.chosen >= 0 ? s.chosen : s.options[0]]; return v && isGroundTripOption(v) ? <GroundOptionInfo className="mt-2" trip={trip} option={v} /> : null; })()}
                       </>

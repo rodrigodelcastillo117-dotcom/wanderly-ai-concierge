@@ -23,6 +23,8 @@ export type BuySel = { selVuelo: number; selHospedaje: number; selTours: Set<num
   selLegs?: Record<string, string> | null };
 
 export type FlightStep = { kind: "vuelo"; n: number; title: string; item: PurchaseItem | null; options: number[]; chosen: number; skipped: boolean;
+  /** Más vuelos reales de la misma búsqueda («Ver más vuelos»). */
+  moreOptions?: number[];
   /** true si la persona eligió la opción; false si `chosen` es solo la de la cotización (por defecto). */
   userChosen?: boolean;
   /** Sin vuelo lógico (trayecto corto o destino sin aeropuerto): el paso es "Cómo llegar" (groundTrip.ts). */
@@ -287,7 +289,11 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
   // Multi-destino: un solo boleto de ida a la primera ciudad y regreso desde la última (open-jaw).
   // Viaje corto por tierra (CDMX → Tepoztlán): "Cómo llegar", no "Vuelo".
   const ground = arrivalByLand(trip);
-  steps.push({ kind: "vuelo", n: n++, title: arrivalStepTitle(trip), item: flightItem, options: realFlightOptions(trip), chosen: flightItem?.index ?? -1, skipped: sel.selVuelo === -2, ground,
+  // Los 3 de la cotización (por nivel) y el resto de vuelos reales en «Ver más vuelos»; el elegido siempre a la vista.
+  const allFlights = realFlightOptions(trip, 20);
+  const chosenFlight = flightItem?.index ?? -1;
+  const mainFlights = allFlights.slice(0, 3).concat(chosenFlight >= 0 && allFlights.includes(chosenFlight) && !allFlights.slice(0, 3).includes(chosenFlight) ? [chosenFlight] : []);
+  steps.push({ kind: "vuelo", n: n++, title: arrivalStepTitle(trip), item: flightItem, options: mainFlights, moreOptions: allFlights.filter((i) => !mainFlights.includes(i)), chosen: flightItem?.index ?? -1, skipped: sel.selVuelo === -2, ground,
     userChosen: sel.selVuelo >= 0 && (flightItem?.index ?? -1) === sel.selVuelo });
 
   if (hasCityHotels(trip)) {

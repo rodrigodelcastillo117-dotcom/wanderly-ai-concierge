@@ -248,7 +248,10 @@ export function reconcileBudget(a: any, input: BudgetInput): BudgetResult {
   const desglose: Record<string, number> = { ...(parsed ?? {}) };
 
   const porCotizar: BudgetResult["porCotizar"] = [];
-  const vuelos: any[] = Array.isArray(a?.vuelos) ? a.vuelos : [];
+  // Los vuelos de «Ver más vuelos» (tier "alternativa") no son la referencia del total.
+  const vuelosTodos: any[] = Array.isArray(a?.vuelos) ? a.vuelos : [];
+  const vuelosNivel = vuelosTodos.filter((v) => String(v?.tier ?? "") !== "alternativa");
+  const vuelos: any[] = vuelosNivel.length ? vuelosNivel : vuelosTodos;
   let vueloReferencia = vuelos.find((v) => v?.tier === "equilibrio") ?? vuelos[0] ?? null;
   if (exclusions.vuelos) {
     desglose.vuelos = 0;
