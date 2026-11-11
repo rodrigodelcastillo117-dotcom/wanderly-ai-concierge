@@ -123,8 +123,15 @@ const hm = (m: number | null) => (m === null ? "—" : `${Math.floor(m / 60)}h $
  * vuelo, horarios, avión y clase; escalas con su duración; emisiones. `price` es el total para
  * todos los viajeros (ida y vuelta si es redondo, como lo muestra Google Flights).
  */
+/** Google Flights busca hasta 9 pasajeros por reserva: un grupo mayor se cotiza con 9 y se multiplica por persona. */
+export const GF_MAX_ADULTS = 9;
+export const gfSearchAdults = (travelers: number) => Math.min(GF_MAX_ADULTS, Math.max(1, Math.round(Number(travelers) || 1)));
+
 export function googleFlightResult(f: any, travelers: number, roundTrip: boolean, searchLink: string,
   q?: { origin: string; destination: string; depart: string; ret?: string | null; leg?: "outbound" | "return" }) {
+  // Grupo de 10+ (despedida en Tulum, 11-nov-2026): el precio viene para 9; por persona = total / 9, total = por persona × grupo.
+  const searched = gfSearchAdults(travelers);
+  const group = Math.max(1, Math.round(Number(travelers) || 1));
   const segs: any[] = Array.isArray(f?.flights) ? f.flights : [];
   const dur = minutes(f?.total_duration) ?? 0;
   const airline = segs[0]?.airline ?? "—";
@@ -132,11 +139,12 @@ export function googleFlightResult(f: any, travelers: number, roundTrip: boolean
   const price = Number(f?.price ?? 0);
   // Se compra en la MISMA fuente que dio el precio: Google Flights con ruta, fechas y pasajeros (tfs).
   // Aviasales queda como búsqueda alternativa, dicho así (su precio puede no coincidir).
-  const gf = q ? googleFlightsSearchUrl({ ...q, ret: roundTrip ? q.ret ?? null : null, adults: travelers,
+  const gf = q ? googleFlightsSearchUrl({ ...q, ret: roundTrip ? q.ret ?? null : null, adults: searched,
     airline: airlines.length === 1 ? airlineCode(String(airline)) : null }) : null;
+  const pp = price / searched;
   return {
-    price_usd: price,
-    price_per_person_usd: Math.round(price / Math.max(1, travelers)),
+    price_usd: group > searched ? Math.round(pp * group) : price,
+    price_per_person_usd: Math.round(pp),
     airline,
     airlines,
     airline_logo: segs[0]?.airline_logo ?? f?.airline_logo ?? null,
@@ -167,7 +175,9 @@ export function googleFlightResult(f: any, travelers: number, roundTrip: boolean
       overnight: l?.overnight === true,
     })),
     carbon_kg: minutes(f?.carbon_emissions?.this_flight) !== null ? Math.round(f.carbon_emissions.this_flight / 1000) : null,
-    price_note: `Precio total para ${Math.max(1, travelers)} ${travelers === 1 ? "viajero" : "viajeros"}${roundTrip ? ", ida y vuelta" : ", solo ida"}, según Google Flights.`,
+    price_note: group > searched
+      ? `Google Flights cotiza hasta ${searched} pasajeros por reserva: precio por persona de esa búsqueda × ${group} viajeros${roundTrip ? ", ida y vuelta" : ", solo ida"}. Reserven en 2 grupos (o pidan tarifa de grupo a la aerolínea).`
+      : `Precio total para ${group} ${group === 1 ? "viajero" : "viajeros"}${roundTrip ? ", ida y vuelta" : ", solo ida"}, según Google Flights.`,
     booking_token: f?.booking_token ?? null,
     departure_token: f?.departure_token ?? null,
     buy_url: gf ?? searchLink,
@@ -229,7 +239,7 @@ export async function searchFlights(body: any, env: FlightsSearchEnv): Promise<S
     u.searchParams.set("outbound_date", depart);
     if (roundTrip) u.searchParams.set("return_date", return_date);
     u.searchParams.set("type", roundTrip ? "1" : "2");
-    u.searchParams.set("adults", String(travelers));
+    u.searchParams.set("adults", String(gfSearchAdults(travelers)));
     u.searchParams.set("currency", "USD");
     u.searchParams.set("hl", "es");
     u.searchParams.set("sort_by", "2"); // más barato primero

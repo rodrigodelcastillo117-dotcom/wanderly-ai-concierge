@@ -6,7 +6,7 @@
 // (y un departure_token para elegir el siguiente). Así se etiqueta: nunca como precio de un solo
 // vuelo ni como una reserva. Pasa por el mismo fetch con caché compartida, bolsa del plan y freno de
 // la cuenta que el resto de flights-search; solo se llama tras una acción explícita del usuario.
-import { googleFlightResult, MOTIVO_NO_DISPONIBLE, quickIata, type FlightsSearchEnv, type SearchResult } from "./search.ts";
+import { gfSearchAdults, googleFlightResult, MOTIVO_NO_DISPONIBLE, quickIata, type FlightsSearchEnv, type SearchResult } from "./search.ts";
 import { CABIN_CODE, googleFlightsSearchUrl } from "../_shared/booking/links.ts";
 
 const SERPAPI = "https://serpapi.com/search.json";
@@ -24,7 +24,7 @@ export function multiCityJson(legs: Array<{ departure_id: string; arrival_id: st
 
 export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise<SearchResult> {
   const raw: any[] = Array.isArray(body?.legs) ? body.legs : [];
-  const travelers = Math.min(9, Math.max(1, Math.round(Number(body?.travelers) || 1)));
+  const travelers = Math.min(60, Math.max(1, Math.round(Number(body?.travelers) || 1)));
   if (raw.length < 2 || raw.length > MULTI_MAX_LEGS) return { status: 400, body: { ok: false, error: "tramos_invalidos" } };
   const legs = raw.map((l) => ({
     from: String(l?.from ?? "").trim(), to: String(l?.to ?? "").trim(), date: String(l?.date ?? "").trim(),
@@ -42,7 +42,9 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
   u.searchParams.set("engine", "google_flights");
   u.searchParams.set("type", "3");
   u.searchParams.set("multi_city_json", multiCityJson(coded as Array<{ departure_id: string; arrival_id: string; date: string }>));
-  u.searchParams.set("adults", String(travelers));
+  // Google Flights: hasta 9 pasajeros por reserva (grupo de 10+: se cotiza con 9 y se multiplica por persona).
+  const searched = gfSearchAdults(travelers);
+  u.searchParams.set("adults", String(searched));
   const cls = TRAVEL_CLASS[String(body?.travel_class ?? "").toLowerCase()];
   if (cls && cls !== "1") u.searchParams.set("travel_class", cls);
   const wanted = String(body?.currency ?? "USD").toUpperCase();
@@ -66,7 +68,7 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
       // los mismos tramos, pasajeros y clase.
       const back = coded.length === 2 && coded[1].arrival_id === first.departure_id ? coded[1] : null;
       const builtUrl = back ? googleFlightsSearchUrl({ origin: first.departure_id!, destination: first.arrival_id!, returnFrom: back.departure_id,
-        depart: first.date, ret: back.date, adults: travelers, cabin: cls ? Number(cls) : null }) : null;
+        depart: first.date, ret: back.date, adults: searched, cabin: cls ? Number(cls) : null }) : null;
       const buyUrl = google_flights_url ?? builtUrl;
       results = [...(j?.best_flights ?? []), ...(j?.other_flights ?? [])]
         .filter((f: any) => Number(f?.price ?? 0) > 0)
@@ -78,9 +80,12 @@ export async function searchMultiCity(body: any, env: FlightsSearchEnv): Promise
           buy_url: buyUrl,
           // Total del itinerario en la moneda pedida (price_usd solo si es USD).
           currency,
-          price_total: Number(f.price),
-          ...(currency === "USD" ? {} : { price_usd: null, price_per_person_usd: null, price_per_person: Math.round(Number(f.price) / travelers) }),
-          price_note: `Precio total del itinerario de ${coded.length} tramos para ${travelers} ${travelers === 1 ? "viajero" : "viajeros"}, según Google Flights.`,
+          // Total para TODO el grupo: por persona de la búsqueda (hasta 9) × viajeros.
+          price_total: travelers > searched ? Math.round((Number(f.price) / searched) * travelers) : Number(f.price),
+          ...(currency === "USD" ? {} : { price_usd: null, price_per_person_usd: null, price_per_person: Math.round(Number(f.price) / searched) }),
+          price_note: travelers > searched
+            ? `Google Flights cotiza hasta ${searched} pasajeros por reserva: precio por persona de esa búsqueda × ${travelers} viajeros (itinerario de ${coded.length} tramos). Reserven en 2 grupos.`
+            : `Precio total del itinerario de ${coded.length} tramos para ${travelers} ${travelers === 1 ? "viajero" : "viajeros"}, según Google Flights.`,
           tramos: `tramo 1 de ${coded.length} (el precio es el total del itinerario; los demás tramos se eligen después)`,
           tramo: "multi_1",
         }));
