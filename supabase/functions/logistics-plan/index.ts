@@ -13,6 +13,7 @@ import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaur
 import { makeResolver, markUnverified, tourBacked, verifyTours } from "../_shared/place-verify.ts";
 import { moreExperiences } from "./moreExperiences.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { SERVICE_UNAVAILABLE_MESSAGE } from "../_shared/quota.ts";
 import {
   invalidRequestResponse,
   quotaDeniedResponse,
@@ -504,13 +505,14 @@ Deno.serve(async (req) => {
       ...(Array.isArray(body.nights_per_city) ? [body.nights_per_city.join("|")] : []),
       ...(Array.isArray(body.sea_legs) && body.sea_legs.length ? [JSON.stringify(body.sea_legs)] : []),
     ]);
+    // Tiempos por etapa también cuando el plan no termina (503): para saber qué se atoró.
+    const marks: Record<string, number> = {};
     // El cuerpo del plan se dejó sin re-indentar para no mover todo el diff.
     const generarPlan = async (ctx: WorkCtx): Promise<WorkResult> => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     // Tiempos por etapa (pendiente E2E 28-oct-2026): quedan en los logs para medir en producción.
     const t0 = Date.now();
-    const marks: Record<string, number> = {};
     const mark = (k: string) => { marks[k] = Date.now() - t0; };
     /** Marca cuándo termina cada consulta (para medir qué frena el plan; sale en «tiempos» de la respuesta). */
     const timed = <T,>(k: string, p: Promise<T>): Promise<T> => p.then((v) => { mark(k); return v; }, (e) => { mark(`${k}_error`); throw e; });
@@ -1232,8 +1234,11 @@ Entrega JSON con:
       }
       return serviceUnavailableResponse(corsHeaders, "Este plan ya se generó; búscalo en Mis viajes.");
     }
-    console.warn("logistics-plan: plan no completado, cupo liberado", outcome.reason);
-    return outcome.response ?? serviceUnavailableResponse(corsHeaders);
+    console.warn("logistics-plan: plan no completado, cupo liberado", outcome.reason, marks);
+    // motivo y tiempos (sin datos del usuario) para diagnosticar desde fuera; el mensaje para la persona es el mismo.
+    return outcome.response ?? new Response(JSON.stringify({ code: "SERVICE_UNAVAILABLE", message: SERVICE_UNAVAILABLE_MESSAGE, motivo: String(outcome.reason ?? "").slice(0, 160), tiempos: marks }), {
+      status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     // Detalle técnico solo en logs.
     console.error("logistics-plan error:", e instanceof Error ? e.message : e);
