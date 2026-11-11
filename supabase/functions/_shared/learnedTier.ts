@@ -13,7 +13,7 @@ export function tierFromTripText(text: unknown): HotelTier | null {
   const t = String(text ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/\b(sin lujos|nada de lujo|no (muy )?caro)\b/.test(t)) return /\b(barato|economic|mochiler|low cost|ahorr)/.test(t) ? "ahorro" : null;
   if (/\b(de lujo|lujos[oa]s?|luxury|5 estrellas|cinco estrellas|todo lo mejor|lo mejor de lo mejor|premium|vip|exclusiv[oa])\b/.test(t)) return "premium";
-  if (/\b(barat[oa]s?|economic[oa]s?|mochiler[oa]s?|low cost|ahorrar|presupuesto (bajo|ajustado|limitado)|lo mas barato)\b/.test(t)) return "ahorro";
+  if (/\b(barat[oa]s?|economic[oa]s?|mochiler[oa]s?|low cost|ahorrar|presupuesto (bajo|ajustado|limitado)|lo mas barato|sin gastar (tanto|mucho|demasiado)|gastar poco|gastando poco|con poco dinero)\b/.test(t)) return "ahorro";
   return null;
 }
 

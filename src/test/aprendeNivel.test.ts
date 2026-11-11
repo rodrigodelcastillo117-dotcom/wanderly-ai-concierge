@@ -24,6 +24,8 @@ describe("el texto del viaje manda", () => {
     const { tierFromTripText } = await import("../../supabase/functions/_shared/learnedTier");
     expect(tierFromTripText("Luna de miel en Los Cabos, algo romántico y de lujo")).toBe("premium");
     expect(tierFromTripText("hotel 5 estrellas")).toBe("premium");
+    expect(tierFromTripText("Algo bonito sin gastar tanto")).toBe("ahorro");
+    expect(tierFromTripText("queremos gastar poco")).toBe("ahorro");
     expect(tierFromTripText("algo económico, somos mochileros")).toBe("ahorro");
     expect(tierFromTripText("nada de lujo, lo más barato")).toBe("ahorro");
     expect(tierFromTripText("Cancún con mi familia")).toBeNull();

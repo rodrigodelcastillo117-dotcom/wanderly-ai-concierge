@@ -27,6 +27,19 @@ describe("más vuelos", () => {
   });
 });
 
+describe("más vuelos: nada desproporcionado", () => {
+  it("CDMX→Oaxaca: no ofrece «COPA $31,814» junto a Aeroméxico desde $5,710 (recorrido 11-nov-2026)", () => {
+    const cot = [
+      { aerolinea: "Aeroméxico", precio_por_persona: 5710, salida: "2026-11-13 07:00", fuente_precio: "serpapi", tier: "ahorro" },
+      { aerolinea: "Aeroméxico", precio_por_persona: 7333, salida: "2026-11-13 10:00", fuente_precio: "serpapi", tier: "equilibrio" },
+      { aerolinea: "Aeroméxico", precio_por_persona: 8378, salida: "2026-11-13 13:00", fuente_precio: "serpapi", tier: "premium" },
+    ];
+    const live = [f("Viva", 459, "08:00"), f("COPA", 1590.7, "09:00", 1)];
+    const out = flightAlternatives(cot, live, { fxUsd: 20, consultedAt: "x" });
+    expect(out.map((v) => v.aerolinea)).toEqual(["Viva"]);
+  });
+});
+
 describe("Comprar: «Ver más vuelos»", () => {
   it("los 3 del nivel a la vista y las alternativas en moreOptions", async () => {
     const { realFlightOptions } = await import("@/lib/purchasePlan");

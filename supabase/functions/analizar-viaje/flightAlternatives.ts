@@ -16,12 +16,16 @@ export function flightAlternatives(vuelos: any[], live: any[], o: { fxUsd: numbe
   if (!rows.some((v) => String(v?.fuente_precio ?? "") === "serpapi")) return [];
   const key = (airline: unknown, pp: number, salida: unknown) => `${norm(airline)}|${Math.round(pp / 50)}|${stamp(salida) ?? ""}`;
   const seen = new Set(rows.map((v) => key(v?.aerolinea, Number(v?.precio_por_persona) || 0, v?.salida)));
+  // Nada desproporcionado (recorrido 11-nov-2026, CDMX→Oaxaca: «COPA $31,814» junto a Aeroméxico desde $5,710, casi
+  // seguro con escala en Panamá): tope = el mayor de 1.5× el vuelo premium o 2.5× el más barato de la cotización.
+  const tierPrices = rows.map((v) => Number(v?.precio_por_persona) || 0).filter((n) => n > 0);
+  const cap = tierPrices.length ? Math.max(Math.max(...tierPrices) * 1.5, Math.min(...tierPrices) * 2.5) : Infinity;
   const out: any[] = [];
   for (const f of [...live].sort((a, b) => Number(a?.price_per_person_usd) - Number(b?.price_per_person_usd))) {
     if (out.length >= (o.max ?? 5)) break;
     const pp = Math.round((Number(f?.price_per_person_usd) || 0) * fx);
     const link = typeof f?.buy_url === "string" && /^https:\/\//.test(f.buy_url) ? f.buy_url : null;
-    if (!(pp > 0) || !f?.airline || !link) continue;
+    if (!(pp > 0) || !f?.airline || !link || pp > cap) continue;
     const k = key(f.airline, pp, f?.departure?.time);
     if (seen.has(k)) continue;
     seen.add(k);
