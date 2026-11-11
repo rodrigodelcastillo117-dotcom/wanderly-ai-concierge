@@ -270,7 +270,10 @@ export function parseMultiCityText(text: string, opts: { origin?: string | null 
     });
   }
   // La primera ciudad es el origen: la del viajero, o una de México seguida de ciudades fuera de México.
-  const mx = (c: string) => (cityAirports(c)?.country ?? PICKER_COUNTRIES.find((p) => p.cities.some((x) => norm(x) === norm(c)))?.name) === "México";
+  // Pueblos sin aeropuerto de la tabla (Bacalar, Playa del Carmen) también cuentan como México (11-nov-2026: «Riviera Maya:
+  // Tulum, Playa del Carmen y Bacalar» tomaba Tulum como origen al tener ya aeropuerto propio).
+  const mx = (c: string) => (cityAirports(c)?.country ?? PICKER_COUNTRIES.find((p) => p.cities.some((x) => norm(x) === norm(c)))?.name
+    ?? (AIRPORT_TOWNS.some((t) => t.iso2 === "MX" && [t.name, ...(t.aliases ?? [])].some((n) => norm(n) === norm(c))) ? "México" : null)) === "México";
   if (!origin && stops.length >= 3) {
     const first = stops[0];
     if ((opts.origin && sameCity(first, opts.origin)) || (mx(first) && stops.slice(1).every((c) => !mx(c)))) origin = stops.shift()!;

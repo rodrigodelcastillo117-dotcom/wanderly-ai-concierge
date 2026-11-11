@@ -42,6 +42,38 @@ export const CITIES: CityAirports[] = [
   C("Oaxaca", "OAX", ["OAX"], "México", "MX", "NA", 17.0, -96.727, ["oaxaca de juarez"]),
   C("Mérida", "MID", ["MID"], "México", "MX", "NA", 20.937, -89.658, ["merida"]),
   C("Querétaro", "QRO", ["QRO"], "México", "MX", "NA", 20.617, -100.186, ["queretaro"]),
+  // Destinos nacionales con aeropuerto que faltaban (barrido 11-nov-2026: Bacalar se buscaba a Cancún, 330 km, en
+  // vez de Chetumal, 40 km; y sin coordenadas la app preguntaba cómo regresar de un viaje de 1,300 km).
+  C("Chetumal", "CTM", ["CTM"], "México", "MX", "NA", 18.505, -88.327),
+  C("Cozumel", "CZM", ["CZM"], "México", "MX", "NA", 20.522, -86.926, ["isla cozumel"]),
+  C("Tulum", "TQO", ["TQO"], "México", "MX", "NA", 20.091, -87.598),
+  C("Huatulco", "HUX", ["HUX"], "México", "MX", "NA", 15.775, -96.263, ["bahias de huatulco"]),
+  C("Puerto Escondido", "PXM", ["PXM"], "México", "MX", "NA", 15.877, -97.089),
+  C("Acapulco", "ACA", ["ACA"], "México", "MX", "NA", 16.757, -99.754),
+  C("Zihuatanejo", "ZIH", ["ZIH"], "México", "MX", "NA", 17.602, -101.461, ["ixtapa", "ixtapa zihuatanejo"]),
+  C("La Paz", "LAP", ["LAP"], "México", "MX", "NA", 24.073, -110.362),
+  C("Loreto", "LTO", ["LTO"], "México", "MX", "NA", 25.989, -111.348),
+  C("Mazatlán", "MZT", ["MZT"], "México", "MX", "NA", 23.161, -106.266, ["mazatlan"]),
+  C("Manzanillo", "ZLO", ["ZLO"], "México", "MX", "NA", 19.145, -104.559),
+  C("Tuxtla Gutiérrez", "TGZ", ["TGZ"], "México", "MX", "NA", 16.563, -93.023, ["tuxtla", "tuxtla gutierrez"]),
+  C("Palenque", "PQM", ["PQM"], "México", "MX", "NA", 17.533, -91.984),
+  C("Villahermosa", "VSA", ["VSA"], "México", "MX", "NA", 17.997, -92.817),
+  C("Veracruz", "VER", ["VER"], "México", "MX", "NA", 19.146, -96.187),
+  C("Puebla", "PBC", ["PBC"], "México", "MX", "NA", 19.158, -98.371),
+  C("León", "BJX", ["BJX"], "México", "MX", "NA", 20.993, -101.481, ["leon guanajuato", "leon"]),
+  C("Zacatecas", "ZCL", ["ZCL"], "México", "MX", "NA", 22.897, -102.687),
+  C("San Luis Potosí", "SLP", ["SLP"], "México", "MX", "NA", 22.254, -100.931, ["san luis potosi"]),
+  C("Aguascalientes", "AGU", ["AGU"], "México", "MX", "NA", 21.705, -102.318),
+  C("Morelia", "MLM", ["MLM"], "México", "MX", "NA", 19.85, -101.025),
+  C("Chihuahua", "CUU", ["CUU"], "México", "MX", "NA", 28.703, -105.965),
+  C("Hermosillo", "HMO", ["HMO"], "México", "MX", "NA", 29.096, -111.048),
+  C("Campeche", "CPE", ["CPE"], "México", "MX", "NA", 19.817, -90.5),
+  C("Durango", "DGO", ["DGO"], "México", "MX", "NA", 24.124, -104.528),
+  C("Torreón", "TRC", ["TRC"], "México", "MX", "NA", 25.568, -103.411, ["torreon"]),
+  C("Mexicali", "MXL", ["MXL"], "México", "MX", "NA", 32.631, -115.242),
+  C("Culiacán", "CUL", ["CUL"], "México", "MX", "NA", 24.765, -107.475, ["culiacan"]),
+  C("Tampico", "TAM", ["TAM"], "México", "MX", "NA", 22.296, -97.866),
+  C("Ciudad Juárez", "CJS", ["CJS"], "México", "MX", "NA", 31.636, -106.429, ["ciudad juarez", "juarez"]),
   // Norteamérica y Caribe
   C("Nueva York", "NYC", ["JFK", "EWR", "LGA"], "Estados Unidos", "US", "NA", 40.641, -73.778, ["new york", "nyc", "nueva york city"]),
   C("Los Ángeles", "LAX", ["LAX"], "Estados Unidos", "US", "NA", 33.942, -118.408, ["los angeles", "la"]),
@@ -257,6 +289,18 @@ export const TOWNS: Town[] = [
   // Escapadas por carretera desde CDMX, sin aeropuerto comercial (caso Tepoztlán, 27-oct-2026).
   T("Tepoztlán", "MX", 18.985, -99.1, ["tepoztlan"]), T("Valle de Bravo", "MX", 19.195, -100.131), T("Taxco", "MX", 18.556, -99.605),
   T("Malinalco", "MX", 18.948, -99.495), T("Tequisquiapan", "MX", 20.522, -99.892),
+  // Destinos nacionales sin aeropuerto que se escriben seguido (barrido 11-nov-2026).
+  T("Bacalar", "MX", 18.677, -88.395), T("Holbox", "MX", 21.522, -87.379, ["isla holbox"]), T("Isla Mujeres", "MX", 21.232, -86.731),
+  T("Mahahual", "MX", 18.715, -87.708), T("Puerto Morelos", "MX", 20.847, -86.875), T("Akumal", "MX", 20.396, -87.314),
+  T("Izamal", "MX", 20.932, -89.018), T("Celestún", "MX", 20.859, -90.4, ["celestun"]),
+  T("San Cristóbal de las Casas", "MX", 16.737, -92.638, ["san cristobal de las casas", "san cristobal"]),
+  T("Mazunte", "MX", 15.667, -96.554), T("Zipolite", "MX", 15.662, -96.517),
+  T("Sayulita", "MX", 20.869, -105.441), T("Yelapa", "MX", 20.487, -105.447), T("Barra de Navidad", "MX", 19.205, -104.683),
+  T("Todos Santos", "MX", 23.449, -110.226), T("Ensenada", "MX", 31.866, -116.597), T("Valle de Guadalupe", "MX", 32.09, -116.57),
+  T("Real de Catorce", "MX", 23.689, -100.886), T("Guanajuato", "MX", 21.019, -101.257), T("Pátzcuaro", "MX", 19.513, -101.609, ["patzcuaro"]),
+  T("Cholula", "MX", 19.064, -98.303), T("Cuetzalan", "MX", 20.018, -97.522), T("Tequila", "MX", 20.882, -103.836),
+  T("Bernal", "MX", 20.741, -99.941, ["pena de bernal"]), T("Mineral del Chico", "MX", 20.215, -98.731), T("Tlaxcala", "MX", 19.318, -98.238),
+  T("Xilitla", "MX", 21.385, -98.99), T("Tapalpa", "MX", 19.944, -103.759),
   // Lugares que se escriben como destino y no tienen aeropuerto (barrido de frases, 11-nov-2026).
   T("Machu Picchu", "PE", -13.163, -72.545, ["aguas calientes", "machupicchu", "machu pichu"]),
   T("Sedona", "US", 34.869, -111.761), T("Gran Cañón", "US", 36.057, -112.14, ["gran canon", "grand canyon", "el gran canon"]),
@@ -559,4 +603,11 @@ export function flightPlaceMetro(input: unknown): string | null {
   const r = resolveFlightPlace(input);
   if (!r.ok) return null;
   return BY_CODE.get(r.airport)?.metro ?? r.airport;
+}
+
+/** País (ISO2) de un lugar conocido, con o sin aeropuerto; null si no se conoce. */
+export function placeIso2(input: unknown): string | null {
+  const c = cityAirports(input);
+  if (c) return c.iso2;
+  return TOWN_BY_NAME.get(normCity(input))?.iso2 ?? null;
 }

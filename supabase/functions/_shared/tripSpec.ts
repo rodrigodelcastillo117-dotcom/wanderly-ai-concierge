@@ -448,7 +448,12 @@ function legStart(spec: TripSpec, i: number): { ciudad: string | null; pais: str
  * Tramos sin decir que obviamente son en avión (a otro continente o muy lejos) quedan en «Vuelo»: se ve y
  * se cambia en el resumen, pero no se pregunta. Nunca pisa lo que se dijo (tren, coche, crucero…).
  */
+/** ¿Dijo que va en autobús? (no hay modo «autobús» en la ruta: el autobús se cotiza aparte, sin precio inventado). */
+const saidBus = (spec: TripSpec) => /\b(autobus|autobuses|camion|en bus|ado)\b/.test(normText(spec.consulta_original));
+
 export function applyObviousLegModes(spec: TripSpec): TripSpec {
+  // «transporte en autobús» (mochilero a Bacalar, 11-nov-2026): no se pone «Vuelo» aunque esté lejos.
+  if (saidBus(spec)) return spec;
   const nights = spec.noches_total ?? isoNights(spec.fecha_salida, spec.fecha_regreso);
   spec.paradas.forEach((s, i) => {
     if (s.llegada_por !== "por_definir") return;
@@ -523,6 +528,8 @@ export function isObviousQuestion(spec: TripSpec, q: Question): boolean {
   }
   if (q.tipo !== "otro") return false;
   if (foreignPlacesIn(spec, q).length) return true;
+  // Ya dijo que va en autobús: no se le pregunta «¿coche o vuelo?» para ir ni para regresar.
+  if (saidBus(spec) && (isArrivalModeQuestion(q) || isReturnModeQuestion(q))) return true;
   if (isArrivalModeQuestion(q)) {
     const i = questionStop(spec, q);
     return i >= 0 && spec.paradas[i].llegada_por !== "por_definir";

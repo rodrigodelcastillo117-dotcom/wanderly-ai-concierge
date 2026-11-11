@@ -10,6 +10,7 @@
 // carretera: es una aproximación y siempre se presenta como "aprox.".
 
 import { haversineKm } from "./geo-distance.ts";
+import { placeDistanceKm, placeIso2 } from "./airports.ts";
 import { type CarCost, carCostLines } from "./carCost.ts";
 export { haversineKm };
 
@@ -399,4 +400,37 @@ export function shortTripTransportTotal(vuelos: any[], viajeros: number): number
   const priced = (Array.isArray(vuelos) ? vuelos : []).filter((v) => Number(v?.precio_por_persona) > 0);
   const ref = priced.find((v) => v.tier === "equilibrio") ?? priced[0];
   return ref ? Math.round(Number(ref.precio_por_persona) * Math.max(1, Math.round(Number(viajeros) || 1))) : 0;
+}
+
+
+/** ¿Pidió ir en autobús? («transporte en autobús», «en camión», «en ADO»). */
+export function wantsBus(notes: unknown): boolean {
+  const n = norm(notes);
+  return /\b(en autobus|en autobuses|en camion|en bus|por autobus|por camion|en ado|autobus de lujo|transporte en autobus|viajar en autobus)\b/.test(n);
+}
+
+/**
+ * Viaje largo dentro de México en el que la persona PIDIÓ autobús (recorrido mochilero CDMX → Bacalar, 11-nov-2026: solo había
+ * vuelos y se preguntaba «¿coche o vuelo?»). El autobús va primero, como «ahorro», sin precio inventado (horarios y precio en
+ * ADO) y con el tiempo aproximado puerta a puerta; el vuelo más barato queda como otra opción. Nada cambia si ya hay autobús,
+ * si no es el mismo país o si no se conocen los lugares.
+ */
+export function withRequestedBus(vuelos: any[], o: { origin: string; destino: string; links: { bus: string; ado?: string | null } }): any[] {
+  const rows = Array.isArray(vuelos) ? vuelos : [];
+  if (rows.some((v) => groundMode(v) === "autobus")) return rows;
+  const iso = placeIso2(o.origin);
+  if (!iso || iso !== placeIso2(o.destino)) return rows;
+  const km = placeDistanceKm(o.origin, o.destino);
+  if (km == null || km < 50) return rows;
+  const roadKm = Math.round(km * ROAD_FACTOR);
+  const g = groundDoorToDoor({ origin: o.origin, destination: o.destino, approxRoadKm: roadKm, approxDriveHours: Math.round((roadKm / AVG_ROAD_KMH) * 10) / 10 });
+  const h = Math.round(g.bus / 60);
+  const bus = {
+    tier: "ahorro", modo: "autobus", aerolinea: o.links.ado ? "Autobús ADO" : "Autobús",
+    duracion: `Unas ${h} h puerta a puerta (aprox., incluye terminal)`, escalas: "Terrestre", km: roadKm,
+    precio_por_persona: 0, precio_min: null, precio_max: null, fuente_precio: "estimado", estado_dato: "ESTIMADO",
+    booking_link: o.links.ado ?? o.links.bus, horarios_link: o.links.bus,
+    notas: `Lo pediste en autobús: unos ${roadKm.toLocaleString("es-MX")} km por carretera. Horarios y precio en el sitio de ${o.links.ado ? "ADO" : "la línea de autobús"}: IATOS no lo cotiza. El vuelo más barato queda como otra opción.`,
+  };
+  return [bus, ...rows.map((v) => (v?.tier === "ahorro" && !groundMode(v) ? { ...v, tier: "alternativa" } : v))];
 }

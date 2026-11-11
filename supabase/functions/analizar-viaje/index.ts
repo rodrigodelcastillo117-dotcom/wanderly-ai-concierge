@@ -50,7 +50,7 @@ import { learnedHotelTier, tierFromTripText } from "../_shared/learnedTier.ts";
 import { tripDatesProblem } from "./dates.ts";
 import { storedTripDestino } from "../_shared/tripName.ts";
 import {
-  applyShortTripRules, capShortTripEstimates, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes,
+  applyShortTripRules, capShortTripEstimates, detectShortTrip, groundSearchLinks, isReasonableShortFlight, parseDurationMinutes, wantsBus, withRequestedBus,
   realGroundOptions, refineShortTrip, SHORT_TRIP_CANDIDATE_KM, shortTripPromptBlock, shortTripTransportTotal, travelerPrefs,
 } from "./groundTransport.ts";
 import { destinationCoverUrl } from "../_shared/tripCover.ts";
@@ -1114,6 +1114,13 @@ Llama a "entregar_analisis_viaje" usando estos precios reales. RESPETA AL 100% l
       const capped = capShortTripEstimates(a.desglose_presupuesto, { noches: dias, viajeros: body.num_viajeros, enCoche: true });
       if (capped.acotados.length) console.warn("analizar-viaje: estimados acotados (trayecto corto)", capped.acotados, body.destino);
       a.desglose_presupuesto = capped.desglose;
+    }
+
+    // Viaje largo en México y pidió autobús (mochilero CDMX → Bacalar, 11-nov-2026): el autobús va primero, sin precio
+    // inventado (horarios y precio en ADO); el vuelo más barato queda como otra opción (groundTransport.withRequestedBus).
+    if (!shortTrip && wantsBus(body.notas_usuario) && Array.isArray(a.vuelos)) {
+      const links = groundSearchLinks(body.ciudad_origen, body.destino, body.fecha_salida);
+      a.vuelos = withRequestedBus(a.vuelos, { origin: body.ciudad_origen, destino: body.destino, links: { bus: links.bus, ado: adoRouteUrl(body.ciudad_origen, body.destino) } });
     }
 
     // Sin precio en vivo de vuelos (caso Álvaro, 28-oct-2026): cada vuelo estimado lleva el motivo en
