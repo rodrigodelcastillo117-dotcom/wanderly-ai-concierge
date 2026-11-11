@@ -168,6 +168,23 @@ export function kayakFlightsSearchUrl(q: FlightSearchQuery & { childAges?: numbe
   return `https://www.kayak.com.mx/flights/${path}/${a}adults${kids.length ? `/children-${kids.join("-")}` : ""}`;
 }
 
+/**
+ * Paquete vuelo + hotel en Expedia México (dueño, 11-nov-2026: «no me dio nada de paquetes… hotel + vuelo»). Formato de
+ * enlace DOCUMENTADO por Expedia (developers.expediagroup.com › deeplinking › package deeplinks):
+ * /go/package/search/FlightHotel/{FromDate}/{ToDate}?FromAirport=…&Destination=…&NumRoom=…&NumAdult=…
+ * Solo ida y vuelta a un destino; IATOS no cotiza el paquete: el precio lo da Expedia.
+ */
+export function expediaPackageUrl(q: { origin: string; destination: string; depart: string; ret: string; adults?: number }): string | null {
+  const o = String(q.origin ?? "").toUpperCase();
+  const dest = String(q.destination ?? "").replace(/\s+/g, " ").trim();
+  if (!IATA.test(o) || !dest || !isIsoDate(q.depart) || !isIsoDate(q.ret) || q.ret <= q.depart) return null;
+  const adults = clampPax(q.adults, 1);
+  if (adults > 8) return null;
+  const rooms = adults <= 3 ? 1 : Math.ceil(adults / 2);
+  const qs = new URLSearchParams({ FromAirport: o, Destination: dest, NumRoom: String(rooms), NumAdult: String(adults) });
+  return `https://www.expedia.mx/go/package/search/FlightHotel/${q.depart}/${q.ret}?${qs.toString()}`;
+}
+
 /** "link" que devuelve la API de Travelpayouts ("/search/…?t=…"): abre resultados de búsqueda. */
 export function aviasalesFromTpLink(link: string, marker = TP_PUBLIC_MARKER): string | null {
   if (typeof link !== "string" || !/^\/search\/[A-Z]{3}\d{4}[A-Z]{3}(\d{4})?\d(\?|$)/.test(link)) return null;

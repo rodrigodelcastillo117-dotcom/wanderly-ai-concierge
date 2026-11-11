@@ -12,6 +12,7 @@ import { dbCacheStore, internalHeaders } from "../_shared/serpRuntime.ts";
 import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaurants.ts";
 import { makeResolver, markUnverified, tourBacked, verifyTours } from "../_shared/place-verify.ts";
 import { moreExperiences } from "./moreExperiences.ts";
+import { callAIRetry } from "./aiRetry.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { SERVICE_UNAVAILABLE_MESSAGE } from "../_shared/quota.ts";
 import {
@@ -770,7 +771,7 @@ Entrega JSON con:
 5. resumen breve (2-3 frases). NO calcules totales: el total lo calcula el sistema.`;
 
       mark("ia_global_inicio");
-      return timed("ia_global", callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema, aiBudget()))
+      return timed("ia_global", callAIRetry((ms) => callAI(apiKey, GLOBAL_SYSTEM, globalPrompt, "emit_global", globalSchema, ms), aiBudget, () => mark("ia_global_reintento")))
       .catch((e) => {
         console.error("global failed:", e.message);
         return { flights: [], internal_transport: [], days: [], mandatory_costs: {}, resumen: "" };
@@ -840,7 +841,7 @@ Entrega JSON con:
 - experiencias: 4-5 en ${city}; prioriza las de la lista de arriba con fuente="${attrSource}" y su rating real.`;
 
       mark(`ia_ciudad_${i + 1}_inicio`);
-      return timed(`ia_ciudad_${i + 1}`, callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, aiBudget()))
+      return timed(`ia_ciudad_${i + 1}`, callAIRetry((ms) => callAI(apiKey, CITY_SYSTEM, cityPrompt, "emit_city", citySchema, ms), aiBudget, () => mark(`ia_ciudad_${i + 1}_reintento`)))
         .then((r) => ({ ...r, city, nights: cityNights, checkin: w.checkin, checkout: w.checkout }))
         .catch((e) => {
           console.error(`city ${city} failed:`, e.message);

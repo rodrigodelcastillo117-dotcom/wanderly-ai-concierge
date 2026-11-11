@@ -24,7 +24,7 @@ import { canUnmark, markLabel } from "@/lib/purchaseMarks";
 import { useTripPurchaseMarks } from "@/hooks/useTripPurchaseMarks";
 import { useTasteProfile } from "@/hooks/useTasteProfile";
 import { TripPicksCarousel, type PickAction } from "@/components/booking/TripPicksCarousel";
-import { FlightBuyButtons } from "@/components/booking/FlightBuyButtons";
+import { FlightBuyButtons, flightBuyLinks } from "@/components/booking/FlightBuyButtons";
 import { HotelOffersButton, MultiCityFareButton, type OffersFx } from "@/components/booking/RealPriceButtons";
 import { FlightLiveQuote } from "@/components/booking/FlightLiveQuote";
 import { DriverService } from "@/components/booking/DriverService";
@@ -361,6 +361,18 @@ export function TripPurchasePlan({ trip, selVuelo, selHospedaje, selTours, selHo
                           {verMas[s.n] ? "Ver menos vuelos" : `Ver más vuelos (${s.moreOptions!.length})`}
                         </button>
                       )}
+                      {/* Paquete vuelo + hotel (Expedia, enlace documentado; el precio lo da Expedia): un destino, ida y vuelta. */}
+                      {!s.ground && (() => {
+                        const pkg = flightBuyLinks({}, trip, 0).expedia;
+                        return pkg ? (
+                          <a href={pkg} target="_blank" rel="noopener noreferrer" data-testid="vuelo-paquete-expedia"
+                            onClick={() => void logBookingClick({ category: "flight", provider: "Expedia paquete", title: "Vuelo + hotel", bookingUrl: pkg,
+                              city: trip.destino ?? undefined, tripId: trip.id, startAt: trip.fecha_salida ?? undefined })}
+                            className="mt-1 ml-3 inline-flex min-h-[32px] items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline">
+                            ¿Prefieres paquete vuelo + hotel? Compáralo en Expedia <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                          </a>
+                        ) : null;
+                      })()}
                       {/* Por tierra: casetas reales, gasolina estimada con su fórmula, o "precio en ADO". */}
                       {s.ground && (() => { const v = trip.vuelos_json[s.chosen >= 0 ? s.chosen : s.options[0]]; return v && isGroundTripOption(v) ? <GroundOptionInfo className="mt-2" trip={trip} option={v} /> : null; })()}
                       </>

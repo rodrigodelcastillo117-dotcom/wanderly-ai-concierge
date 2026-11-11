@@ -12,7 +12,8 @@ import { trainlineLink } from "@/lib/affiliateLinks";
 import { transitScheduleUrl } from "@/lib/takeMeThere";
 import { busActions, multimodalAction, noLinkText, operatorAction, PRICE_AT_OPERATOR, routeOperators, TRAINLINE_LABEL } from "../../../supabase/functions/_shared/booking/railOperators.ts";
 import { mainAirport } from "../../../supabase/functions/_shared/airports.ts";
-import { googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
+import { expediaPackageUrl, googleFlightsSearchUrl, kayakFlightsSearchUrl } from "../../../supabase/functions/_shared/booking/links.ts";
+import { tripFlightRoute } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
 import { stayForCity } from "../../../supabase/functions/_shared/booking/tripRoute.ts";
 import { legCarRentalDates } from "@/lib/multiDestTrip";
 import { ROADTRIP_ANCHOR } from "@/components/roadtrip/RoadTripPanel";
@@ -21,7 +22,7 @@ import { scrollToSection } from "@/components/TripNextStep";
 const PLAIN_GF = "https://www.google.com/travel/flights?hl=es-419";
 
 /** Enlaces de compra de una opción de vuelo del viaje (los mismos constructores que "Comprar mi viaje"). */
-export function flightBuyLinks(v: any, trip: any, index = 0): { google: string; prefilled: boolean; kayak: string | null } {
+export function flightBuyLinks(v: any, trip: any, index = 0): { google: string; prefilled: boolean; kayak: string | null; expedia: string | null } {
   const offer = offerFromTripFlight(v, { trip, index });
   const ok = (u: string | null | undefined) => !!u && prefillMatchesTrip(u, trip) !== false;
   let google = offer.actions.find((a) => a.processor === "Google Flights" && ok(a.url))?.url ?? null;
@@ -37,7 +38,15 @@ export function flightBuyLinks(v: any, trip: any, index = 0): { google: string; 
       kayak = kayakFlightsSearchUrl({ origin: from, destination: to, depart: date, adults });
     }
   }
-  return { google: google ?? PLAIN_GF, prefilled: !!google, kayak };
+  // Paquete vuelo + hotel (Expedia): solo el vuelo de ida y vuelta de un viaje de UN destino (no un tramo interno), una vez
+  // (en la primera opción; no en cada tarjeta).
+  let expedia: string | null = null;
+  if (index === 0 && !v?.from && !v?.to && !tripFlightRoute(trip).multi) {
+    const origin = mainAirport(trip?.ciudad_origen);
+    expedia = origin && trip?.destino ? expediaPackageUrl({ origin, destination: String(trip.destino), depart: trip?.fecha_salida, ret: trip?.fecha_regreso,
+      adults: Math.max(1, Math.round(Number(trip?.num_viajeros) || 1)) }) : null;
+  }
+  return { google: google ?? PLAIN_GF, prefilled: !!google, kayak, expedia };
 }
 
 const btn = "inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition";
@@ -57,6 +66,12 @@ export function FlightBuyButtons({ option, trip, index = 0 }: { option: any; tri
         <a href={l.kayak} target="_blank" rel="noopener noreferrer" onClick={track("Kayak", l.kayak)} data-testid="flight-buy-kayak"
           className={`${btn} border border-border/70 hover:border-primary/50`}>
           Kayak <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+        </a>
+      )}
+      {l.expedia && (
+        <a href={l.expedia} target="_blank" rel="noopener noreferrer" onClick={track("Expedia paquete", l.expedia)} data-testid="flight-buy-expedia-package"
+          className={`${btn} border border-border/70 hover:border-primary/50`}>
+          Vuelo + hotel en Expedia <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
         </a>
       )}
     </div>
