@@ -431,7 +431,9 @@ export function realFlightOptions(trip: any, max = 3): number[] {
     .filter(([v]) => (isGroundTripOption(v) ? (!route.multi || !!trip?.itinerario_json?.logistics?.llegada_por_tierra) && (v?.modo === "autobus" || v?.modo === "auto")
       : !isEstimatedTripFlight(v) && isTripInternationalRow(v, route) && tripFlightProblems(v, trip).length === 0))
     .filter(([v]) => {
-      const k = `${norm(v?.aerolinea)}|${Number(v?.precio_por_persona) || ""}|${v?.modo ?? ""}`;
+      // Con la hora de salida: el mismo precio de Aeroméxico a las 08:20 y a las 16:15 son dos vuelos (recorrido 11-nov-2026:
+      // 5 horarios se volvían uno y no salía «Ver más vuelos»).
+      const k = `${norm(v?.aerolinea)}|${Number(v?.precio_por_persona) || ""}|${v?.modo ?? ""}|${String(v?.salida ?? v?.hora_salida ?? "").slice(0, 16)}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;

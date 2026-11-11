@@ -48,3 +48,18 @@ describe("Comprar: «Ver más vuelos»", () => {
     expect(step.moreOptions.map((i: number) => trip.vuelos_json[i].aerolinea).sort()).toEqual(["Delta", "United"]);
   });
 });
+
+describe("vuelos del mismo precio a otra hora (recorrido 11-nov-2026)", () => {
+  it("Aeroméxico $3,414 a las 08:20, 12:15 y 16:15 son 3 opciones, no una", async () => {
+    const { realFlightOptions } = await import("@/lib/purchasePlan");
+    const { tepozNuevo } = await import("./fixtures/casoTepoztlan");
+    const base = await tepozNuevo();
+    const v = (aerolinea: string, pp: number, tier: string, salida: string | null) => ({ aerolinea, precio_por_persona: pp, tier, fuente_precio: "serpapi", estado_dato: "CONSULTADO_EN_VIVO",
+      consultado_at: new Date().toISOString(), escalas: "Directo", duracion: "2h 30m", ...(salida ? { salida } : {}), booking_link: "https://www.google.com/travel/flights?tfs=x" });
+    const trip = { ...base, destino: "Cancún", pais_destino: "México", ciudad_origen: "Ciudad de México", itinerario_json: {},
+      vuelos_json: [v("Viva", 3321, "ahorro", "2027-02-03 12:40"), v("Aeroméxico", 3414, "equilibrio", null), v("Aeroméxico", 3414, "premium", null),
+        v("Aeromexico", 3414, "alternativa", "2027-02-03 08:20"), v("Aeromexico", 3414, "alternativa", "2027-02-03 12:15"), v("Aeromexico", 3414, "alternativa", "2027-02-03 16:15")] };
+    // El premium repetido (mismo vuelo sin hora) se quita; los 3 horarios cuentan.
+    expect(realFlightOptions(trip, 20)).toHaveLength(5);
+  });
+});
