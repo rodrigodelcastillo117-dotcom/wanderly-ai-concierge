@@ -33,6 +33,7 @@ const MONTHS: Record<string, number> = {
   septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
 };
 const MONTH_RE = Object.keys(MONTHS).join("|");
+const DAY_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
 
 /** Fecha válida del calendario; sin año explícito, la próxima vez que ocurra desde hoy. */
 function dateFrom(day: number, month: number, year: number | null, today: Date): Date | null {
@@ -67,6 +68,32 @@ function explicitRange(text: string, today: Date): [string, string] | null {
     if (!s) return null;
     const e = dateFrom(Number(one[2]), MONTHS[one[3]], s.getFullYear(), today);
     return e && e > s ? [iso(s), iso(e)] : null;
+  }
+  // «este viernes 13 de noviembre me voy… regreso el domingo 15» (recorrido de último momento, 11-nov-2026): la salida
+  // con su mes y el regreso más adelante con «regreso/vuelvo/hasta el» + día (y mes, si cambia) o solo el día de la semana.
+  const start = text.match(new RegExp(`(\\d{1,2})\\s+de\\s+(${MONTH_RE})(?:\\s+(?:de|del)\\s+(\\d{4}))?`));
+  if (start && start.index != null) {
+    const s = dateFrom(Number(start[1]), MONTHS[start[2]], start[3] ? Number(start[3]) : null, today);
+    if (!s) return null;
+    const after = text.slice(start.index + start[0].length);
+    const back = after.match(new RegExp(`\\b(?:regreso|regresamos|regresando|regresar|vuelvo|volvemos|volviendo|volver|hasta|y\\s+regreso)\\s+(?:el\\s+|la\\s+)?(?:(${DAY_RE})\\s*)?(?:(\\d{1,2})(?:\\s+de\\s+(${MONTH_RE}))?)?`));
+    if (back && (back[1] || back[2])) {
+      let e: Date | null = null;
+      if (back[2]) {
+        const month = back[3] ? MONTHS[back[3]] : s.getMonth();
+        e = dateFrom(Number(back[2]), month, s.getFullYear(), today);
+        // Ya pasó en el año de la salida: «el 2» es del mes siguiente; «el 3 de enero», del año siguiente.
+        if (e && e <= s) e = back[3]
+          ? dateFrom(Number(back[2]), month, s.getFullYear() + 1, today)
+          : dateFrom(Number(back[2]), (s.getMonth() + 1) % 12, s.getMonth() === 11 ? s.getFullYear() + 1 : s.getFullYear(), today);
+        if (e && e <= s) e = null;
+      } else if (back[1]) {
+        e = nextWeekday(s, DAYS[back[1]]);
+      }
+      // Un regreso «el domingo 15» que no cae en domingo no se adivina: se pregunta.
+      if (e && back[1] && back[2] && e.getDay() !== DAYS[back[1]]) e = null;
+      if (e && (e.getTime() - s.getTime()) / 86_400_000 <= 60) return [iso(s), iso(e)];
+    }
   }
   return null;
 }

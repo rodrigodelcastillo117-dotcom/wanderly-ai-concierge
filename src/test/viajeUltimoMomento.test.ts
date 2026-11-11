@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { isNotPlace, stripTimingAndVibe } from "../../supabase/functions/_shared/notPlace";
 import { parseMultiCityText } from "@/lib/multiCityText";
 import { buildLocalSpec } from "@/lib/tripSpecLocal";
+import { parseTripFallback } from "@/lib/parseTripFallback";
 import { ensureCoverage, validateTripSpec } from "../../supabase/functions/_shared/tripSpec";
 
 const T = "Viaje de último momento: este viernes 13 de noviembre me voy a Oaxaca desde CDMX con mi pareja, regreso el domingo 15. Algo bonito sin gastar tanto";
@@ -49,6 +50,23 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     const p = parseMultiCityText(t, { origin: "Ciudad de México" });
     expect(p.cities).toEqual(cities);
     expect(p.unknown).toEqual([]);
+  });
+
+  it("lee las fechas: «viernes 13 de noviembre … regreso el domingo 15» (sin preguntar «¿Qué fechas?»)", () => {
+    const hoy = new Date(2026, 10, 11);
+    expect(parseTripFallback(T, hoy)).toMatchObject({ fechaSalida: "2026-11-13", fechaRegreso: "2026-11-15" });
+    const spec = buildLocalSpec(T, { today: hoy });
+    expect([spec.fecha_salida, spec.fecha_regreso]).toEqual(["2026-11-13", "2026-11-15"]);
+    expect(spec.preguntas.filter((q) => q.tipo === "fechas" && !q.resuelta)).toEqual([]);
+    // Variantes: solo el día de la semana, otro mes, «hasta el».
+    expect(parseTripFallback("Salgo el 28 de noviembre a Mérida y regreso el domingo", hoy)).toMatchObject({ fechaSalida: "2026-11-28", fechaRegreso: "2026-11-29" });
+    expect(parseTripFallback("Me voy a Cancún el 29 de diciembre y vuelvo el 3 de enero", hoy)).toMatchObject({ fechaSalida: "2026-12-29", fechaRegreso: "2027-01-03" });
+    expect(parseTripFallback("Mérida desde el 20 de noviembre hasta el 24", hoy)).toMatchObject({ fechaSalida: "2026-11-20", fechaRegreso: "2026-11-24" });
+    expect(parseTripFallback("Me voy el 28 de noviembre y regreso el 2", hoy)).toMatchObject({ fechaSalida: "2026-11-28", fechaRegreso: "2026-12-02" });
+    // Día de la semana que no cuadra con la fecha: no se adivina.
+    expect(parseTripFallback("Salgo el 13 de noviembre y regreso el lunes 15", hoy).fechaRegreso).toBeNull();
+    // Solo la salida: no se inventa el regreso.
+    expect(parseTripFallback("Oaxaca el 13 de noviembre", hoy).fechaRegreso).toBeNull();
   });
 
   it("no rompe «Santo Domingo» ni las rutas con «regresa a»", () => {
