@@ -11,11 +11,17 @@ import { sameName } from "./sources.ts";
 
 export type HotelTier = "ahorro" | "equilibrio" | "premium";
 export const HOTEL_TIERS: HotelTier[] = ["ahorro", "equilibrio", "premium"];
+/**
+ * Más opciones reales (pedido del dueño, 10-nov-2026: «no da más opciones, solo te da 3»): además de los 3 niveles se
+ * guardan hasta 5 hoteles más de la misma búsqueda de Google Hotels, con tier "alternativa". Comprar enseña los 3 niveles
+ * y «Ver más hoteles»; el total sigue usando el hotel del nivel (nunca una alternativa).
+ */
+export const HOTEL_ALTERNATIVAS = 5;
 
 const nightlyMxn = (h: any, fx: number) => Math.round((Number(h?.nightly_usd) || 0) * fx);
 
 /** Hotel de la lista de Google Hotels (hotels-search) con la forma de trips.hospedaje_json. */
-export function hotelFromLive(x: any, fx: number, o: { tier: HotelTier; porQue?: string | null; consultedAt: string; saved?: boolean }): any {
+export function hotelFromLive(x: any, fx: number, o: { tier: HotelTier | "alternativa"; porQue?: string | null; consultedAt: string; saved?: boolean }): any {
   const cls = Number(x?.hotel_class) > 0 ? Number(x.hotel_class) : null;
   const rating = Number(x?.rating) > 0 ? Number(x.rating) : 0;
   const reviews = Number(x?.reviews) > 0 ? Number(x.reviews) : null;
@@ -94,10 +100,15 @@ export function buildHotelTiers(aiHotels: any[], live: any[], o: { fxUsd: number
   const used = new Set<string>();
   const porQueOf = (name: unknown) => ai.find((h) => sameName(h?.nombre, name))?.por_que ?? null;
   // Con 3 o más de la IA en la lista, se respetan (son los que encajan con lo que pidió el cliente).
+  const alternativas = (picked: unknown[]) => list
+    .filter((x) => !picked.some((p) => sameName(x?.name, p)))
+    .slice(0, HOTEL_ALTERNATIVAS)
+    .map((x) => hotelFromLive(x, fx, { tier: "alternativa", porQue: porQueOf(x.name), consultedAt: o.consultedAt, saved: o.saved }));
   if (keptAi.length >= 3) {
     const sorted = [...keptAi].sort((a, b) => (Number(a?.precio_por_noche) || 0) - (Number(b?.precio_por_noche) || 0));
     const idx = tierIndices(sorted.length)!;
-    return HOTEL_TIERS.map((t) => ({ ...sorted[idx[t]], tier: t }));
+    const tiered = HOTEL_TIERS.map((t) => ({ ...sorted[idx[t]], tier: t }));
+    return [...tiered, ...alternativas(tiered.map((h) => h?.nombre))];
   }
   const idx = tierIndices(list.length)!;
   for (const t of HOTEL_TIERS) {
@@ -109,7 +120,7 @@ export function buildHotelTiers(aiHotels: any[], live: any[], o: { fxUsd: number
     used.add(k);
     out.push(hotelFromLive(target, fx, { tier: t, porQue: porQueOf(target.name), consultedAt: o.consultedAt, saved: o.saved }));
   }
-  return out;
+  return [...out, ...alternativas(out.map((h) => h?.nombre))];
 }
 
 /** Nivel de hotel que prefiere el perfil (presupuesto del perfil de viaje); por defecto, el medio. */

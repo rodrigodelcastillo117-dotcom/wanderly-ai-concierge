@@ -985,7 +985,7 @@ Entrega JSON con:
         const sorted = [...live.hotels.results]
           .filter((h: any) => Number(h.nightly_usd) > 0)
           .sort((a: any, b: any) => Number(a.nightly_usd) - Number(b.nightly_usd));
-        const build = (h: any, tier: Tier) => h && {
+        const build = (h: any, tier: Tier | "alternativa") => h && {
           tier,
           tipo: h.hotel_class ? `${h.hotel_class}★` : "Hotel",
           nombre: h.name,
@@ -1005,6 +1005,15 @@ Entrega JSON con:
         // Premium: la categoría más alta, sin outliers de más de 4× el del medio (hotelPick.ts).
         const { cheap, mid, top } = pickCityHotels(sorted);
         const built = [build(cheap, "ahorro"), build(mid, "equilibrio"), build(top, "premium")].filter(Boolean);
+        // Más opciones reales para «Ver más hoteles» (hasta 5, sin outliers); el total usa el del nivel.
+        const usados = new Set(built.map((h: any) => String(h.nombre).toLowerCase()));
+        const midUsd = Number(mid?.nightly_usd) || 0;
+        for (const h of sorted) {
+          if (built.length >= 8) break;
+          if (usados.has(String(h.name).toLowerCase()) || (midUsd > 0 && Number(h.nightly_usd) > midUsd * 4)) continue;
+          usados.add(String(h.name).toLowerCase());
+          built.push(build(h, "alternativa"));
+        }
         hospedaje = built.length
           ? markLive(built, "fuente_precio", "serpapi", live?.hotels?.consulted_at ?? liveConsultedAt)
           : forceEstimated(hospedaje);
@@ -1060,7 +1069,7 @@ Entrega JSON con:
     let hospedajeMxn = 0;
     let experienciasMxn = 0;
     perDestination.forEach((pd: any) => {
-      const opts = (pd.hospedaje ?? []).filter((h: any) => Number(h.price_per_night_usd) > 0);
+      const opts = (pd.hospedaje ?? []).filter((h: any) => Number(h.price_per_night_usd) > 0 && h.tier !== "alternativa");
       const byTier = opts.find((h: any) => h.tier === selectedTier)
         ?? pickByTier([...opts].sort((a: any, b: any) => a.price_per_night_usd - b.price_per_night_usd), selectedTier);
       if (byTier) {

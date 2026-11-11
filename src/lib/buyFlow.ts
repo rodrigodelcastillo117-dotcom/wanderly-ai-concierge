@@ -29,6 +29,8 @@ export type FlightStep = { kind: "vuelo"; n: number; title: string; item: Purcha
   ground?: boolean };
 export type HotelStep = { kind: "hospedaje"; n: number; title: string; city: string | null; stay: CityStay | null; item: PurchaseItem | null;
   options: number[]; chosen: number; skipped: boolean; nights: number;
+  /** Más hoteles reales de la misma búsqueda («Ver más hoteles»), de menor a mayor precio. */
+  moreOptions?: number[];
   /** true si la persona lo eligió; false si `chosen` es solo el hotel de la cotización (por defecto). */
   userChosen: boolean };
 export type CarStep = { kind: "auto"; n: number; title: string; item: PurchaseItem | null;
@@ -132,6 +134,19 @@ function cruiseStep(trip: any, sea: any, from: string, to: string, date: string 
     optional: false, fallbackHref: choice.fallbackHref, col: null, index: -1, offer: null, city: to,
   };
   return { kind: "traslado", n, title: `${label}: ${from} → ${to}`, from, to, date, options: [], choices: [choice], chosen: "crucero", item };
+}
+
+/**
+ * Opciones de hotel de un paso: las 3 de siempre (los niveles económico · equilibrado · premium, por precio) y el resto
+ * de hoteles reales para «Ver más hoteles» (pedido del dueño, 10-nov-2026: «no da más opciones, solo te da 3»). El hotel
+ * elegido siempre queda a la vista, aunque sea de los de «Ver más».
+ */
+export function hotelOptionGroups(trip: any, sortedIdx: number[], chosen: number): { options: number[]; moreOptions: number[] } {
+  const list: any[] = Array.isArray(trip?.hospedaje_json) ? trip.hospedaje_json : [];
+  const tiered = sortedIdx.filter((i) => String(list[i]?.tier ?? "") !== "alternativa");
+  const main = (tiered.length >= 2 ? tiered : sortedIdx).slice(0, 3);
+  const options = main.concat(chosen >= 0 && !main.includes(chosen) ? [chosen] : []);
+  return { options, moreOptions: sortedIdx.filter((i) => !options.includes(i)) };
 }
 
 export function legStep(trip: any, from: string, to: string, date: string | null, n: number, chosenMode?: string | null): LegStep {
@@ -283,7 +298,7 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
       const item = (c.index >= 0 && c.hotel ? hotelItems.shift() : null) ?? null;
       // 0 noches (puerto donde termina el crucero): no hay paso de hotel, sí el tramo para llegar.
       if (c.stay.nights > 0) steps.push({ kind: "hospedaje", n: n++, title: `Hotel en ${c.stay.city}`, city: c.stay.city, stay: c.stay, item,
-        options: c.options.slice(0, 3).concat(c.index >= 0 && !c.options.slice(0, 3).includes(c.index) ? [c.index] : []),
+        ...hotelOptionGroups(trip, c.options, c.index),
         chosen: c.index, skipped: c.index === -2, nights: c.stay.nights, userChosen: c.chosen && c.index >= 0 });
       // Entre ciudades (París → Roma), el día que se sale de esta ciudad.
       const next = choices[k + 1];
@@ -298,9 +313,9 @@ export function buildBuyFlow(trip: any, sel: BuySel, server: TripOfferActionsLik
       const item = items.find((i) => i.kind === "hospedaje") ?? null;
       const sorted = hoteles.map((h, i) => [h, i] as const).sort((a, b) => (Number(a[0]?.precio_por_noche) || 0) - (Number(b[0]?.precio_por_noche) || 0)).map(([, i]) => i);
       const chosen = item?.index ?? -1;
-      const options = sorted.slice(0, 3).concat(chosen >= 0 && !sorted.slice(0, 3).includes(chosen) ? [chosen] : []);
+      const { options, moreOptions } = hotelOptionGroups(trip, sorted, chosen);
       const nights = Number((item?.offer?.details as any)?.nights) || 0;
-      steps.push({ kind: "hospedaje", n: n++, title: "Hotel", city: trip?.destino ?? null, stay: null, item, options, chosen, skipped: sel.selHospedaje === -2, nights,
+      steps.push({ kind: "hospedaje", n: n++, title: "Hotel", city: trip?.destino ?? null, stay: null, item, options, moreOptions, chosen, skipped: sel.selHospedaje === -2, nights,
         userChosen: sel.selHospedaje >= 0 && chosen === sel.selHospedaje });
     }
   }
