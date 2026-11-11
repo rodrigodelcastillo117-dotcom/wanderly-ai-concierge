@@ -313,6 +313,8 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     const texto = str(q?.texto, 120) ?? "";
     // «¿Qué ciudad es «voy»?»: no se pregunta por algo que no es lugar (notPlace.ts).
     if (tipo === "lugar_desconocido" && isNotPlace(texto)) return null;
+    // «¿Te refieres a San Pedro Garza García…?» cuando escribió «hotel en San Pedro»: es la zona del hotel, no se pregunta.
+    if ((tipo === "lugar_desconocido" || tipo === "otro") && isLodgingArea(texto, text)) return null;
     return {
       id: str(q?.id, 24) ?? `q${i + 1}`, tipo, texto, pregunta,
       opciones: asArray(q?.opciones).map((o) => str(o, 80)).filter(Boolean).slice(0, 6) as string[],
@@ -422,7 +424,7 @@ function regionOf(place: unknown, pais?: unknown): Region | null {
 }
 
 /** ¿Es obvio que de `from` a `to` se va en avión? Otro continente, o 3,000 km o más en línea recta. */
-export function flightIsObvious(from: unknown, to: unknown, toPais?: unknown, fromPais?: unknown): boolean {
+export function flightIsObvious(from: unknown, to: unknown, toPais?: unknown, fromPais?: unknown, nights?: number | null): boolean {
   if (!normText(from) || !normText(to)) return false;
   const a = regionOf(from, fromPais);
   const b = regionOf(to, toPais);
@@ -430,7 +432,10 @@ export function flightIsObvious(from: unknown, to: unknown, toPais?: unknown, fr
   const km = placeDistanceKm(from, to);
   // ≥ 1,000 km en línea recta (CDMX → Cancún, 1,280 km: ~20 h manejando) ya es avión; antes 3,000 y se preguntaba
   // «¿Cómo llegarán a Cancún: vuelo, coche, autobús…?» (recorrido familia, 9-nov-2026).
-  return km != null && km >= 1000;
+  if (km != null && km >= 1000) return true;
+  // Viaje corto lejos (≤ 4 noches y ≥ 600 km, CDMX → Monterrey ~700 km = 9-10 h manejando): se va en avión
+  // (recorrido viaje de trabajo, 11-nov-2026: «¿Cómo viajarás de Ciudad de México a Monterrey y de regreso?»).
+  return km != null && km >= 600 && nights != null && nights > 0 && nights <= 4;
 }
 
 /** De dónde sale el tramo que llega a la parada `i` (el origen o la estancia anterior). */
@@ -444,14 +449,15 @@ function legStart(spec: TripSpec, i: number): { ciudad: string | null; pais: str
  * se cambia en el resumen, pero no se pregunta. Nunca pisa lo que se dijo (tren, coche, crucero…).
  */
 export function applyObviousLegModes(spec: TripSpec): TripSpec {
+  const nights = spec.noches_total ?? isoNights(spec.fecha_salida, spec.fecha_regreso);
   spec.paradas.forEach((s, i) => {
     if (s.llegada_por !== "por_definir") return;
     const from = legStart(spec, i);
-    if (flightIsObvious(from.ciudad, s.ciudad, s.pais, from.pais)) s.llegada_por = "vuelo";
+    if (flightIsObvious(from.ciudad, s.ciudad, s.pais, from.pais, nights)) s.llegada_por = "vuelo";
   });
   const last = [...spec.paradas].reverse().find((s) => s.rol === "estancia");
   const home = spec.regreso.a || spec.origen;
-  if (last && spec.regreso.modo === "por_definir" && !spec.regreso.via && flightIsObvious(last.ciudad, home, null, last.pais)) {
+  if (last && spec.regreso.modo === "por_definir" && !spec.regreso.via && flightIsObvious(last.ciudad, home, null, last.pais, nights)) {
     spec.regreso = { ...spec.regreso, modo: "vuelo" };
   }
   return spec;

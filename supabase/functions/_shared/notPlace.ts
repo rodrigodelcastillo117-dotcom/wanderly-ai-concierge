@@ -65,16 +65,21 @@ export function isNotPlace(text: string): boolean {
   return rest.length === 0;
 }
 
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /**
  * ¿«San Pedro» es la ZONA del hotel en la frase («hotel en San Pedro», «hospedaje cerca de Polanco»)? Entonces es una
  * preferencia de hospedaje, no una parada (recorrido viaje de trabajo a Monterrey, 11-nov-2026: «Mencionaste
- * «San Pedro»: ¿dónde va en tu viaje?»).
+ * «San Pedro»: ¿dónde va en tu viaje?»). También si la IA la escribe completa («San Pedro Garza García»).
  */
 export function isLodgingArea(text: string, consulta: string): boolean {
-  const t = norm(String(text ?? "")).replace(/^(?:(?:en|el|la|los|las|de|del)\s+)+/, "").trim();
+  const t = norm(String(text ?? "")).replace(/[^a-z0-9 ]+/g, " ").replace(/^(?:(?:en|el|la|los|las|de|del)\s+)+/, "").replace(/\s+/g, " ").trim();
   if (!t) return false;
   const c = norm(String(consulta ?? ""));
-  const re = new RegExp(`\\b(?:hotel(?:es)?|hospedaje|alojamiento|hostal(?:es)?|airbnb|cuartos?|habitaci(?:o|on|ones)|quedarme|quedarnos|dormir)\\s+(?:en|por|cerca\\s+de|junto\\s+a|en\\s+la\\s+zona\\s+de|por\\s+la\\s+zona\\s+de|en\\s+la\\s+colonia)\\s+(?:(?:la|el|los|las)\\s+)?${esc(t)}\\b`);
-  return re.test(c);
+  const re = /\b(?:hotel(?:es)?|hospedaje|alojamiento|hostal(?:es)?|airbnb|cuartos?|habitacion(?:es)?|quedarme|quedarnos|dormir)\s+(?:en|por|cerca\s+de|junto\s+a|en\s+la\s+zona\s+de|por\s+la\s+zona\s+de|en\s+la\s+colonia)\s+(?:(?:la|el|los|las)\s+)?([^,;.\n]+)/g;
+  for (const m of c.matchAll(re)) {
+    const area = m[1].replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!area) continue;
+    // «San Pedro» ⊂ «San Pedro Garza García» (o al revés), palabra por palabra desde el inicio.
+    if (t === area || t.startsWith(`${area} `) || area.startsWith(`${t} `)) return true;
+  }
+  return false;
 }

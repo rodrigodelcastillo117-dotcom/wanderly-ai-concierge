@@ -141,5 +141,27 @@ describe("viaje de último momento: lo que dice cuándo o cómo no es una ciudad
     expect(isLodgingArea("San Pedro", "viaje a Monterrey, hotel en San Pedro")).toBe(true);
     expect(isLodgingArea("Polanco", "CDMX 3 días, hospedaje cerca de Polanco")).toBe(true);
     expect(isLodgingArea("Monterrey", "viaje a Monterrey, hotel en San Pedro")).toBe(false);
+    expect(isLodgingArea("San Pedro Garza García", "Viaje de trabajo a Monterrey, salgo el 17 de noviembre y regreso el 19, voy solo, hotel en San Pedro")).toBe(true);
+    expect(isLodgingArea("Pedro", "hotel en San Pedro")).toBe(false);
+  });
+
+  it("viaje de trabajo corto y lejos (CDMX → Monterrey, 2 noches): se asume avión, no pregunta «¿Cómo viajarás…?»", async () => {
+    const { flightIsObvious } = await import("../../supabase/functions/_shared/tripSpec");
+    expect(flightIsObvious("Ciudad de México", "Monterrey", null, null, 2)).toBe(true);
+    expect(flightIsObvious("Ciudad de México", "Monterrey", null, null, 10)).toBe(false);
+    expect(flightIsObvious("Ciudad de México", "Guadalajara", null, null, 2)).toBe(false);
+    const t = "Viaje de trabajo a Monterrey, salgo el 17 de noviembre y regreso el 19, voy solo, hotel en San Pedro";
+    const r = validateTripSpec(JSON.stringify({
+      origen: "Ciudad de México", paradas: [{ id: "p1", ciudad: "Monterrey", rol: "estancia", noches: 2, texto: "Monterrey" }],
+      fecha_salida: "2026-11-17", fecha_regreso: "2026-11-19", viajeros: 1,
+      preguntas: [
+        { id: "q1", tipo: "otro", texto: "San Pedro Garza García", pregunta: "¿Te refieres a San Pedro Garza García, la zona de hoteles y oficinas al sur de Monterrey?", parada: "p1", opciones: ["San Pedro Garza García"] },
+        { id: "q2", tipo: "otro", texto: "transporte", pregunta: "¿Cómo viajarás de Ciudad de México a Monterrey y de regreso?", opciones: ["Vuelo", "Coche"] },
+      ],
+    }), t);
+    if (!r.ok) throw new Error("spec inválido");
+    expect(r.spec.preguntas.filter((q) => !q.resuelta)).toEqual([]);
+    expect(r.spec.paradas[0].llegada_por).toBe("vuelo");
+    expect(r.spec.regreso.modo).toBe("vuelo");
   });
 });
