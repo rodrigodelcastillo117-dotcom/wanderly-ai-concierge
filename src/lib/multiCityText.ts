@@ -16,6 +16,7 @@
 //    ciudades conocidas (o relleno); "San Miguel de Allende" o "Valle de Guadalupe" no se parten.
 //  - "desde X" o una primera ciudad que es el origen del viajero ("CDMX → Madrid → Lisboa") es el
 //    origen, no una parada; si la última repite el origen (regreso), se quita.
+import { stripTimingAndVibe } from "../../supabase/functions/_shared/notPlace.ts";
 import { CITIES as AIRPORT_CITIES, TOWNS as AIRPORT_TOWNS, cityAirports } from "../../supabase/functions/_shared/airports.ts";
 import { catalogCities, matchCountry } from "../../supabase/functions/_shared/souvenirs.ts";
 import { sameCity, splitNights } from "../../supabase/functions/_shared/booking/tripRoute.ts";
@@ -102,7 +103,7 @@ function asCountry(chunk: string): string | null {
 
 // Palabras que no son lugar: conectores, verbos de viaje, quién viaja.
 const FILLER = new Set(("a al en de del por y e o la el los las lo desde hasta hacia para con sin mi mis tu un una unos unas " +
-  "viaje viajes viajar viajamos ir irme iremos quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
+  "viaje viajes viajar viajamos ir irme irnos iremos ire voy quiero queremos quisiera me nos gustaria conocer visitar recorrer recorrido ruta tour " +
   "luego despues primero despues finalmente terminar terminando empezar empezando empezamos acabar pasando pasar pasear " +
   "vacaciones escapada solo sola pareja familia amigos amigas novia novio esposa esposo hijos personas persona viajeros viajero adultos " +
   "plan planea planear arma armar armame crea creame haz hazme dias dia noches noche semana semanas mes meses total aprox aproximadamente " +
@@ -165,7 +166,8 @@ export function durationOf(text: string): { days: number | null; nights: number 
 /** Quita de la frase lo que no es lugar (duración, fechas, viajeros, tipo de viaje) dejando un separador. */
 export function stripNonPlaces(text: string): string {
   const word = "(?:\\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta)";
-  return text
+  // Cuándo y cómo («este viernes 13», «de último momento», «algo bonito sin gastar tanto»): _shared/notPlace.ts.
+  return stripTimingAndVibe(text)
     .replace(TRIP_EXTRAS, " , ")
     .replace(new RegExp(`\\b(?:por\\s+|durante\\s+|en\\s+)?${word}\\s*(?:d[ií]as?|d|noches?|semanas?)\\b`, "gi"), " , ")
     .replace(new RegExp(`\\b(?:del?\\s+)?\\d{1,2}\\s+(?:de\\s+(?:${MONTHS})\\s+)?(?:al?|-|–)\\s+(?:el\\s+)?\\d{1,2}\\s+de\\s+(?:${MONTHS})(?:\\s+(?:de|del)\\s+\\d{4})?`, "gi"), " , ")

@@ -19,6 +19,7 @@
 //  - No se inventan lugares, puertos, navieras ni fechas: lo que propone Iato va marcado `sugerida`.
 
 import { CITIES, cityAirports, placeDistanceKm, type Region } from "./airports.ts";
+import { isNotPlace } from "./notPlace.ts";
 
 export const TRIP_SPEC_VERSION = 1;
 /** Texto máximo que se interpreta (el texto completo se guarda siempre; esto solo limita lo que lee la IA). */
@@ -298,6 +299,8 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     if (!texto) return null;
     const tipo: MentionKind = ["pais", "region", "ciudad", "puerto", "aeropuerto", "crucero", "tramo", "regreso", "origen"].includes(m?.tipo) ? m.tipo : "otro";
     const estado: MentionState = ["parada", "tramo", "pregunta", "excluido", "origen", "regreso", "preferencia"].includes(m?.estado) ? m.estado : "pregunta";
+    // «este viernes 13 de noviembre», «me voy»: dicen cuándo o cómo, no son lugar (notPlace.ts, 11-nov-2026).
+    if (estado === "pregunta" && tipo === "otro" && isNotPlace(texto)) return { texto, tipo, estado: "preferencia", ref: null } as Mention;
     return { texto, tipo, estado, ref: str(m?.ref, 24) } as Mention;
   }).filter(Boolean) as Mention[];
 
@@ -306,8 +309,11 @@ export function validateTripSpec(raw: unknown, text: string, ctx: { origen?: str
     if (!pregunta) return null;
     const tipo: QuestionKind = ["ciudades_de_pais", "lugar_desconocido", "conexion_o_estancia", "crucero", "fechas", "origen"].includes(q?.tipo) ? q.tipo : "otro";
     const parada = str(q?.parada, 24);
+    const texto = str(q?.texto, 120) ?? "";
+    // «¿Qué ciudad es «voy»?»: no se pregunta por algo que no es lugar (notPlace.ts).
+    if (tipo === "lugar_desconocido" && isNotPlace(texto)) return null;
     return {
-      id: str(q?.id, 24) ?? `q${i + 1}`, tipo, texto: str(q?.texto, 120) ?? "", pregunta,
+      id: str(q?.id, 24) ?? `q${i + 1}`, tipo, texto, pregunta,
       opciones: asArray(q?.opciones).map((o) => str(o, 80)).filter(Boolean).slice(0, 6) as string[],
       parada: parada && spec.paradas.some((s) => s.id === parada) ? parada : null, resuelta: false,
     } as Question;
@@ -616,6 +622,7 @@ function mentionValid(spec: TripSpec, m: Mention): boolean {
 export function repairCoverage(spec: TripSpec): void {
   for (const m of spec.menciones) {
     if (mentionValid(spec, m)) continue;
+    if (m.tipo === "otro" && isNotPlace(m.texto)) { m.estado = "preferencia"; m.ref = null; continue; }
     // Lo que ya está en el viaje no se vuelve pregunta: «Perú» es el país de Lima; un tramo o el regreso
     // cuya pregunta se descartó por obvia quedan como tramo/regreso (R2: «Mencionaste «Perú»: ¿dónde va?»).
     const k = normText(m.texto);
@@ -639,6 +646,11 @@ export function ensureCoverage(spec: TripSpec, extra: Array<{ texto: string; tip
   for (const e of extra) {
     const k = normText(e.texto);
     if (!k) continue;
+    // Cuándo o cómo («último momento: este viernes», «voy»): no es lugar, no se pregunta (notPlace.ts).
+    if (e.tipo === "otro" && isNotPlace(e.texto)) {
+      if (!spec.menciones.some((m) => normText(m.texto) === k)) spec.menciones.push({ texto: e.texto, tipo: "otro", estado: "preferencia", ref: null });
+      continue;
+    }
     if (covered.has(k) || [...covered].some((c) => c.includes(k) || k.includes(c) && c.length >= 4)) {
       if (!spec.menciones.some((m) => normText(m.texto) === k)) {
         const stop = spec.paradas.find((s) => [s.ciudad, s.de_region, s.texto].some((n) => normText(n) === k));
