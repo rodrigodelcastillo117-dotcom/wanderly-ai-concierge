@@ -13,6 +13,9 @@ import { restaurantsForCity, verifyRestaurants } from "../_shared/google-restaur
 import { makeResolver, markUnverified, tourBacked, verifyTours } from "../_shared/place-verify.ts";
 import { moreExperiences } from "./moreExperiences.ts";
 import { callAIRetry } from "./aiRetry.ts";
+import { callClaudeWithFallback, toolInput } from "../_shared/claude.ts";
+import { logUsage } from "../_shared/serpRuntime.ts";
+import { usageFromClaude } from "../_shared/usage.ts";
 import { enforceRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { SERVICE_UNAVAILABLE_MESSAGE } from "../_shared/quota.ts";
 import {
@@ -110,7 +113,41 @@ const MODEL = "google/gemini-flash-latest";
 /** Tope total de la función (la plataforma corta a 150 s): lo que no termine antes se entrega parcial. */
 const REQUEST_BUDGET_MS = 130_000;
 
+// Claude Haiku primero (12-nov-2026): con Gemini Flash cada ciudad tardaba 23–44 s (razona antes de responder, sin tope)
+// y el plan de 3 ciudades, 66–84 s. Haiku solo llena el esquema, como interpretar-viaje. Si no contesta o no llama la
+// herramienta, sigue Gemini con el tiempo que quede (mismo prompt y esquema).
+const PLAN_CLAUDE_MODEL = "claude-haiku-5-5";
+async function callClaudeTool(system: string, user: string, toolName: string, schema: any, timeoutMs: number): Promise<any | null> {
+  if (!Deno.env.get("ANTHROPIC_API_KEY")) return null;
+  try {
+    const res = await callClaudeWithFallback({
+      max_tokens: 16000,
+      system: `${system}\n\nEntrega el resultado llamando UNA vez la herramienta ${toolName}, sin texto aparte.`,
+      messages: [{ role: "user", content: user }],
+      tools: [{ name: toolName, description: "Emite resultado", input_schema: schema }],
+      tool_choice: { type: "auto" },
+    }, { models: [PLAN_CLAUDE_MODEL], signal: AbortSignal.timeout(Math.max(10_000, timeoutMs)) });
+    if (!res.ok) {
+      console.warn("logistics-plan: Claude", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      return null;
+    }
+    const data = await res.json();
+    const u = usageFromClaude(data);
+    if (u) logUsage({ user_id: null, function: "logistics-plan", provider: "anthropic", ...u }).catch(() => null);
+    const out = toolInput(data, toolName);
+    return out && typeof out === "object" ? out : null;
+  } catch (e) {
+    console.warn("logistics-plan: Claude", (e as Error)?.message);
+    return null;
+  }
+}
+
 async function callAI(apiKey: string, system: string, user: string, toolName: string, schema: any, timeoutMs = 90_000) {
+  const t0 = Date.now();
+  const viaClaude = await callClaudeTool(system, user, toolName, schema, timeoutMs);
+  if (viaClaude) return viaClaude;
+  timeoutMs -= Date.now() - t0;
+  if (timeoutMs < 10_000) throw new Error("AI sin tiempo tras Claude");
   const res = await aiFetch({
     method: "POST",
     // Sin tope, una respuesta lenta del modelo se comía todo el tiempo de la función (504).

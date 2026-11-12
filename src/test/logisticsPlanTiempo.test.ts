@@ -22,3 +22,14 @@ describe("logistics-plan dentro del tiempo de la plataforma", () => {
     expect(src).toMatch(/global failed/);
   });
 });
+
+describe("plan de varias ciudades: Claude Haiku primero (12-nov-2026)", () => {
+  it("callAI intenta Claude Haiku con la herramienta del esquema y, si no contesta, usa Gemini con el tiempo que queda", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("supabase/functions/logistics-plan/index.ts", "utf8");
+    expect(src).toMatch(/const PLAN_CLAUDE_MODEL = "claude-haiku-5-5"/);
+    expect(src).toMatch(/const viaClaude = await callClaudeTool\(system, user, toolName, schema, timeoutMs\);\n\s+if \(viaClaude\) return viaClaude;/);
+    expect(src).toMatch(/timeoutMs -= Date\.now\(\) - t0;/);
+    expect(src).toMatch(/tools: \[\{ name: toolName, description: "Emite resultado", input_schema: schema \}\]/);
+  });
+});
