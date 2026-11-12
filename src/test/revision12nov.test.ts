@@ -66,3 +66,12 @@ describe("1, 7 y 8 · código del plan y del Operador", () => {
     expect(prompt).not.toMatch(/prometer_seguimiento en la fecha del recordatorio/);
   });
 });
+
+describe("vuelos de respaldo sin repetir (dueño, 12-nov-2026: WS 2229 tres veces)", () => {
+  it("con un solo vuelo distinto se muestra uno; con dos, dos; nunca el mismo como ahorro, equilibrio y premium", () => {
+    const lp = readFileSync("supabase/functions/logistics-plan/index.ts", "utf8");
+    expect(lp).toMatch(/const uniq = sorted\.filter/);
+    expect(lp).toMatch(/uniq\.length === 2 \? \[\[uniq\[0\], "ahorro"\], \[uniq\[1\], "premium"\]\] : \[\[uniq\[0\], "ahorro"\]\]/);
+    expect(lp).not.toMatch(/const equilibrio = sorted\[Math\.floor\(sorted\.length \/ 2\)\] \?\? ahorro/);
+  });
+});

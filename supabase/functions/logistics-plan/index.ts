@@ -995,11 +995,21 @@ Entrega JSON con:
           ? "Tarifa de referencia de Aviasales para fechas cercanas del mismo mes (no tu fecha exacta)."
           : "Tarifa de referencia de Aviasales (búsquedas de las últimas 48 h); se confirma al reservar.",
       });
-      const ahorro = sorted[0];
-      const equilibrio = sorted[Math.floor(sorted.length / 2)] ?? ahorro;
-      const premium = sorted[sorted.length - 1] ?? equilibrio;
+      // Vuelos DISTINTOS (aerolínea + número + precio): antes, con un solo resultado, el mismo vuelo salía 3 veces como
+      // ahorro, equilibrio y premium (dueño, 12-nov-2026: «París → Madrid → Lisboa», WS 2229 tres veces). Con menos de 3
+      // distintos se muestran los que hay; el total usa el del nivel elegido o el primero.
+      const seenTp = new Set<string>();
+      const uniq = sorted.filter((f: any) => {
+        const k = `${String(f.airline ?? "").toUpperCase()}|${f.flight_number ?? ""}|${Math.round(Number(f.price))}`;
+        if (seenTp.has(k)) return false;
+        seenTp.add(k);
+        return true;
+      });
+      const chosen: Array<[any, Tier]> = uniq.length >= 3
+        ? [[uniq[0], "ahorro"], [uniq[Math.floor(uniq.length / 2)], "equilibrio"], [uniq[uniq.length - 1], "premium"]]
+        : uniq.length === 2 ? [[uniq[0], "ahorro"], [uniq[1], "premium"]] : [[uniq[0], "ahorro"]];
       flights = markLive(
-        [pick(ahorro, "ahorro"), pick(equilibrio, "equilibrio"), pick(premium, "premium")],
+        chosen.map(([f, t]) => pick(f, t)),
         "fuente_precio", "travelpayouts", liveConsultedAt, !!tpFlights.approximate_dates,
       );
     } else {
