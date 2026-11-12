@@ -112,6 +112,12 @@ export const OPERADOR_TOOLS: HerramientaOperador[] = [
     input_schema: { type: "object", properties: { siguiente_paso: { type: "string" }, minutos: { type: "number", description: "5 a 1440" } }, required: ["siguiente_paso", "minutos"] },
   },
   {
+    name: "ver_reclamos",
+    description: "Reclamos de este viajero en IATOS: folio C-XXXXXX, proveedor, estado, a quién se envió y lo que respondió el proveedor (ya leído por IATOS: " +
+      "resumen, resultado y siguiente paso). No necesita permiso: es parte del caso. Úsala antes de pedir permiso para «leer una respuesta».",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "ver_servicios_gestionados",
     description: "Reservas que IATOS tiene en la mano para este viajero (hotel, tour, traslado… reservadas por API con el proveedor): folio R-XXXXXX, " +
       "localizador del proveedor, estado sincronizado, fechas, precio pagado y política de cancelación/cambio con su fuente. Si no hay, la reserva NO es de IATOS: dilo.",
@@ -441,6 +447,19 @@ export async function ejecutarHerramienta(nombre: string, a: Record<string, unkn
       if (!r.ok) return { ok: false, code: (r as { code: string }).code };
       ctx.seguimiento = { texto, due: due.toISOString() };
       return { ok: true, hora: due.toISOString() };
+    }
+    case "ver_reclamos": {
+      // Recorrido 12-nov-2026 (C-WH9MRS): sin esto, el Operador pedía permiso para «leer tus correos» y nunca veía la respuesta.
+      const deps = d.reclamos?.(ctx.incidentId) ?? null;
+      if (!deps) return { ok: false, code: "RECLAMOS_NO_DISPONIBLE" };
+      const r = await estadoReclamos(deps, ctx.userId, {});
+      if (r.body.ok !== true) return { ok: false, code: String(r.body.code ?? "NO_DISPONIBLE") };
+      const reclamos = ((r.body.reclamos ?? []) as Array<Record<string, any>>).filter((c) => c.status !== "cancelado").slice(0, 10).map((c) => ({
+        folio: c.ref_code, proveedor: c.provider_name, estado: c.status, enviado_a: c.recipient_email ?? null, enviado_el: c.sent_at ?? null,
+        respuesta: c.reply ? { resumen: c.reply.resumen_es ?? null, resultado: c.reply.resultado_final ?? null, siguiente: c.reply.siguiente?.mensaje ?? null } : null,
+      }));
+      ctx.conocido.push(JSON.stringify(reclamos));
+      return { ok: true, fuente: "reclamos del viajero en IATOS (las respuestas de los proveedores ya las leyó IATOS)", reclamos };
     }
     case "ver_servicios_gestionados": {
       const r = await d.db.rpc("managed_bookings_for_case", { _incident: ctx.incidentId, _owner: d.owner });
