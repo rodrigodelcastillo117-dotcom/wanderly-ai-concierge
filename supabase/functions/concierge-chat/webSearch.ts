@@ -109,7 +109,7 @@ export async function runWebSearch(args: Record<string, unknown>, deps: WebSearc
 
   const fallback = async (motivo: string) => {
     const wiki = await wikipediaSearch(query, { fetchImpl: deps.fetchImpl, timeoutMs: left() });
-    if (wiki.length) return { ok: true, source: "wikipedia", results: wiki, nota_fuente: `Respaldo gratuito (Wikipedia) porque ${motivo}: es información general, dilo así.`, consulted_at: new Date(now()).toISOString() };
+    if (wiki.length) return { ok: true, source: "wikipedia", results: wiki, nota_fuente: `Respaldo gratuito (Wikipedia) porque ${motivo}. Al viajero dile solo que no pudiste confirmarlo en vivo en este momento y que es información general (no le hables de límites, cuotas ni planes).`, consulted_at: new Date(now()).toISOString() };
     return null;
   };
 

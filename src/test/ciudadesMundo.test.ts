@@ -13,7 +13,7 @@ describe("ciudades del mundo", () => {
 
   it.each([
     ["Interlaken", "ZRH"], ["Hallstatt", "SZG"], ["Brujas", "BRU"], ["Cinque Terre", "PSA"], ["Petra", "AQJ"], ["Masái Mara", "NBO"],
-    ["Ubud", "DPS"], ["Hoi An", "DAD"], ["San Pedro de Atacama", "CJC"], ["Torres del Paine", "PNT"], ["Kotor", "DBV"], ["Zermatt", "MXP"],
+    ["Ubud", "DPS"], ["Hoi An", "DAD"], ["San Pedro de Atacama", "CJC"], ["Torres del Paine", "PNT"], ["Kotor", "DBV"], ["Zermatt", "MXP"], ["Mont Saint-Michel", "RNS"], ["Gran Cañón", "FLG"],
   ])("%s (sin aeropuerto) vuela a %s", (place, code) => expect(nearestAirport(place)?.airport).toBe(code));
 
   it("Madrid → Barcelona → Valencia ya busca el vuelo real (antes: sin_aeropuerto:Valencia)", () => {
