@@ -506,6 +506,7 @@ export const TOWNS: Town[] = [
   T("Ha Long", "VN", 20.951, 107.08, ["bahia de ha long", "halong"]), T("Hoi An", "VN", 15.88, 108.335), T("Sapa", "VN", 22.336, 103.844),
   T("Ubud", "ID", -8.507, 115.262), T("Islas Gili", "ID", -8.35, 116.04, ["gili", "gili trawangan"]), T("Ayutthaya", "TH", 14.357, 100.568),
   T("Galle", "LK", 6.033, 80.217), T("Sigiriya", "LK", 7.957, 80.76),
+  T("Ranthambore", "IN", 26.017, 76.502, ["sawai madhopur"]),
   T("Masái Mara", "KE", -1.406, 35.143, ["masai mara", "maasai mara"]), T("Ngorongoro", "TZ", -3.2, 35.5, ["crater del ngorongoro"]),
   T("Chefchaouen", "MA", 35.171, -5.27, ["chauen"]), T("Esauira", "MA", 31.508, -9.759, ["essaouira"]),
   T("Stellenbosch", "ZA", -33.932, 18.86, ["ruta del vino sudafrica"]),

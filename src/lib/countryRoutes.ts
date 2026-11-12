@@ -78,6 +78,69 @@ export const COUNTRY_ROUTES: CountryRoute[] = [
     S("Los Ángeles", 3, 1, "Hollywood, playas y salida (LAX).", ["playa", "cultura"]),
   ] },
   // Región, no país: la persona elige; se propone un clásico de primera vez.
+  // 12-nov-2026 («Safari en Kenia, luna de miel» proponía solo Nairobi): más países con su circuito clásico.
+  { country: "Kenia", aliases: ["kenia", "kenya"], stops: [
+    S("Nairobi", 2, 1, "Llegada internacional (NBO): centro de jirafas y orfanato de elefantes.", ["naturaleza", "cultura"]),
+    S("Masái Mara", 4, 1, "Safari en la reserva más famosa de África (la gran migración, jul–oct).", ["naturaleza", "aventura", "romance"]),
+    S("Nairobi", 1, 2, "Regreso a Nairobi para el vuelo internacional, sin correr.", ["compras"]),
+  ] },
+  { country: "Tanzania", aliases: ["tanzania"], stops: [
+    S("Kilimanjaro", 2, 1, "Llegada (JRO) y base en Arusha, al pie del Kilimanjaro.", ["naturaleza", "aventura"]),
+    S("Ngorongoro", 3, 1, "Safari en el cráter del Ngorongoro, cerca del Serengeti.", ["naturaleza", "aventura"]),
+    S("Zanzíbar", 4, 1, "Playas de arena blanca y Stone Town; salida (ZNZ).", ["playa", "relax", "romance", "historia"]),
+  ] },
+  { country: "Sudáfrica", aliases: ["sudafrica", "south africa"], stops: [
+    S("Ciudad del Cabo", 4, 1, "Table Mountain, el Cabo de Buena Esperanza y pingüinos; llegada (CPT).", ["naturaleza", "playa", "gastronomia"]),
+    S("Stellenbosch", 1, 3, "Ruta del vino a 50 min de Ciudad del Cabo.", ["vino", "gastronomia"]),
+    S("Kruger", 3, 1, "Safari de los Cinco Grandes en el Parque Kruger (vuelo a MQP).", ["naturaleza", "aventura"]),
+    S("Johannesburgo", 1, 2, "Conexión para el vuelo internacional (JNB).", ["historia"]),
+  ] },
+  { country: "Turquía", aliases: ["turquia", "turkey", "turkiye"], stops: [
+    S("Estambul", 4, 1, "Santa Sofía, la Mezquita Azul y el Gran Bazar; llegada (IST).", ["historia", "cultura", "gastronomia", "compras"]),
+    S("Capadocia", 2, 1, "Globos al amanecer y ciudades subterráneas (vuelo de 1 h 20).", ["aventura", "romance", "naturaleza"]),
+    S("Estambul", 1, 2, "Regreso a Estambul para el vuelo internacional.", ["compras"]),
+  ] },
+  { country: "Jordania", aliases: ["jordania", "jordan"], stops: [
+    S("Ammán", 2, 1, "Llegada (AMM), la Ciudadela y Jerash cerca.", ["historia", "cultura"]),
+    S("Petra", 2, 1, "La ciudad nabatea tallada en roca (3 h por carretera).", ["historia", "aventura"]),
+    S("Wadi Rum", 1, 2, "Noche en campamento en el desierto.", ["aventura", "naturaleza", "romance"]),
+    S("Ammán", 1, 2, "Regreso para el vuelo internacional (o el mar Muerto de camino).", ["relax"]),
+  ] },
+  { country: "Suiza", aliases: ["suiza", "switzerland"], stops: [
+    S("Zúrich", 2, 1, "Llegada (ZRH) y el casco antiguo junto al lago.", ["cultura", "compras"]),
+    S("Lucerna", 2, 2, "Puente de la Capilla y el monte Pilatus (50 min en tren).", ["naturaleza", "romance"]),
+    S("Interlaken", 3, 1, "Base para Jungfraujoch y Grindelwald (2 h en tren).", ["naturaleza", "aventura"]),
+    S("Zermatt", 2, 3, "El Matterhorn y el tren Glacier Express.", ["naturaleza", "romance"]),
+    S("Ginebra", 2, 2, "Lago Lemán y salida internacional (GVA).", ["cultura", "gastronomia"]),
+  ] },
+  { country: "Croacia", aliases: ["croacia", "croatia"], stops: [
+    S("Zagreb", 1, 3, "La capital y su ciudad alta.", ["cultura"]),
+    S("Split", 3, 1, "Palacio de Diocleciano y ferris a Hvar.", ["historia", "playa"]),
+    S("Dubrovnik", 3, 1, "Murallas y el Adriático; salida (DBV).", ["historia", "playa", "romance"]),
+  ] },
+  { country: "Vietnam", aliases: ["vietnam"], stops: [
+    S("Hanói", 3, 1, "Barrio Antiguo y comida callejera; llegada (HAN).", ["gastronomia", "cultura", "historia"]),
+    S("Ha Long", 1, 2, "Noche en barco entre los islotes de la bahía.", ["naturaleza", "romance"]),
+    S("Hoi An", 3, 1, "Ciudad de faroles y sastres (vuelo a Da Nang).", ["cultura", "playa", "gastronomia"]),
+    S("Ho Chi Minh", 2, 2, "Delta del Mekong y salida (SGN).", ["historia", "gastronomia"]),
+  ] },
+  { country: "Argentina", aliases: ["argentina"], stops: [
+    S("Buenos Aires", 3, 1, "Tango, San Telmo y parrillas; llegada (EZE).", ["gastronomia", "cultura", "nocturna"]),
+    S("Iguazú", 2, 2, "Las cataratas desde el lado argentino y brasileño.", ["naturaleza"]),
+    S("El Calafate", 3, 1, "Glaciar Perito Moreno en la Patagonia.", ["naturaleza", "aventura"]),
+    S("Buenos Aires", 1, 2, "Regreso para el vuelo internacional.", ["compras"]),
+  ] },
+  { country: "Chile", aliases: ["chile"], stops: [
+    S("Santiago de Chile", 2, 1, "Llegada (SCL) y viñedos del valle del Maipo.", ["vino", "gastronomia"]),
+    S("San Pedro de Atacama", 3, 1, "Desierto, géiseres del Tatio y cielos para ver estrellas.", ["naturaleza", "aventura"]),
+    S("Torres del Paine", 3, 2, "Caminatas en la Patagonia chilena (vuelo a Puerto Natales).", ["naturaleza", "aventura"]),
+    S("Santiago de Chile", 1, 2, "Regreso para el vuelo internacional.", ["compras"]),
+  ] },
+  { country: "Colombia", aliases: ["colombia"], stops: [
+    S("Bogotá", 2, 2, "Museo del Oro y La Candelaria; llegada (BOG).", ["cultura", "historia"]),
+    S("Medellín", 3, 1, "Comuna 13, Guatapé y la eterna primavera.", ["cultura", "naturaleza", "nocturna"]),
+    S("Cartagena", 3, 1, "Ciudad amurallada y las Islas del Rosario; salida (CTG).", ["historia", "playa", "romance"]),
+  ] },
   { country: "Europa", aliases: ["europa", "europe"], stops: [
     S("Madrid", 3, 1, "Llegada directa desde México (MAD) y El Prado.", ["arte", "gastronomia"]),
     S("París", 4, 1, "Louvre, Torre Eiffel y Montmartre.", ["arte", "romance"]),
