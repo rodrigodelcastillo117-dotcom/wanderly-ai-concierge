@@ -52,6 +52,7 @@ function ClaimCard({ c, envioActivo, onChanged }: { c: Claim; envioActivo: boole
       {c.reply?.resumen_es ? (
         <p className="text-xs rounded-xl border border-primary/25 bg-primary/[0.05] px-3 py-2">
           <span className="text-primary">Respuesta de {c.provider_name}:</span> {c.reply.resumen_es}
+          {c.reply.siguiente?.mensaje ? <span className="block mt-1 text-muted-foreground">{c.reply.siguiente.mensaje}</span> : null}
         </p>
       ) : null}
 

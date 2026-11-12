@@ -190,7 +190,25 @@ export function siguientePaso(d: DecisionRespuesta, ctx: { regimen?: string | nu
       };
     case "acuse_recibo":
       return { accion: "esperar", estado_sugerido: "respondido", mensaje: `Acusaron recibo${d.numero_caso_proveedor ? ` (caso ${d.numero_caso_proveedor})` : ""}. Sigo pendiente del plazo y te aviso.` };
-    default:
+    default: {
+      // Dijeron que aceptan, pero no lo damos por hecho (recorrido 12-nov-2026, C-WH9MRS: el aviso decía «acepta
+      // pagar 1500» y luego «no pudimos interpretarla»). Se explica por qué y qué hacer, sin contradecirse.
+      const monto = d.monto_ofrecido ? ` ${d.monto_ofrecido}${d.moneda ? ` ${d.moneda}` : ""}` : "";
+      const faltan = d.monto_ofrecido && !d.moneda ? " No dicen la moneda ni cuándo pagan." : "";
+      if (d.resultado === "acepto" && d.por_que === "remitente_no_verificado") {
+        return {
+          accion: "confirmar_pago", estado_sugerido: "necesita_usuario",
+          mensaje: `Dicen que aceptan pagar${monto}.${faltan} Como no pudimos comprobar que el correo venga de verdad de ellos, no lo damos por hecho todavía: avísame cuando veas el pago y cerramos el caso; si no llega, seguimos.`,
+          borrador: "Gracias por su respuesta. Para cerrar el caso, confirmen por escrito el monto, la moneda, la forma y la fecha de pago.",
+        };
+      }
+      if ((d.resultado === "acepto" || d.resultado === "ofrece_vale") && d.por_que === "sin_cita_verificable") {
+        return {
+          accion: "revisar", estado_sugerido: "necesita_usuario",
+          mensaje: `Parece que ${d.resultado === "acepto" ? `aceptan pagar${monto}` : "ofrecen un vale"}, pero no lo dicen con claridad en su correo. Revísalo tú y dime qué hacemos; no lo damos por aceptado.`,
+        };
+      }
       return { accion: "revisar", estado_sugerido: "necesita_usuario", mensaje: "Llegó una respuesta que no pudimos interpretar con seguridad. Revísala tú y dime qué hacemos; no la damos por aceptada." };
+    }
   }
 }

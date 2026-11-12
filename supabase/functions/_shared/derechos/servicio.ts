@@ -224,7 +224,15 @@ export async function confirmarEnvio(d: ReclamosDeps, userId: string, i: { id?: 
   if (i.cc_me && perfil.email) {
     await d.sendEmail({ to: perfil.email, subject: `Copia: ${c.subject}`, html: String(c.body_html), text: String(c.body_text), from: `IATOS Reclamos <${d.config.fromAddress ?? REMITENTE_RECLAMOS}>` }).catch(() => null);
   }
-  if (c.incident_id) await nucleo(d).evento(String(c.incident_id), { tipo: "reclamo_enviado", nota: `Enviado a ${c.provider_name} (${c.ref_code})` }).catch(() => null);
+  // La nota lleva a quién se envió y cuándo sale el recordatorio: el Operador no vuelve a pedir el correo del
+  // proveedor ni promete "te escribo en unas horas" (recorrido 12-nov-2026, folio C-WH9MRS).
+  const enviado = (mark.data?.claim ?? c) as Record<string, unknown>;
+  const recordatorio = typeof enviado.followup_at === "string" ? enviado.followup_at.slice(0, 10) : null;
+  if (c.incident_id) await nucleo(d).evento(String(c.incident_id), {
+    tipo: "reclamo_enviado",
+    nota: `Reclamo ${c.ref_code} ENVIADO por correo a ${c.provider_name} (${c.recipient_email}) con la autorización del viajero. Las respuestas llegan solas a IATOS y se le avisan.${recordatorio ? ` Si no responden, IATOS les manda un recordatorio automático el ${recordatorio}.` : ""}`,
+    datos: { claim_id: c.id, ref: c.ref_code, destinatario: c.recipient_email, recordatorio },
+  }).catch(() => null);
   if (c.incident_id) await nucleo(d).estado(String(c.incident_id), estadoIncidenteDe("enviado")).catch(() => null);
   return ok({ claim: mark.data?.claim ?? c });
 }
@@ -434,7 +442,14 @@ async function aplicarRespuesta(d: ReclamosDeps, c: Record<string, unknown>, inb
     const m = correoUsuario(`${c.provider_name} respondió tu reclamo ${c.ref_code}`, [decision.resumen_es || "Recibimos una respuesta.", paso.mensaje], d.config.appUrl);
     await d.sendEmail({ to: correoUsuarioDestino, subject: m.asunto, html: m.html, text: m.texto, from: `IATOS Reclamos <${d.config.fromAddress ?? REMITENTE_RECLAMOS}>` }).catch(() => null);
   }
-  if (c.incident_id) await nucleo(d).evento(String(c.incident_id), { tipo: "respuesta_proveedor", nota: paso.mensaje.slice(0, 400), datos: { resultado: decision.resultado_final } }).catch(() => null);
+  // La bitácora lleva lo que dijo el proveedor (resumen y cita textual): el Operador no pide permiso para "leer sus
+  // correos" (recorrido 12-nov-2026); IATOS ya leyó la respuesta y el viajero ya recibió el aviso.
+  const cita = decision.citas_verificadas?.[0] ? ` Cita: «${String(decision.citas_verificadas[0]).slice(0, 160)}».` : "";
+  if (c.incident_id) await nucleo(d).evento(String(c.incident_id), {
+    tipo: "respuesta_proveedor",
+    nota: `RESPUESTA de ${c.provider_name} al reclamo ${c.ref_code} (ya leída por IATOS; el viajero ya recibió este aviso por correo): ${decision.resumen_es || "—"}${cita} Siguiente paso: ${paso.mensaje}`.slice(0, 900),
+    datos: { resultado: decision.resultado_final, ref: c.ref_code, accion: paso.accion },
+  }).catch(() => null);
   return ok({ resultado: decision.resultado_final, siguiente: paso.accion, status: (ap.data.claim as Record<string, unknown>)?.status ?? null });
 }
 

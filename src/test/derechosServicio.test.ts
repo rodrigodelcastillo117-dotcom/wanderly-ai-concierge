@@ -26,10 +26,10 @@ function setup(opts: { flag?: boolean; modelo?: (payload: any) => any } = {}) {
   const db = fakeDb(state);
   const sent: Sent[] = [];
   const correos = new Map<string, any>();
-  const incidentes: Array<{ tipo: string; datos?: any }> = [];
+  const incidentes: Array<{ tipo: string; datos?: any; nota?: string }> = [];
   const nucleo: NucleoIncidentes = {
     crear: async (i) => { incidentes.push({ tipo: i.tipo, datos: i }); return { id: `inc-${incidentes.length}` }; },
-    evento: async (id, e) => { incidentes.push({ tipo: `evento:${id}:${e.tipo}` }); },
+    evento: async (id, e) => { incidentes.push({ tipo: `evento:${id}:${e.tipo}`, nota: e.nota }); },
     estado: async (id, s) => { incidentes.push({ tipo: `estado:${id}:${s}` }); },
   };
   const llamadasModelo: any[] = [];
@@ -140,6 +140,16 @@ describe("reclamo por correo de punta a punta (con dobles)", () => {
     const r2 = await webhook(t.deps, "evt_3", { email_id: "em-3", to: [`reclamos+${"1".padStart(24, "a")}@reply.traveliatos.life`] });
     expect(r2.body.resultado).toBe("otro");
     expect(t.db.claims.get(id)!.reply.por_que).toBe("remitente_no_verificado");
+    // El aviso no se contradice (recorrido 12-nov-2026): dice que aceptan, por qué no se da por hecho y qué hacer.
+    const msg = t.db.claims.get(id)!.reply.siguiente.mensaje as string;
+    expect(msg).toContain("Dicen que aceptan pagar 600 EUR.");
+    expect(msg).toContain("no lo damos por hecho");
+    expect(msg).not.toContain("no pudimos interpretar");
+    // La bitácora del caso trae lo que dijeron: el Operador no pide permiso para leer correos.
+    const nota = t.incidentes.filter((e) => e.tipo.endsWith(":respuesta_proveedor")).pop()?.nota ?? "";
+    expect(nota).toMatch(/^RESPUESTA de Iberia al reclamo C-[A-Z0-9]{6} \(ya leída por IATOS/);
+    expect(nota).toContain("Aceptan pagar 600 EUR.");
+    expect(nota).toContain("«We will pay 600 EUR»");
   });
 
   it("rechazo → listo para escalar, con la carta para la autoridad del país (AESA) que se crea solo si el usuario lo pide", async () => {
@@ -205,6 +215,15 @@ describe("correos que reenvía el usuario (casos+<token>@)", () => {
     expect(t.db.forward[0]).toMatchObject({ claim_id: id, sender_verified: true });
     // "Aceptó" no se da por hecho: el remitente original (la aerolínea) no se puede verificar en un reenvío.
     expect(r.body.resultado).toBe("otro");
+  });
+  it("al enviar, la bitácora del caso dice a quién se envió y cuándo sale el recordatorio (el Operador no vuelve a pedir el correo)", async () => {
+    const t = setup();
+    const prep = await prepararReclamoServicio(t.deps, USER, { caso: { problema: "servicio_deficiente", proveedor: { nombre: "Hotel Prueba", tipo: "hotel", pais: "MX", correo: "reservas@hotelprueba.example", correo_fuente: "usuario_confirmado" } } });
+    const id = (prep.body.claim as Row).id;
+    await confirmarEnvio(t.deps, USER, { id, confirm: true });
+    const ev = t.incidentes.find((e) => e.tipo.endsWith(":reclamo_enviado"));
+    expect(ev?.nota).toMatch(/ENVIADO por correo a Hotel Prueba \(reservas@hotelprueba\.example\)/);
+    expect(ev?.nota).toMatch(/recordatorio automático el \d{4}-\d{2}-\d{2}/);
   });
   it("estado dice si el envío por correo está encendido (la app enseña «Enviar en mi nombre» solo entonces)", async () => {
     expect((await estadoReclamos(setup({ flag: true }).deps, USER)).body.envio_activo).toBe(true);

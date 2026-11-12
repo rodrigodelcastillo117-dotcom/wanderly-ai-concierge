@@ -22,7 +22,7 @@ export type Claim = {
   body_text: string;
   sent_at: string | null;
   created_at: string;
-  reply?: { resumen_es?: string | null } | null;
+  reply?: { resumen_es?: string | null; siguiente?: { mensaje?: string | null } | null } | null;
 };
 
 export type ClaimsResult<T = Record<never, never>> = ({ ok: true } & T) | { ok: false; code: string; message?: string };
