@@ -42,9 +42,9 @@ describe("Mi mundo · países y ciudades de tus viajes", () => {
   });
 
   it("una ciudad sin coordenadas conocidas igual cuenta su país (no se geocodifica)", () => {
-    const m = buildMiMundo([T("x", "Hoi An", "Vietnam", "2025-01-10", "2025-01-15")], HOY);
+    const m = buildMiMundo([T("x", "Mui Ne", "Vietnam", "2025-01-10", "2025-01-15")], HOY);
     expect(m.ciudades).toEqual([]);
-    expect(m.sinCoordenadas).toEqual(["Hoi An"]);
+    expect(m.sinCoordenadas).toEqual(["Mui Ne"]);
     expect(m.paises).toEqual([expect.objectContaining({ name: "Vietnam", estado: "hecho" })]);
   });
 
