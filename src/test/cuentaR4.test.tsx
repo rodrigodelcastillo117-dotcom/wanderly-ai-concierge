@@ -101,7 +101,8 @@ describe("P2-3 · Menú lateral a 1366×768 y 1280×720", () => {
     renderLayout();
     const nav = screen.getByTestId("sidebar-nav");
     expect(within(nav).getAllByRole("link").map((a) => a.textContent)).toEqual([
-      "Inicio", "Mis viajes", "Cerca de ti", "Favoritos", "Recuerdos", "Social", "Gastos", "Mis reservas", "Documentos y tarjetas", "Concierge",
+      // Recuerdos, Gastos y Documentos y tarjetas pasaron a Mi perfil (12-nov-2026: «se ve muy lleno el lateral»).
+      "Inicio", "Mis viajes", "Cerca de ti", "Favoritos", "Social", "Mis reservas", "Concierge",
     ]);
     expect(screen.queryByTestId("sidebar-more-hint")).toBeNull(); // jsdom: todo cabe (0 de alto)
     let top = 0;
@@ -130,8 +131,8 @@ describe("P2-3 · Menú lateral a 1366×768 y 1280×720", () => {
 });
 
 describe("P2-5 · Un solo nombre por sección", () => {
-  it("Gastos: «Más», lateral, título de la pestaña y buzón dicen «Gastos»", () => {
-    expect(mobileMoreNav.find((n) => n.to === "/dashboard/gastos")?.label).toBe("Gastos");
+  it("Gastos: Mi perfil, título de la pestaña y buzón dicen «Gastos»", () => {
+    expect(src("src/pages/Profile.tsx")).toMatch(/to: "\/dashboard\/gastos", icon: Wallet, label: "Gastos"/);
     expect(titleForPath("/dashboard/gastos")).toBe("Gastos · IATOS");
     expect(screenName("/dashboard/gastos")).toBe("Gastos");
     expect(src("src/pages/Gastos.tsx")).toMatch(/<h1[^>]*>Gastos<\/h1>/);

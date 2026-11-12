@@ -31,18 +31,19 @@ it("la barra inferior tiene máx. 5 elementos, etiquetas ≥12px y áreas tácti
   expect(within(nav).getByRole("link", { name: "Planear un viaje nuevo" })).toHaveAttribute("href", "/dashboard/planear");
 });
 
-it("'Más' da acceso a todos los destinos que salieron de la barra (Favoritos, Cercanos, Social, Gastos…)", () => {
+it("'Más' da acceso a todos los destinos que salieron de la barra (Favoritos, Cercanos, Social, Mi perfil…)", () => {
   renderAt("/dashboard");
   fireEvent.click(screen.getByRole("button", { name: "Más" }));
   const dialog = screen.getByRole("dialog");
   for (const [name, href] of [
     ["Favoritos", "/dashboard/favoritos"], ["Cerca de ti", "/dashboard/cercanos"], ["Social", "/dashboard/social"],
-    ["Gastos", "/dashboard/gastos"], ["Mis reservas", "/dashboard/reservas"], ["Mi perfil", "/dashboard/perfil"],
-    ["Documentos y tarjetas", "/dashboard/beneficios"],
+    ["Mis reservas", "/dashboard/reservas"], ["Mi perfil", "/dashboard/perfil"],
   ]) {
     expect(within(dialog).getByRole("link", { name })).toHaveAttribute("href", href);
   }
   expect(within(dialog).getByRole("button", { name: /Cerrar sesión/ })).toBeInTheDocument();
+  // Gastos, Documentos y tarjetas y Recuerdos viven en Mi perfil (pedido del dueño, 12-nov-2026).
+  for (const name of ["Gastos", "Documentos y tarjetas", "Recuerdos"]) expect(within(dialog).queryByRole("link", { name })).toBeNull();
 });
 
 it("en el Concierge la página ocupa el alto restante sobre la barra (el compositor no queda oculto)", () => {

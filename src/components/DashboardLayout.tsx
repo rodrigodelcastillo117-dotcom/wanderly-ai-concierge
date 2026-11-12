@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home, Map, MapPin, Heart, Wallet, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, Vault, Images, MessageSquare, HelpCircle, ChevronDown, LifeBuoy } from "lucide-react";
+import { Home, Map, MapPin, Heart, Crown, ChevronRight, Plus, Users, LogOut, Settings, Sparkles, Menu, BookmarkCheck, User, Gem, MessageSquare, HelpCircle, ChevronDown, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadProfileBasics } from "@/lib/profileBasics";
 import { BackButton } from "@/components/BackButton";
@@ -63,19 +63,15 @@ export function shouldOpenPlanDialog(e: React.MouseEvent): boolean {
   return !(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
 }
 
+// Documentos y tarjetas, Gastos y Recuerdos se abren desde Mi perfil (dueño, 12-nov-2026: «se ve muy lleno el lateral»).
 const links = [
   { to: "/dashboard", icon: Home, label: "Inicio", end: true },
   { to: "/dashboard/viajes", icon: Map, label: "Mis viajes" },
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca de ti" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
-  // Recuerdos: fotos y videos por fecha y viaje (de ahí saca las fotos IATOS Wrapped).
-  { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   // En el celular está en «Más»; en escritorio faltaba (auditoría 10/10, P2-2).
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
-  // Documentos, membresías, tarjetas y seguros (antes "Beneficios").
-  { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   // "Concierge", no "Concierge Pro": la pestaña está abierta a todas las cuentas.
   { to: "/dashboard/concierge", icon: Crown, label: "Concierge" },
 ];
@@ -95,12 +91,8 @@ export const mobilePrimaryNav = [
 export const mobileMoreNav = [
   { to: "/dashboard/cercanos", icon: MapPin, label: "Cerca de ti" },
   { to: "/dashboard/favoritos", icon: Heart, label: "Favoritos" },
-  { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos" },
   { to: "/dashboard/social", icon: Users, label: "Social" },
-  // Mismo nombre que el lateral, el título de la pantalla, la pestaña y el buzón (ronda 4, P2-5).
-  { to: "/dashboard/gastos", icon: Wallet, label: "Gastos" },
   { to: "/dashboard/reservas", icon: BookmarkCheck, label: "Mis reservas" },
-  { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas" },
   { to: "/dashboard/pro", icon: Sparkles, label: "Plan IATOS PRO" },
   // Entrada discreta a IATOS Privé: /prive muestra a cada cuenta lo que le corresponde (adelanto,
   // progreso, invitación o candado), así que no se oculta a nadie.

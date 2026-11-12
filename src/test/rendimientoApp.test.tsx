@@ -185,14 +185,16 @@ describe("fotos al ancho de la caja", () => {
 describe("inicio sin saltos de diseño", () => {
   it("el hero ocupa su lugar mientras cargan los viajes y el esqueleto mide como el centro de mando", () => {
     const home = read("src/pages/DashboardHome.tsx");
-    expect(home).toMatch(/\{\(hasTrips \|\| active\.loading\) && \(/);
+    // La portada (video + «¿a dónde quieres ir?») va primero para todos y reserva su alto desde el inicio (12-nov-2026).
+    expect(home).toMatch(/data-testid="home-plan" className="relative[^"]*"/);
+    expect(home).toMatch(/className="relative z-10 flex flex-col justify-end min-h-\[420px\] md:min-h-\[480px\]/);
     expect(home).toMatch(/aria-label="Cargando tu viaje" className="[^"]*min-h-\[460px\]/);
     // Imágenes de abajo del pliegue con prioridad baja; el hero con prioridad alta y sin lazy.
     // (La tarjeta «Inspiración para ti» con tulum640 se quitó en «Inicio sencillo»: repetía «Ver todos» de Destinos.)
     expect(home).toMatch(/<DestinationVideo query=\{d\.image_query\} lowPriority/);
     expect(home).toMatch(/fallbackSrcSet=\{fallbackSrcSet\(HERO_REELS\[reelIdx\]\.fallback\)\}[\s\S]{0,80}priority/);
-    // Los ejemplos de un toque también reservan su fila mientras cargan los viajes.
-    expect(home).toMatch(/concierge\.trim\(\)\.length === 0 && \(hasTrips \|\| active\.loading\) && \(/);
+    // Sin la fila de ejemplos (se quitó de la portada, 12-nov-2026): nada aparece después y empuja la página.
+    expect(home).not.toMatch(/EXAMPLE_PROMPTS\.map/);
   });
 
   it("lo que puede ser LCP no entra desde opacidad 0 (eso lo retrasaba 0.7 s): solo se desliza o no se anima", () => {
@@ -203,7 +205,8 @@ describe("inicio sin saltos de diseño", () => {
     expect(read("src/pages/Landing.tsx")).toMatch(/<div className="max-w-3xl animate-rise">/);
     expect(read("src/components/TripCommandCenter.tsx")).toMatch(/className="animate-rise relative overflow-hidden/);
     const home = read("src/pages/DashboardHome.tsx");
-    expect(home).toMatch(/\{\(hasTrips \|\| active\.loading\) && \(\n\s*<section>/);
+    // La portada (imagen principal) no entra con animación.
+    expect(home).toMatch(/data-testid="home-plan" className="(?![^"]*animate-)[^"]*"/);
   });
 });
 

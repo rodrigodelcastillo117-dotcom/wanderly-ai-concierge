@@ -117,9 +117,17 @@ export const REDIRECCIONES: RedireccionCandado[] = [
 
 /** Menú lateral (escritorio): cada destino debe seguir ahí. */
 export const MENU_LATERAL = [
-  "/dashboard", "/dashboard/viajes", "/dashboard/cercanos", "/dashboard/favoritos", "/dashboard/recuerdos",
-  "/dashboard/social", "/dashboard/gastos", "/dashboard/reservas", "/dashboard/beneficios", "/dashboard/concierge",
+  "/dashboard", "/dashboard/viajes", "/dashboard/cercanos", "/dashboard/favoritos",
+  "/dashboard/social", "/dashboard/reservas", "/dashboard/concierge",
 ] as const;
+
+/**
+ * Lo tuyo, dentro de Mi perfil: Documentos y tarjetas, Gastos y Recuerdos. Salieron del menú lateral, de «Más»
+ * y de Inicio por pedido del dueño (12-nov-2026: «meter documentos y tarjetas, gastos, recuerdos al perfil…
+ * se ve muy lleno el lateral»). Las rutas siguen igual; se llega a un toque desde Perfil (que está en «Más» y
+ * en el menú de la cuenta).
+ */
+export const PERFIL_ACCESOS = ["/dashboard/beneficios", "/dashboard/gastos", "/dashboard/recuerdos"] as const;
 
 /** Fuera de la lista del menú lateral, pero en la misma barra: Planear (botón dorado), PRO, Privé y Ayuda. */
 export const MENU_LATERAL_EXTRAS = ["/dashboard/planear", "/dashboard/pro", "/prive", "/ayuda"] as const;
@@ -129,8 +137,8 @@ export const BARRA_INFERIOR = ["/dashboard", "/dashboard/viajes", "/dashboard/pl
 
 /** Hoja "Más" del celular. */
 export const MENU_MAS = [
-  "/dashboard/cercanos", "/dashboard/favoritos", "/dashboard/recuerdos", "/dashboard/social", "/dashboard/gastos",
-  "/dashboard/reservas", "/dashboard/beneficios", "/dashboard/pro", "/prive", "/dashboard/perfil", "/ayuda",
+  "/dashboard/cercanos", "/dashboard/favoritos", "/dashboard/social",
+  "/dashboard/reservas", "/dashboard/pro", "/prive", "/dashboard/perfil", "/ayuda",
 ] as const;
 
 /** Herramientas de Iato (concierge-chat/toolDefs.ts). Si una desaparece, Iato deja de poder hacerla. */

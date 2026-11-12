@@ -70,13 +70,14 @@ describe("P1-1 · Tus gastos (Inicio) = Gastos › Resumen", () => {
     expect(rest.pct).toBe(Math.round((restMxn / (expectedMxn())) * 100));
   });
 
-  it("Inicio muestra la misma cifra en MXN y los mismos % que el Resumen de Gastos", async () => {
+  it("Inicio ya no trae la tarjeta de gastos (vive en Mi perfil › Gastos) y el Resumen de Gastos cuadra con homeSpendCard", async () => {
+    // 12-nov-2026, pedido del dueño: «meter documentos y tarjetas, gastos, recuerdos al perfil… que ya no se vean en inicio».
     render(<MemoryRouter initialEntries={["/dashboard"]}><Routes><Route path="/dashboard" element={<DashboardHome />} /></Routes></MemoryRouter>);
-    const home = await screen.findByText((_, el) => el?.tagName === "P" && el.textContent === fmt(expectedMxn()), {}, { timeout: 5000 });
-    expect(home).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/USD/);
-    const homeText = document.body.textContent!;
-    const homeRest = homeText.match(/Restaurantes(\d+)%/)?.[1];
+    await screen.findByTestId("home-plan");
+    expect(screen.queryByText("Tus gastos")).toBeNull();
+    expect(screen.queryByText((_, el) => el?.tagName === "P" && el.textContent === fmt(expectedMxn()))).toBeNull();
+    const card = homeSpendCard(mergeMySpend(db.expenses, db.shares.map(sharedPartToItem)), FX_FALLBACK_TABLE);
+    const homeRest = String(card.cats.find((c) => c.label === "Restaurantes")!.pct);
 
     const items = mergeMySpend(db.expenses, db.shares.map(sharedPartToItem));
     const { container } = render(<SmartSpendPanel items={items} trips={[]} />);

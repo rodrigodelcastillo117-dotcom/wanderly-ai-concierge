@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import BenefitsVault from "@/components/BenefitsVault";
 import PromocionesActivas from "@/components/PromocionesActivas";
 import AvatarCreator from "@/components/AvatarCreator";
-import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, Inbox, FileUp, Trash2, UserRound, Vault, Users, Settings } from "lucide-react";
+import { Sparkles, LogOut, Wand2, RefreshCw, Crown, TrendingUp, BarChart3, Inbox, FileUp, Trash2, UserRound, Vault, Users, Settings, Wallet, Images } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OPINION_CTA } from "@/components/opinion/OpinionEntry";
 import { openOpinion } from "@/lib/opinionBus";
@@ -204,6 +204,23 @@ const Profile = () => {
             </p>
           )}
         </header>
+
+        {/* LO TUYO (dueño, 12-nov-2026): Documentos y tarjetas, Gastos y Recuerdos viven aquí, a un toque al abrir tu perfil;
+            salieron del menú lateral, de «Más» y de Inicio, que se veían muy llenos. Las direcciones son las mismas. */}
+        <nav aria-label="Lo tuyo" data-testid="perfil-accesos" className="grid grid-cols-3 gap-2 md:gap-3">
+          {([
+            { to: "/dashboard/beneficios", icon: Vault, label: "Documentos y tarjetas", hint: "Pasaporte, visas, membresías" },
+            { to: "/dashboard/gastos", icon: Wallet, label: "Gastos", hint: "Lo que llevas gastado" },
+            { to: "/dashboard/recuerdos", icon: Images, label: "Recuerdos", hint: "Fotos de tus viajes" },
+          ] as const).map(({ to, icon: Icon, label, hint }) => (
+            <Link key={to} to={to}
+              className="glass-card rounded-2xl p-3 md:p-4 flex flex-col items-start gap-1.5 min-h-[96px] hover:border-primary/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <Icon className="w-5 h-5 text-primary" aria-hidden="true" />
+              <span className="text-sm md:text-base font-medium leading-tight">{label}</span>
+              <span className="text-[11px] text-muted-foreground leading-snug hidden sm:block">{hint}</span>
+            </Link>
+          ))}
+        </nav>
 
         {/* PESTAÑAS (ronda 3, P2-5): antes todo iba en una página de ~9 pantallas. Cada pestaña tiene su
             título y una línea que dice qué hay; la dirección guarda la pestaña (#avatar, #documentos,

@@ -91,12 +91,12 @@ describe("Inicio sin viajes: guía del primer viaje", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/dashboard/planear?q=${encodeURIComponent("Oaxaca un fin de semana, 2 personas")}`));
   });
 
-  it("recomendaciones vacías y gastos vacíos explican qué hacer (sin $0.00 gigante)", async () => {
+  it("recomendaciones vacías explican qué hacer; los gastos ya no ocupan Inicio (sin $0.00 gigante)", async () => {
     renderHome();
     expect(await screen.findByRole("link", { name: /Explorar destinos/ })).toHaveAttribute("href", "/dashboard/descubre");
-    expect(await screen.findByText("Aún no registras gastos este mes")).toBeInTheDocument();
+    // 12-nov-2026: Gastos vive en Mi perfil; Inicio queda limpio.
+    expect(screen.queryByText("Aún no registras gastos este mes")).toBeNull();
     expect(screen.queryByText("$0.00")).toBeNull();
-    expect(screen.getByRole("button", { name: "Registrar un gasto" })).toBeInTheDocument();
   });
 });
 

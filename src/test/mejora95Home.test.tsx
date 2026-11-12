@@ -89,14 +89,15 @@ describe("Inicio de una cuenta nueva", () => {
     const labels = () => tiles().map((b) => b.textContent?.trim());
     // Ya no hay «Ver las 16»: nada queda escondido.
     expect(within(tools).queryByTestId("home-tools-toggle")).toBeNull();
-    // Las 16 de antes siguen (con «Comparar destinos» y «Documentos y tarjetas» como en el menú)…
+    // Las de antes siguen (Documentos y tarjetas y Recuerdos pasaron a Mi perfil el 12-nov-2026, pedido del dueño)…
     for (const l of ["Vuelos", "Hoteles", "Actividades", "Restaurantes", "Comparar destinos", "Convertidor de moneda", "eSIM",
-      "Documentos y tarjetas", "Autos", "Seguros", "Trenes", "Ferries", "Cruceros", "Cerca de ti", "Mis reservas", "Concierge"]) {
+      "Autos", "Seguros", "Trenes", "Ferries", "Cruceros", "Cerca de ti", "Mis reservas", "Concierge"]) {
       expect(labels(), `falta ${l}`).toContain(l);
     }
-    // …más Recuerdos, «Tu resumen del año» y «Tengo un problema». Sin viaje no se pintan las de un viaje.
-    for (const l of ["Recuerdos", "Tu resumen del año", "Tengo un problema"]) expect(labels()).toContain(l);
-    expect(tiles()).toHaveLength(19);
+    // …más «Tu resumen del año» y «Tengo un problema». Sin viaje no se pintan las de un viaje.
+    for (const l of ["Tu resumen del año", "Tengo un problema"]) expect(labels()).toContain(l);
+    for (const l of ["Documentos y tarjetas", "Recuerdos"]) expect(labels()).not.toContain(l);
+    expect(tiles()).toHaveLength(17);
     expect(labels()).not.toContain("Equipaje");
     expect(within(tools).getByTestId("home-tools-viaje")).toHaveTextContent(/aparecen aquí cuando tengas un viaje/);
     expect(within(screen.getByTestId("home-tools-antes")).getByRole("heading")).toHaveTextContent("Antes de viajar");
@@ -121,11 +122,11 @@ describe("Inicio de una cuenta nueva", () => {
 });
 
 describe("Inicio con viajes", () => {
-  it("el video «Planea un nuevo viaje» dice que abre el modo emoción (no es otro «Crear nuevo viaje»)", async () => {
+  it("en el video de la portada, «¿Aún sin destino? Planear por emoción» abre el modo emoción", async () => {
     db.trips = [{ id: PUEBLA, user_id: "u1", destino: "Puebla", pais_destino: "México", fecha_salida: localISODatePlus(5), fecha_regreso: localISODatePlus(7), created_at: "2026-01-01" }];
     renderHome();
-    expect(await screen.findByTestId("home-hero-texto")).toHaveTextContent(/qué quieres sentir/);
-    fireEvent.click(screen.getByRole("button", { name: "Planear por emoción" }));
+    expect(await screen.findByTestId("home-emocion")).toHaveTextContent(/¿Aún sin destino\? Planear por emoción/);
+    fireEvent.click(screen.getByTestId("home-emocion"));
     expect(await screen.findByTestId("where")).toHaveTextContent("/dashboard/planear?mode=emocion");
   });
 

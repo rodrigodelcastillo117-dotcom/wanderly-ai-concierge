@@ -19,7 +19,8 @@ vi.mock("@/components/NotificationBell", () => ({ NotificationBell: () => null }
 
 import App from "@/App";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { BARRA_INFERIOR, MENU_LATERAL, MENU_LATERAL_EXTRAS, MENU_MAS } from "./candadoInventario";
+import { readFileSync } from "node:fs";
+import { BARRA_INFERIOR, MENU_LATERAL, MENU_LATERAL_EXTRAS, MENU_MAS, PERFIL_ACCESOS } from "./candadoInventario";
 
 // ─── El árbol de rutas de App (para saber si un enlace del menú lleva a una pantalla que existe) ────────
 function findRoutesElement(node: ReactNode): ReactElement | null {
@@ -85,9 +86,22 @@ describe("CANDADO · menús", () => {
     openMore();
     const todos = Array.from(new Set(Array.from(document.querySelectorAll("a[href]")).map((a) => a.getAttribute("href")!)))
       .filter((h) => h.startsWith("/"));
-    expect(todos.length).toBeGreaterThan(14);
+    expect(todos.length).toBeGreaterThan(11);
     const rotos = todos.filter((h) => !existe(h));
     expect(rotos, `Enlaces del menú a pantallas que no existen: ${rotos.join(", ")}`).toEqual([]);
+  });
+
+  it("Documentos y tarjetas, Gastos y Recuerdos están a un toque desde Mi perfil (que está en «Más») y llevan a pantallas que existen", () => {
+    renderLayout();
+    openMore();
+    expect(hrefs(dialog()!)).toContain("/dashboard/perfil");
+    const perfil = readFileSync("src/pages/Profile.tsx", "utf8");
+    const bloque = perfil.slice(perfil.indexOf('data-testid="perfil-accesos"'));
+    expect(bloque.length).toBeLessThan(perfil.length);
+    for (const to of PERFIL_ACCESOS) {
+      expect(bloque, `falta ${to} en Mi perfil`).toContain(`"${to}"`);
+      expect(existe(to), `${to} no existe`).toBe(true);
+    }
   });
 
   it("el buzón de opiniones se abre desde el menú lateral y desde «Más»", async () => {
