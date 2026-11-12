@@ -79,8 +79,8 @@ Se registra un **segundo webhook** en Resend apuntando a `reclamos-inbound` (sec
 
 ## 4. Pendientes para activar
 1. Aplicar la migración `20261029090000_reclamos.sql`; desplegar `reclamos`, `reclamos-inbound`, `reclamos-cron` y `concierge-chat`, `reservations-inbound`, `ai-reservations`, `ai-reservations-cron` (comparten `_shared/ai-reservations/service.ts`).
-2. Resend: segundo webhook `email.received` → `reclamos-inbound`; secreto `RECLAMOS_INBOUND_SECRET`. Verificar que `reclamos@traveliatos.life` pueda enviar (o fijar `RECLAMOS_FROM_ADDRESS`).
+2. ~~Hecho 12-nov-2026~~ Resend: segundo webhook `email.received` → `reclamos-inbound`; secreto `RECLAMOS_INBOUND_SECRET`. Verificar que `reclamos@traveliatos.life` pueda enviar (o fijar `RECLAMOS_FROM_ADDRESS`).
 3. pg_cron diario para `reclamos-cron` (mismo patrón que `ai-reservations-cron`): `docs/ops/programar-reclamos.sql` (tarea `reclamos-seguimiento-diario`, 15:41 UTC = 09:41 en CDMX).
 4. Conectar `nucleoDesdeEntorno` al núcleo de incidentes.
-5. Encender `app_flags.reclamos_enabled` cuando el dueño lo apruebe.
+5. ~~Encender `app_flags.reclamos_enabled`~~ Encendida el 12-nov-2026 con la aprobación del dueño (webhook `email.received` → `reclamos-inbound` y secreto `RECLAMOS_INBOUND_SECRET` puestos por el dueño; `reclamos-cron` ya programado).
 6. ~~Botón de confirmar envío en la app~~ Hecho (11-nov-2026): Concierge › Mis solicitudes › **Mis reclamos** (`src/components/concierge/MyClaims.tsx`): ver y copiar la carta, abrir el formulario oficial, «Ya la envié», «Ya me resolvieron» y «Enviar en mi nombre» con confirmación (solo si `estado` devuelve `envio_activo`, es decir, con la bandera encendida y correo verificado).
