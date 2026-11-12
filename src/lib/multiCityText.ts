@@ -34,16 +34,23 @@ type Entry = { name: string; country: string | null };
 // Nombre normalizado → ciudad para mostrar (con acentos). Los aeropuertos primero: su nombre es el
 // que usan Google Flights, los hoteles por ciudad y sameCity.
 const CATALOG = new Map<string, Entry>();
+// Nombres de lugar que también son nombres de persona («con mi hija Sofía», «con Petra»): no se leen como parada
+// (revisión 12-nov-2026: «Viaje a Madrid con Sofia» salía Madrid → Sofía, Bulgaria).
+const PERSON_NAMES = new Set(["sofia", "petra"]);
 const add = (alias: string, e: Entry) => {
   const k = norm(alias);
+  if (PERSON_NAMES.has(k)) return;
   // Alias de 1–2 letras ("la" = Los Ángeles, "df") chocan con palabras comunes de una frase.
   if (k.length < 3 || CATALOG.has(k)) return;
   CATALOG.set(k, e);
 };
+// Una región con su propia ruta («Sicilia», «Provenza», «Algarve», «Cinque Terre») no se lee como una sola ciudad
+// aunque un aeropuerto o pueblo se llame así o la tenga de alias (Catania, Marsella…).
+const skipCatalog = (alias: string) => PERSON_NAMES.has(norm(alias)) || !!findRegion(alias);
 for (const c of AIRPORT_CITIES) {
   const e = { name: c.name, country: c.country };
-  add(c.name, e);
-  for (const a of c.aliases ?? []) add(a, e);
+  if (!skipCatalog(c.name)) add(c.name, e);
+  for (const a of c.aliases ?? []) if (!skipCatalog(a)) add(a, e);
 }
 // El catálogo de recuerdos tiene lugares que son países o regiones ("India", "Egipto", "Costa Rica"):
 // no son ciudades (caso "india" → un hotel "india · 14 noches").
@@ -60,7 +67,7 @@ for (const r of ROUTE_CITIES) add(r.city, { name: r.city, country: r.country });
 // "Como" (lago de Como) es una palabra común en español ("como base"): no se agrega. Los pueblos de
 // México (Tepoztlán, Valle de Bravo…) siguen como antes: son viajes de un destino que lee analizar-viaje.
 const TOWN_SKIP = new Set(["como"]);
-for (const t of AIRPORT_TOWNS) if (t.iso2 !== "MX" && !TOWN_SKIP.has(norm(t.name)) && !isCountryName(t.name)) add(t.name, { name: t.name, country: null });
+for (const t of AIRPORT_TOWNS) if (t.iso2 !== "MX" && !TOWN_SKIP.has(norm(t.name)) && !isCountryName(t.name) && !skipCatalog(t.name)) add(t.name, { name: t.name, country: null });
 // Nombres en inglés de ciudades del selector que la gente escribe así (caso Diego: "Cape Town" se leía
 // como el país Sudáfrica por un alias del catálogo de recuerdos). Solo ciudades que ya están en el catálogo.
 // Ciudades y pueblos de México para viajes por carretera (recorrido 9-nov-2026: «Road trip … a Saltillo y Zacatecas»

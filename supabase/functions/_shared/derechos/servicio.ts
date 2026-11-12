@@ -438,17 +438,19 @@ async function aplicarRespuesta(d: ReclamosDeps, c: Record<string, unknown>, inb
     await d.db.rpc("claim_inbound_finish", { _inbound_id: inboundId, _status: "failed", _outcome: "apply_failed" });
     return { status: 500, body: { ok: false, code: "APPLY_FAILED" } };
   }
+  let avisado = false;
   if (correoUsuarioDestino) {
     const m = correoUsuario(`${c.provider_name} respondió tu reclamo ${c.ref_code}`, [decision.resumen_es || "Recibimos una respuesta.", paso.mensaje], d.config.appUrl);
-    await d.sendEmail({ to: correoUsuarioDestino, subject: m.asunto, html: m.html, text: m.texto, from: `IATOS Reclamos <${d.config.fromAddress ?? REMITENTE_RECLAMOS}>` }).catch(() => null);
+    const r = await d.sendEmail({ to: correoUsuarioDestino, subject: m.asunto, html: m.html, text: m.texto, from: `IATOS Reclamos <${d.config.fromAddress ?? REMITENTE_RECLAMOS}>` }).catch(() => null);
+    avisado = r?.ok === true;
   }
   // La bitácora lleva lo que dijo el proveedor (resumen y cita textual): el Operador no pide permiso para "leer sus
   // correos" (recorrido 12-nov-2026); IATOS ya leyó la respuesta y el viajero ya recibió el aviso.
   const cita = decision.citas_verificadas?.[0] ? ` Cita: «${String(decision.citas_verificadas[0]).slice(0, 160)}».` : "";
   if (c.incident_id) await nucleo(d).evento(String(c.incident_id), {
     tipo: "respuesta_proveedor",
-    nota: `RESPUESTA de ${c.provider_name} al reclamo ${c.ref_code} (ya leída por IATOS; el viajero ya recibió este aviso por correo): ${decision.resumen_es || "—"}${cita} Siguiente paso: ${paso.mensaje}`.slice(0, 900),
-    datos: { resultado: decision.resultado_final, ref: c.ref_code, accion: paso.accion },
+    nota: `RESPUESTA de ${c.provider_name} al reclamo ${c.ref_code} (ya leída por IATOS; ${avisado ? "el viajero ya recibió este aviso por correo" : "el viajero TODAVÍA NO lo sabe: díselo"}): ${decision.resumen_es || "—"}${cita} Siguiente paso: ${paso.mensaje}`.slice(0, 900),
+    datos: { resultado: decision.resultado_final, ref: c.ref_code, accion: paso.accion, avisado },
   }).catch(() => null);
   return ok({ resultado: decision.resultado_final, siguiente: paso.accion, status: (ap.data.claim as Record<string, unknown>)?.status ?? null });
 }

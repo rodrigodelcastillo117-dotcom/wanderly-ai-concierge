@@ -129,7 +129,9 @@ async function callClaudeTool(system: string, user: string, toolName: string, sc
       // Haiku 5.5 razona por defecto y ese razonamiento cuenta como salida (~8k tokens en la parte general, 12-nov-2026):
       // llenar el esquema no lo necesita. Esfuerzo bajo = piensa poco o nada y responde antes.
       output_config: { effort: "low" },
-    }, { models: [PLAN_CLAUDE_MODEL], signal: AbortSignal.timeout(Math.max(10_000, timeoutMs)) });
+    // Tope propio: si Claude se cuelga, a Gemini le quedan al menos ~15 s (revisión 12-nov-2026: con todo el tiempo
+    // para Claude, un Claude lento dejaba sin respaldo a todas las ciudades).
+    }, { models: [PLAN_CLAUDE_MODEL], signal: AbortSignal.timeout(Math.max(8_000, Math.min(timeoutMs - 15_000, 30_000))) });
     if (!res.ok) {
       console.warn("logistics-plan: Claude", res.status, (await res.text().catch(() => "")).slice(0, 200));
       return null;
@@ -137,8 +139,11 @@ async function callClaudeTool(system: string, user: string, toolName: string, sc
     const data = await res.json();
     const u = usageFromClaude(data);
     if (u) logUsage({ user_id: null, function: "logistics-plan", provider: "anthropic", ...u }).catch(() => null);
+    // Respuesta cortada (max_tokens) = JSON incompleto: no se usa; sigue Gemini.
+    if (data?.stop_reason === "max_tokens") return null;
     const out = toolInput(data, toolName);
-    return out && typeof out === "object" ? out : null;
+    const required: string[] = Array.isArray(schema?.required) ? schema.required : [];
+    return out && typeof out === "object" && required.every((k) => k in (out as Record<string, unknown>)) ? out : null;
   } catch (e) {
     console.warn("logistics-plan: Claude", (e as Error)?.message);
     return null;

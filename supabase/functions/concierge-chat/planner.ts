@@ -130,9 +130,13 @@ export function specialDiningPhrase(message: unknown): string | null {
  */
 export function disruptionTiming(message: string): "ahora" | "hipotetica" | "pasada" {
   const m = normText(message);
+  // Con la coma: «Sí, mi vuelo está retrasado» (normText quita acentos y signos: «sí,» y «si» se verían igual).
+  const raw = String(message ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const pastVerb = /\b(se retraso|se cancelo|se demoro|cancelaron|retrasaron|demoraron|fue cancelado|estuvo retrasado|llego tarde|llegamos tarde|salio tarde|salimos tarde|nos cancelaron|me cancelaron|perdi|perdimos)\b/.test(m);
-  const now = /\b(hoy|ahorita|ahora mismo|acaban? de|estoy en el aeropuerto|estamos en el aeropuerto|en la sala|en la puerta)\b/.test(m);
-  if (!pastVerb && /\b(si|en caso de que?|que pasa si|que hago si)\b.{0,30}\b(retras|cancel|demor|overbook|sobreventa|pierdo|perdemos)\w*/.test(m)) return "hipotetica";
+  const now = /\b(hoy|ahorita|ahora mismo|acaban? de|estoy en el aeropuerto|estamos en el aeropuerto|en la sala|en la puerta)\b/.test(m)
+    || /\b(esta|va|viene|sigue)\s+(retrasad|demorad|cancelad|atrasad)\w*/.test(m);
+  const condicional = /\b(si(?!\s*,)|en caso de que?|que pasa si|que hago si)\s+[^.!?]{0,30}?\b(retras|cancel|demor|overbook|sobreventa|pierdo|perdemos)\w*/.test(raw);
+  if (!pastVerb && !now && condicional) return "hipotetica";
   const pastDate = /\b(ayer|antier|anteayer|la semana pasada|el mes pasado|el ano pasado|hace \d+ (dias|semanas|meses))\b|\bel \d{1,2} de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/.test(m);
   const claim = /\b(reclam\w*|compensaci\w*|indemniz\w*|queja)\b/.test(m);
   if (pastVerb && !now && (pastDate || claim)) return "pasada";
@@ -334,11 +338,13 @@ const HEALTH_OR_DANGER = /\b(fiebre|me siento (muy )?mal|doctor|medico|hospital|
 /** Nota para el modelo: qué número de emergencias dar, según dónde está el viajero (nunca uno inventado). */
 export function emergencyNumberNote(i: Pick<PlanInput, "todayISO" | "place">, trip: Record<string, unknown> | null | undefined, city: string | null): string {
   const salida = iso(trip?.fecha_salida), regreso = iso(trip?.fecha_regreso);
-  const enViaje = !!salida && !!regreso && salida <= i.todayISO && i.todayISO <= regreso;
+  // Entre la salida y el regreso (sin contar esos días: puede seguir en casa o ya de vuelta) está en el viaje.
+  const enViaje = !!salida && !!regreso && salida < i.todayISO && i.todayISO < regreso;
   const place = typeof i.place === "string" && i.place.trim() ? i.place.trim() : null;
-  const donde = enViaje && city ? city : place;
-  const pais = donde ? (cityAirports(donde)?.country ?? donde) : null;
-  const e = pais ? getEmergency(pais) : null;
+  const lookup = (donde: string | null) => (donde ? getEmergency(cityAirports(donde)?.country ?? donde) : null);
+  // Primero donde ESTÁ (el lugar que compartió); la ciudad del viaje solo si no hay lugar conocido.
+  const porLugar = lookup(place);
+  const e = porLugar?.verified ? porLugar : enViaje && city ? lookup(city) : null;
   if (e?.verified && e.numbers) {
     const n = e.numbers;
     const detalle = n.policia === n.ambulancia && n.ambulancia === n.bomberos ? n.policia : `policía ${n.policia}, ambulancia ${n.ambulancia}, bomberos ${n.bomberos}`;
