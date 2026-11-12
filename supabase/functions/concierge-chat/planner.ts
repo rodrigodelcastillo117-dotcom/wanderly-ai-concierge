@@ -24,6 +24,7 @@ import { weatherRequested } from "../_shared/weather.ts";
 import { tripIsByLand } from "./actions.ts";
 import { requestedDestination } from "./turnPlace.ts";
 import { cityAirports } from "../_shared/airports.ts";
+import { getEmergency } from "../_shared/emergencyNumbers.ts";
 import { timeRequested } from "../_shared/worldClock.ts";
 import { requestedWhen, whenLabel } from "./requestedWhen.ts";
 export { tripIsByLand };
@@ -328,6 +329,24 @@ export function isInternational(f: TripFlight): boolean {
   return !(MX_AIRPORTS.test(a) && MX_AIRPORTS.test(b));
 }
 
+const HEALTH_OR_DANGER = /\b(fiebre|me siento (muy )?mal|doctor|medico|hospital|herid\w*|ambulancia|desmay\w*|dolor de pecho|no puedo respirar|me asaltaron|me robaron|peligro|emergencia)\b/;
+
+/** Nota para el modelo: qué número de emergencias dar, según dónde está el viajero (nunca uno inventado). */
+export function emergencyNumberNote(i: Pick<PlanInput, "todayISO" | "place">, trip: Record<string, unknown> | null | undefined, city: string | null): string {
+  const salida = iso(trip?.fecha_salida), regreso = iso(trip?.fecha_regreso);
+  const enViaje = !!salida && !!regreso && salida <= i.todayISO && i.todayISO <= regreso;
+  const place = typeof i.place === "string" && i.place.trim() ? i.place.trim() : null;
+  const donde = enViaje && city ? city : place;
+  const pais = donde ? (cityAirports(donde)?.country ?? donde) : null;
+  const e = pais ? getEmergency(pais) : null;
+  if (e?.verified && e.numbers) {
+    const n = e.numbers;
+    const detalle = n.policia === n.ambulancia && n.ambulancia === n.bomberos ? n.policia : `policía ${n.policia}, ambulancia ${n.ambulancia}, bomberos ${n.bomberos}`;
+    return `Número de emergencias donde está el viajero (${e.country}): ${detalle}. Si das un número, da ESTE; no otro país.`;
+  }
+  return "No sabemos en qué país está ahora el viajero: si das un número de emergencias, di «el número de emergencias local (911 en México, Estados Unidos y Canadá; 112 en Europa)», nunca uno solo como si fuera seguro.";
+}
+
 export function planTurn(i: PlanInput): TurnPlan {
   const plan: TurnPlan = { intents: i.intents, prefetch: [], notes: [], toolHints: [], suggestedActions: [], cards: [] };
   const has = (x: Intent) => i.intents.includes(x);
@@ -601,6 +620,10 @@ export function planTurn(i: PlanInput): TurnPlan {
     plan.suggestedActions.unshift({ type: "open_emergency", params: {} });
     plan.suggestedActions.push({ type: "fixer_request", params: { tipo: "other", titulo: "Ayuda urgente", detalle: i.message.slice(0, 400), ...(tripId ? { trip_id: tripId } : {}) } });
   }
+
+  // Número de emergencias del país donde ESTÁ el viajero (recorrido 12-nov-2026: «tengo fiebre y estoy en el hotel» con un
+  // viaje a Lisboa en contexto → «llama al 911»). Solo con un país de la lista cerrada; si no se sabe dónde está, los dos.
+  if (has("emergency") || HEALTH_OR_DANGER.test(normText(i.message))) plan.notes.push(emergencyNumberNote(i, trip, city));
 
   if (has("transport")) {
     // Fuera de los destinos del viaje, "transporte ahora" no es al hotel del viaje (salvo que lo nombre).
