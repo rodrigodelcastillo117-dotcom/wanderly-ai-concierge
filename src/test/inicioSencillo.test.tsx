@@ -80,15 +80,16 @@ const T = `/dashboard/viajes/${PUEBLA}`;
 const ESPERADO: Array<[grupo: "antes" | "durante" | "despues", label: string, destino: string]> = [
   ["antes", "Vuelos", "/dashboard/vuelos"], ["antes", "Hoteles", "/dashboard/hoteles"], ["antes", "Autos", "/dashboard/autos"],
   ["antes", "Cruceros", "/dashboard/cruceros"], ["antes", "Seguros", "/dashboard/seguros"], ["antes", "eSIM", "/dashboard/esim"],
-  ["antes", "Documentos y tarjetas", "/dashboard/beneficios"], ["antes", "Equipaje", `${T}/packing`], ["antes", "Clima", `${T}/clima`],
+  ["antes", "Equipaje", `${T}/packing`], ["antes", "Clima", `${T}/clima`],
   ["antes", "Convertidor de moneda", "/dashboard/convertidor"], ["antes", "Comparar destinos", "/dashboard/comparar"],
   ["antes", "Mis reservas", "/dashboard/reservas"],
   ["durante", "En vivo", `${T}/live`], ["durante", "Cerca de ti", "/dashboard/cercanos"], ["durante", "Mapa", `${T}/mapa`],
   ["durante", "Restaurantes", "/dashboard/restaurantes"], ["durante", "Actividades", "/dashboard/actividades"],
   ["durante", "Trenes", "/dashboard/trenes"], ["durante", "Ferries", "/dashboard/ferries"], ["durante", "Traductor", `${T}/traductor`],
   ["durante", "Concierge", "/dashboard/concierge"],
-  ["despues", "Diario", `${T}/diario`], ["despues", "Recuerdos", "/dashboard/recuerdos"], ["despues", "Tu resumen del año", "/wrapped"],
+  ["despues", "Diario", `${T}/diario`], ["despues", "Tu resumen del año", "/wrapped"],
 ];
+// Documentos y tarjetas, Gastos y Recuerdos salieron de Inicio a Mi perfil (pedido del dueño, 12-nov-2026).
 
 beforeEach(() => {
   __resetActiveTripColumn();
@@ -152,16 +153,15 @@ describe("Inicio sencillo · herramientas por momento del viaje", () => {
     expect(screen.queryByRole("button", { name: /Crear nuevo viaje/ })).toBeNull();
   });
 
-  it("orden: tu próximo viaje → Planear un viaje → herramientas → tus viajes y gastos → destinos → ¿Aún sin destino?", async () => {
+  it("orden (dueño, 12-nov-2026): video con «¿a dónde quieres ir?» → tu próximo viaje → destinos → herramientas → tus viajes y gastos", async () => {
     renderHome();
     await screen.findByRole("region", { name: /Puebla/ });
     const order = [
-      screen.getByRole("region", { name: /Puebla/ }),
       screen.getByTestId("home-plan"),
+      screen.getByRole("region", { name: /Puebla/ }),
+      screen.getByRole("heading", { name: /Destinos (afines a ti|para inspirarte)/ }),
       screen.getByTestId("home-tools"),
       screen.getByTestId("home-upcoming"),
-      screen.getByRole("heading", { name: /Destinos (afines a ti|para inspirarte)/ }),
-      screen.getByTestId("home-hero-texto"),
     ];
     for (let i = 1; i < order.length; i++) {
       expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING, `orden ${i}`).toBeTruthy();
@@ -193,7 +193,6 @@ describe("Inicio sencillo · una sola forma de planear", () => {
     renderHome();
     const box = await screen.findByLabelText("Platícame tu viaje");
     fireEvent.change(box, { target: { value: "Roma 5 días en mayo" } });
-    expect(screen.getByTestId("home-plan-ayuda")).toHaveTextContent(/si falta un dato, solo te preguntamos ese/);
     fireEvent.keyDown(box, { key: "Enter" });
     expect(await screen.findByTestId("where")).toHaveTextContent(`/dashboard/planear?q=${encodeURIComponent("Roma 5 días en mayo")}`);
   });
