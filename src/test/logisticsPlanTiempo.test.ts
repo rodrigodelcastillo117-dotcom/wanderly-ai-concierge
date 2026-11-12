@@ -31,5 +31,6 @@ describe("plan de varias ciudades: Claude Haiku primero (12-nov-2026)", () => {
     expect(src).toMatch(/const viaClaude = await callClaudeTool\(system, user, toolName, schema, timeoutMs\);\n\s+if \(viaClaude\) return viaClaude;/);
     expect(src).toMatch(/timeoutMs -= Date\.now\(\) - t0;/);
     expect(src).toMatch(/tools: \[\{ name: toolName, description: "Emite resultado", input_schema: schema \}\]/);
+    expect(src).toMatch(/output_config: \{ effort: "low" \}/);
   });
 });

@@ -126,6 +126,9 @@ async function callClaudeTool(system: string, user: string, toolName: string, sc
       messages: [{ role: "user", content: user }],
       tools: [{ name: toolName, description: "Emite resultado", input_schema: schema }],
       tool_choice: { type: "auto" },
+      // Haiku 5.5 razona por defecto y ese razonamiento cuenta como salida (~8k tokens en la parte general, 12-nov-2026):
+      // llenar el esquema no lo necesita. Esfuerzo bajo = piensa poco o nada y responde antes.
+      output_config: { effort: "low" },
     }, { models: [PLAN_CLAUDE_MODEL], signal: AbortSignal.timeout(Math.max(10_000, timeoutMs)) });
     if (!res.ok) {
       console.warn("logistics-plan: Claude", res.status, (await res.text().catch(() => "")).slice(0, 200));
