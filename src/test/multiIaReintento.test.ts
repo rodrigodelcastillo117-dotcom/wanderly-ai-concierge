@@ -19,4 +19,25 @@ describe("plan de varias ciudades: el modelo no se lleva todo el tiempo", () => 
     await callAIRetry(async (ms) => { tops.push(ms); return 1; }, () => 30_000);
     expect(tops).toEqual([30_000]);
   });
+  it("si tarda más de lo normal, lanza otra llamada en paralelo y gana la primera que conteste", async () => {
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let n = 0; let reintentos = 0;
+    const t0 = Date.now();
+    const r = await callAIRetry(async () => { n++; if (n === 1) { await wait(400); return "lenta"; } await wait(20); return "rápida"; }, () => 110_000, () => reintentos++, 50);
+    expect(r).toBe("rápida");
+    expect(n).toBe(2);
+    expect(reintentos).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(300);
+  });
+  it("si la segunda falla, espera a la primera", async () => {
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let n = 0;
+    const r = await callAIRetry(async () => { n++; if (n === 1) { await wait(150); return "primera"; } throw new Error("x"); }, () => 110_000, undefined, 30);
+    expect(r).toBe("primera");
+  });
+  it("una llamada normal no lanza una segunda", async () => {
+    let n = 0;
+    await callAIRetry(async () => { n++; return 1; }, () => 110_000);
+    expect(n).toBe(1);
+  });
 });
