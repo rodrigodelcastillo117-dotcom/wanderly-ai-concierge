@@ -173,6 +173,9 @@ verify_jwt = true
 [functions.resolver-fechas]
 verify_jwt = true
 
+[functions.fechas-baratas]
+verify_jwt = true
+
 [functions.send-email]
 verify_jwt = true
 

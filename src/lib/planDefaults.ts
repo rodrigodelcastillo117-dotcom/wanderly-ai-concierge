@@ -138,6 +138,41 @@ const MONTH_NAMES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "jul
  * Mes (y año) que dice la frase sin fechas exactas ("Toscana 5 días en abril 2027" → abril de 2027). Sin año,
  * el próximo abril. Se muestra en "Entendimos…" y se pide la salida en ese mes: no se inventa el día.
  */
+/**
+ * Día (o días) que dice la frase: «el 15 de diciembre», «diciembre 15», «del 12 al 20 de enero». Son fechas que la
+ * persona ESCRIBIÓ (no inventadas): el calendario se abre ahí con ese día marcado (pedido del dueño, 12-nov-2026:
+ * «cuando pones el mes o mes y fecha, que ya te mande en el calendario a el mes o mes y fecha»). Sin año, la
+ * próxima vez que llega ese día. Un día que no existe («31 de febrero») → null.
+ */
+export function dayOfText(text: string, today: Date = new Date()): { salida: string; regreso: string | null } | null {
+  const t = String(text ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const names = `${MONTH_NAMES.join("|")}|setiembre`;
+  const idx = (n: string) => (n === "setiembre" ? 8 : MONTH_NAMES.indexOf(n));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const mk = (d: number, mi: number, y: number | null): string | null => {
+    let year = y ?? today.getFullYear();
+    const iso = (yy: number) => `${yy}-${pad(mi + 1)}-${pad(d)}`;
+    if (y == null && iso(year) <= todayIso) year += 1;
+    const dt = new Date(year, mi, d);
+    return dt.getMonth() === mi && dt.getDate() === d ? iso(year) : null;
+  };
+  // «del 12 al 20 de enero (de 2027)»
+  let m = new RegExp(`\\b(\\d{1,2})\\s*(?:al|-|a)\\s*(\\d{1,2})\\s+de\\s+(${names})(?:\\s+(?:de|del)?\\s*(\\d{4}))?`).exec(t);
+  if (m) {
+    const y = m[4] ? Number(m[4]) : null;
+    const a = mk(Number(m[1]), idx(m[3]), y);
+    const b = a ? mk(Number(m[2]), idx(m[3]), y ?? Number(a.slice(0, 4))) : null;
+    return a ? { salida: a, regreso: b && b > a ? b : null } : null;
+  }
+  // «15 de diciembre (de 2026)» o «diciembre 15»
+  m = new RegExp(`\\b(\\d{1,2})\\s+de\\s+(${names})(?:\\s+(?:de|del)?\\s*(\\d{4}))?`).exec(t);
+  if (m) { const a = mk(Number(m[1]), idx(m[2]), m[3] ? Number(m[3]) : null); return a ? { salida: a, regreso: null } : null; }
+  m = new RegExp(`\\b(${names})\\s+(\\d{1,2})\\b(?!\\s*(?:dias|noches|personas|adultos))(?:\\s+(?:de|del)?\\s*(\\d{4}))?`).exec(t);
+  if (m && Number(m[2]) >= 1 && Number(m[2]) <= 31) { const a = mk(Number(m[2]), idx(m[1]), m[3] ? Number(m[3]) : null); return a ? { salida: a, regreso: null } : null; }
+  return null;
+}
+
 export function monthOfText(text: string, today: Date = new Date()): { month: number; year: number; label: string } | null {
   const t = String(text ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const m = new RegExp(`\\b(?:en|para|de|a finales de|a principios de|a mediados de)?\\s*(${MONTH_NAMES.join("|")}|setiembre)(?:\\s+(?:de|del)?\\s*(\\d{4}))?\\b`).exec(t);
