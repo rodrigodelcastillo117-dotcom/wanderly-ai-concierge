@@ -135,6 +135,7 @@ describe("Planear: el calendario se abre en el mes escrito y ofrece los días m�
     expect(within(paso).getAllByTestId("plan-fecha-barata")[0]).toHaveTextContent("7 abr → 16 abr");
     expect(within(paso).getAllByTestId("plan-fecha-barata")[0]).toHaveTextContent("vuelo desde $18,500");
     expect(screen.getByTestId("plan-continuar")).toBeDisabled(); // nada se elige solo
+    expect(screen.getByTestId("plan-continuar")).toHaveTextContent("Elige el día de salida"); // dice qué falta (Carlo)
     fireEvent.click(within(paso).getAllByTestId("plan-fecha-barata")[0]);
     expect((within(paso).getByLabelText("Salida") as HTMLInputElement).value).toBe("2027-04-07");
     expect((within(paso).getByLabelText("Regreso") as HTMLInputElement).value).toBe("2027-04-16");
@@ -159,6 +160,7 @@ describe("Planear: el calendario se abre en el mes escrito y ofrece los días m�
     const paso = await screen.findByTestId("plan-preguntas", {}, { timeout: 8000 });
     await waitFor(() => expect((within(paso).getByLabelText("Salida") as HTMLInputElement).value).toMatch(/^\d{4}-12-15$/));
     expect((within(paso).getByLabelText("Regreso") as HTMLInputElement).value).toBe("");
+    expect(screen.getByTestId("plan-continuar")).toHaveTextContent("Elige el día de regreso");
     expect(within(paso).getByTestId("plan-calendario").textContent).toMatch(/diciembre \d{4}/i);
     expect(calls.filter((c) => c.fn === "fechas-baratas" && /-12$/.test(String(c.body?.mes)))).toEqual([]); // sin «N días» no hay ventana que buscar
     // Segundo toque (posterior) = regreso.

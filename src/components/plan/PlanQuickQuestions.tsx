@@ -184,7 +184,10 @@ export function PlanQuickQuestions({ spec, onChange: onChangeRaw, onContinue, on
         </button>
         <Button type="button" onClick={onContinue} disabled={busy || pend.length > 0} data-testid="plan-continuar"
           className="h-12 bg-gradient-gold text-primary-foreground hover:opacity-90">
-          {pend.length > 0 ? `Falta ${pend.length === 1 ? "1 dato" : `${pend.length} datos`}` : "Continuar"}
+          {pend.length === 0 ? "Continuar"
+            // Carlo (13-nov-2026): «Falta 1 dato» no decía cuál. Ahora dice qué tocar.
+            : pend.length === 1 && pend[0].tipo === "fechas" ? (spec.fecha_salida ? "Elige el día de regreso" : "Elige el día de salida")
+            : pend.length === 1 ? "Contesta la pregunta de arriba" : `Contesta las ${pend.length} preguntas de arriba`}
         </Button>
       </div>
     </div>
